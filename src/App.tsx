@@ -52,6 +52,7 @@ import MockupShowcase from './components/MockupShowcase';
 import BudgetSimulator from './components/BudgetSimulator';
 import InteractiveContactModal from './components/InteractiveContactModal';
 import SegmentDemoShowcase from './components/SegmentDemoShowcase';
+import AtlasLogo from './components/AtlasLogo';
 
 export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -138,15 +139,8 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
           
           {/* Logo */}
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => scrollToSection('home')}>
-            <div className="relative flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-[#F5B301] to-[#b48400] text-gray-950 font-black text-lg shadow-md shadow-[#f5b30121]">
-              A
-              <div className="absolute inset-0.5 rounded border border-gray-950/20"></div>
-            </div>
-            <div>
-              <span className="font-display font-black text-sm tracking-widest text-white block uppercase">ATLAS DIGITAL</span>
-              <span className="text-[9px] text-[#9CA3AF] block leading-none font-medium">Sites que geram resultados</span>
-            </div>
+          <div onClick={() => scrollToSection('home')} className="cursor-pointer">
+            <AtlasLogo />
           </div>
 
           {/* Desktop Navigation Links */}
@@ -729,12 +723,7 @@ export default function App() {
           
           {/* Col 1: Brand details */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center justify-center w-8 h-8 rounded bg-[#F5B301] text-gray-950 font-black text-base">
-                A
-              </div>
-              <span className="font-display font-black text-sm tracking-widest text-white uppercase">ATLAS DIGITAL</span>
-            </div>
+            <AtlasLogo />
             <p className="text-[11px] text-gray-500 leading-relaxed">
               Especialistas em engenharia de conversão e sites de alto padrão para marmorarias, vidraçarias, energia solar e construtoras.
             </p>

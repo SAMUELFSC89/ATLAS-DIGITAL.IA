@@ -61,11 +61,13 @@ export default function MockupShowcase({ onSelectSegment, openContactModal }: Mo
         </button>
       </div>
 
-      {/* Main Mockup Container - Double Device Setup */}
-      <div className="relative mx-auto max-w-4xl px-4 select-none lg:h-[480px] flex flex-col lg:flex-row items-center justify-center gap-10">
+      {/* Main Mockup Container - Side-by-Side Laptop and Smartphone (Fully Responsive and No Overlaps) */}
+      <div className="relative mx-auto max-w-5xl px-4 select-none flex flex-col md:flex-row items-center md:items-end justify-center gap-8 lg:gap-12 pb-6 md:pb-12">
         
-        {/* LAPTOP MOCKUP */}
-        <div className="relative w-full max-w-[620px] aspect-[16/10] bg-[#111827] border-[10px] border-[#1e293b] rounded-t-2xl shadow-2xl overflow-hidden group">
+        {/* LAPTOP CONTAINER WRAPPER */}
+        <div className="relative w-full max-w-[480px] lg:max-w-[520px] shrink-0 mb-8 md:mb-0">
+          {/* LAPTOP MOCKUP */}
+          <div className="relative w-full aspect-[16/10] bg-[#111827] border-[10px] border-[#1e293b] rounded-t-2xl shadow-2xl overflow-hidden group">
           {/* Laptop Screen Top Camera Bar */}
           <div className="absolute top-0 inset-x-0 h-4 bg-[#1e293b] flex items-center justify-center z-20">
             <div className="w-1.5 h-1.5 rounded-full bg-[#030712]"></div>
@@ -322,14 +324,15 @@ export default function MockupShowcase({ onSelectSegment, openContactModal }: Mo
           </div>
         </div>
 
-        {/* LAPTOP KEYBOARD BASE - Adds amazing depth realism */}
-        <div className="hidden md:block absolute bottom-[-14px] left-[5%] right-[25%] lg:left-[5%] lg:right-[35%] h-[14px] bg-gradient-to-b from-[#1e293b] via-[#0f172a] to-[#020617] border-t border-slate-500 rounded-b-xl shadow-xl z-10 max-w-[560px]">
+        {/* LAPTOP KEYBOARD BASE - Nested dynamically within the laptop wrapper */}
+        <div className="hidden md:block absolute bottom-[-14px] left-[5%] right-[5%] h-[14px] bg-gradient-to-b from-[#1e293b] via-[#0f172a] to-[#020617] border-t border-slate-500 rounded-b-xl shadow-xl z-10">
           {/* Centered screen opening indentation */}
           <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-20 h-2 bg-[#020617] rounded-b-md"></div>
         </div>
+      </div>
 
-        {/* SMARTPHONE MOCKUP - Overlapping in front of laptop */}
-        <div className="relative lg:absolute lg:right-[5%] lg:bottom-[-20px] w-full max-w-[200px] aspect-[9/19] bg-[#090d16] border-[8px] border-[#1e293b] rounded-[32px] shadow-2xl overflow-hidden z-20 flex flex-col justify-between">
+        {/* SMARTPHONE MOCKUP - Placed side-by-side with laptop on PC/Tablet screens */}
+        <div className="relative w-full max-w-[160px] lg:max-w-[185px] aspect-[9/19] bg-[#090d16] border-[8px] border-[#1e293b] rounded-[32px] shadow-2xl overflow-hidden z-20 flex flex-col justify-between shrink-0 md:mb-[-14px]">
           
           {/* Dynamic Island / Speaker notch */}
           <div className="absolute top-1 left-1/2 transform -translate-x-1/2 w-16 h-3.5 bg-black rounded-full z-30 flex items-center justify-around px-2.5">
