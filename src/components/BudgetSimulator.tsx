@@ -129,7 +129,7 @@ export default function BudgetSimulator() {
       `*Recursos selecionados:*%0A${selectedFeaturesLabels}%0A%0A` +
       `Gostaria de solicitar o diagnóstico gratuito de escopo e receber a proposta!`;
 
-    return `https://wa.me/5511999999999?text=${message}`;
+    return `https://wa.me/5551994578544?text=${message}`;
   };
 
   return (

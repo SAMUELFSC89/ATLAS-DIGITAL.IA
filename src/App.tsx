@@ -51,6 +51,7 @@ import { PROBLEMS, SOLUTIONS, PORTFOLIO, STEPS, DIFFERENTIALS, TESTIMONIALS, TAR
 import MockupShowcase from './components/MockupShowcase';
 import BudgetSimulator from './components/BudgetSimulator';
 import InteractiveContactModal from './components/InteractiveContactModal';
+import SegmentDemoShowcase from './components/SegmentDemoShowcase';
 
 export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -468,6 +469,9 @@ export default function App() {
         </div>
       </section>
 
+      {/* SEÇÃO PREMIUM: VISUALIZAR MODELO INTERATIVO (DEMONSTRAÇÃO AO VIVO) */}
+      <SegmentDemoShowcase openContactWithPrefill={openContactWithPrefill} />
+
       {/* INTERACTIVE SCOPE BUILDER / CALCULATOR HIGHLIGHT */}
       <section id="simulador" className="py-20 relative">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -688,7 +692,7 @@ export default function App() {
             </button>
             
             <a
-              href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20solicitar%20uma%20an%C3%A1lise%20gratuita%20do%20meu%20site%20e%20saber%20dos%20or%C3%A7amentos."
+              href="https://wa.me/5551994578544?text=Ol%C3%A1!%20Gostaria%20de%20solicitar%20uma%20an%C3%A1lise%20gratuita%20do%20meu%20site%20e%20saber%20dos%20or%C3%A7amentos."
               target="_blank"
               rel="noopener noreferrer"
               className="w-full bg-slate-900 hover:bg-slate-800 border border-gray-800 text-white font-bold text-xs uppercase tracking-widest py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors"
@@ -778,8 +782,8 @@ export default function App() {
             <ul className="space-y-2.5 text-[11px]">
               <li className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-[#F5B301] shrink-0" />
-                <a href="https://wa.me/5511999999999" target="_blank" rel="noopener noreferrer" className="hover:text-[#F5B301] transition-colors">
-                  +55 (11) 99999-9999
+                <a href="https://wa.me/5551994578544" target="_blank" rel="noopener noreferrer" className="hover:text-[#F5B301] transition-colors">
+                  +55 (51) 99457-8544
                 </a>
               </li>
               <li className="flex items-center gap-2">
@@ -812,7 +816,7 @@ export default function App() {
 
       {/* FIXED FLOATING WHATSAPP BUTTON */}
       <a
-        href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20solicitar%20uma%20proposta%20comercial%20da%20Atlas%20Digital."
+        href="https://wa.me/5551994578544?text=Ol%C3%A1!%20Gostaria%20de%20solicitar%20uma%20proposta%20comercial%20da%20Atlas%20Digital."
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 z-40 bg-green-600 hover:bg-green-500 text-white p-3.5 rounded-full shadow-2xl transition-all hover:scale-110 active:scale-95 flex items-center justify-center group"

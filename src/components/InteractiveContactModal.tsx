@@ -93,7 +93,7 @@ export default function InteractiveContactModal({ isOpen, onClose, prefilledSubj
       `*Site atual:* ${website || 'Não possui'}%0A%0A` +
       `Gostaria de agendar o diagnóstico gratuito para iniciarmos o projeto!`;
     
-    return `https://wa.me/5511999999999?text=${formattedText}`;
+    return `https://wa.me/5551994578544?text=${formattedText}`;
   };
 
   return (

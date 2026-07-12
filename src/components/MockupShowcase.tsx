@@ -375,7 +375,7 @@ export default function MockupShowcase({ onSelectSegment, openContactModal }: Mo
 
                   {/* Immediate CTA on Mobile */}
                   <a 
-                    href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20um%20or%C3%A7amento%20de%20Marmoraria."
+                    href="https://wa.me/5551994578544?text=Ol%C3%A1!%20Gostaria%20de%20um%20or%C3%A7amento%20de%20Marmoraria."
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-2 bg-green-600 text-white font-bold py-1.5 px-2 rounded-full flex items-center justify-center gap-1 text-[8px] hover:bg-green-500 transition-colors"
@@ -422,7 +422,7 @@ export default function MockupShowcase({ onSelectSegment, openContactModal }: Mo
                   </div>
 
                   <a 
-                    href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20fazer%20uma%20simula%C3%A7%C3%A3o%20de%20energia%20solar."
+                    href="https://wa.me/5551994578544?text=Ol%C3%A1!%20Gostaria%20de%20fazer%20uma%20simula%C3%A7%C3%A3o%20de%20energia%20solar."
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-2 bg-green-600 text-white font-bold py-1.5 px-2 rounded-full flex items-center justify-center gap-1 text-[8px] hover:bg-green-500 transition-colors"
@@ -468,7 +468,7 @@ export default function MockupShowcase({ onSelectSegment, openContactModal }: Mo
                   </div>
 
                   <a 
-                    href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20um%20or%C3%A7amento%20de%20Vidra%C3%A7aria."
+                    href="https://wa.me/5551994578544?text=Ol%C3%A1!%20Gostaria%20de%20um%20or%C3%A7amento%20de%20Vidra%C3%A7aria."
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-2 bg-green-600 text-white font-bold py-1.5 px-2 rounded-full flex items-center justify-center gap-1 text-[8px] hover:bg-green-500 transition-colors"
