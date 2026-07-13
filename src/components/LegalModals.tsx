@@ -30,9 +30,9 @@ export default function LegalModals({ activeDoc, onClose }: LegalModalsProps) {
       case 'sobre':
         return {
           title: 'Sobre Nós',
-          subtitle: 'Conheça a Atlas Digital (Atlas Web Studio)',
+          subtitle: 'Conheça a Atlas Digital.ia',
           icon: <Users className="w-5 h-5 text-[#F5B301]" />,
-          text: `A Atlas Digital (também referida como Atlas Web Studio) é uma agência de tecnologia e engenharia de conversão digital de alto padrão. Somos especialistas em planejar, desenhar e programar sites, landing pages e ferramentas interativas voltadas especificamente para empresas da cadeia de construção civil e acabamentos, incluindo Marmorarias, Vidraçarias, Integradores de Energia Solar, Construtoras e Arquitetura.
+          text: `A Atlas Digital.ia é uma agência de tecnologia e engenharia de conversão digital de alto padrão. Somos especialistas em planejar, desenhar e programar sites, landing pages e ferramentas interativas voltadas especificamente para empresas da cadeia de construção civil e acabamentos, incluindo Marmorarias, Vidraçarias, Integradores de Energia Solar, Construtoras e Arquitetura.
 
 Nossa Missão:
 Nossa missão é impulsionar os resultados de vendas dos nossos clientes através de soluções digitais premium que combinam design sofisticado, excelente experiência de usuário e programação impecável (focada em velocidade, SEO e indexação rápida no Google).

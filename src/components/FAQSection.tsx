@@ -22,7 +22,7 @@ const FAQ_ITEMS: FAQItem[] = [
   },
   {
     question: 'Meu site aparecerá no Google?',
-    answer: 'Sim. Todos os sites desenvolvidos pela Atlas Web Studio seguem boas práticas de SEO (Search Engine Optimization), possuem estrutura otimizada para indexação e são enviados ao Google Search Console para facilitar sua indexação. Vale destacar que alcançar as primeiras posições depende de diversos fatores, como concorrência, conteúdo e estratégias contínuas de SEO.'
+    answer: 'Sim. Todos os sites desenvolvidos pela Atlas Digital.ia seguem boas práticas de SEO (Search Engine Optimization), possuem estrutura otimizada para indexação e são enviados ao Google Search Console para facilitar sua indexação. Vale destacar que alcançar as primeiras posições depende de diversos fatores, como concorrência, conteúdo e estratégias contínuas de SEO.'
   },
   {
     question: 'Posso solicitar alterações após a entrega?',
