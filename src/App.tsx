@@ -53,6 +53,8 @@ import BudgetSimulator from './components/BudgetSimulator';
 import InteractiveContactModal from './components/InteractiveContactModal';
 import SegmentDemoShowcase from './components/SegmentDemoShowcase';
 import AtlasLogo from './components/AtlasLogo';
+import FAQSection from './components/FAQSection';
+import LegalModals, { LegalDocType } from './components/LegalModals';
 
 export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -60,6 +62,7 @@ export default function App() {
   const [selectedPrefillSubject, setSelectedPrefillSubject] = useState<string>('');
   const [activeShowcaseSegment, setActiveShowcaseSegment] = useState<string>('Marmorarias');
   const [scrolled, setScrolled] = useState(false);
+  const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocType>(null);
 
   // Track header background on scroll
   useEffect(() => {
@@ -652,6 +655,9 @@ export default function App() {
         </div>
       </section>
 
+      {/* PERGUNTAS FREQUENTES */}
+      <FAQSection />
+
       {/* CTA FINAL */}
       <section className="py-24 relative overflow-hidden text-center bg-gradient-to-b from-[#0B0F19] to-[#111827] border-b border-gray-900">
         
@@ -719,7 +725,7 @@ export default function App() {
 
       {/* FOOTER */}
       <footer className="bg-[#090d16] border-t border-gray-900 py-12 md:py-16 text-gray-400 text-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 md:gap-12">
           
           {/* Col 1: Brand details */}
           <div className="space-y-4">
@@ -740,7 +746,17 @@ export default function App() {
             </div>
           </div>
 
-          {/* Col 2: Navigation Map */}
+          {/* Col 2: Institucional (New!) */}
+          <div className="space-y-3">
+            <h4 className="text-white font-bold uppercase tracking-wider text-[11px]">Institucional</h4>
+            <ul className="space-y-2 text-[11px] font-medium">
+              <li><button onClick={() => setActiveLegalDoc('sobre')} className="hover:text-[#F5B301] transition-colors text-left">Sobre Nós</button></li>
+              <li><button onClick={() => setIsContactModalOpen(true)} className="hover:text-[#F5B301] transition-colors text-left">Contato</button></li>
+              <li><button onClick={() => scrollToSection('faq')} className="hover:text-[#F5B301] transition-colors text-left">Perguntas Frequentes</button></li>
+            </ul>
+          </div>
+
+          {/* Col 3: Navigation Map */}
           <div className="space-y-3">
             <h4 className="text-white font-bold uppercase tracking-wider text-[11px]">Navegação</h4>
             <ul className="space-y-2 text-[11px] font-medium">
@@ -752,9 +768,20 @@ export default function App() {
             </ul>
           </div>
 
-          {/* Col 3: Target Segments */}
+          {/* Col 4: Legal (New!) */}
           <div className="space-y-3">
-            <h4 className="text-white font-bold uppercase tracking-wider text-[11px]">Setores Atendidos</h4>
+            <h4 className="text-white font-bold uppercase tracking-wider text-[11px]">Legal</h4>
+            <ul className="space-y-2 text-[11px] font-medium">
+              <li><button onClick={() => setActiveLegalDoc('privacidade')} className="hover:text-[#F5B301] transition-colors text-left">Política de Privacidade</button></li>
+              <li><button onClick={() => setActiveLegalDoc('termos')} className="hover:text-[#F5B301] transition-colors text-left">Termos de Uso</button></li>
+              <li><button onClick={() => setActiveLegalDoc('cookies')} className="hover:text-[#F5B301] transition-colors text-left">Política de Cookies</button></li>
+              <li><button onClick={() => setActiveLegalDoc('reembolso')} className="hover:text-[#F5B301] transition-colors text-left">Política de Cancelamento e Reembolso</button></li>
+            </ul>
+          </div>
+
+          {/* Col 5: Target Segments */}
+          <div className="space-y-3">
+            <h4 className="text-white font-bold uppercase tracking-wider text-[11px]">Setores</h4>
             <ul className="space-y-1.5 text-[11px]">
               {TARGET_SEGMENTS.map((seg, idx) => (
                 <li key={idx} className="flex items-center gap-1.5 text-gray-500">
@@ -765,7 +792,7 @@ export default function App() {
             </ul>
           </div>
 
-          {/* Col 4: Contact details */}
+          {/* Col 6: Contact details */}
           <div className="space-y-3">
             <h4 className="text-white font-bold uppercase tracking-wider text-[11px]">Fale Conosco</h4>
             <ul className="space-y-2.5 text-[11px]">
@@ -777,8 +804,8 @@ export default function App() {
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-[#F5B301] shrink-0" />
-                <a href="mailto:contato@atlasdigital.com.br" className="hover:text-[#F5B301] transition-colors">
-                  contato@atlasdigital.com.br
+                <a href="mailto:contato@atlasdigital.ia.br" className="hover:text-[#F5B301] transition-colors">
+                  contato@atlasdigital.ia.br
                 </a>
               </li>
               <li className="flex items-start gap-2 text-gray-500 leading-tight">
@@ -793,12 +820,14 @@ export default function App() {
         {/* Copyright */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-6 border-t border-gray-900/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] text-gray-600">
           <div>
-            &copy; {new Date().getFullYear()} Atlas Digital. Todos os direitos reservados. CNPJ: 00.000.000/0001-00.
+            &copy; {new Date().getFullYear()} Atlas Digital. Todos os direitos reservados. CNPJ: 66.204.635/0001-19.
           </div>
           <div className="flex gap-4">
-            <a href="#" className="hover:text-[#F5B301]">Política de Privacidade</a>
+            <button onClick={() => setActiveLegalDoc('privacidade')} className="hover:text-[#F5B301] cursor-pointer">Política de Privacidade</button>
             <span>&bull;</span>
-            <a href="#" className="hover:text-[#F5B301]">Termos de Uso</a>
+            <button onClick={() => setActiveLegalDoc('termos')} className="hover:text-[#F5B301] cursor-pointer">Termos de Uso</button>
+            <span>&bull;</span>
+            <button onClick={() => setActiveLegalDoc('reembolso')} className="hover:text-[#F5B301] cursor-pointer">Política de Reembolso</button>
           </div>
         </div>
       </footer>
@@ -823,6 +852,12 @@ export default function App() {
         isOpen={isContactModalOpen} 
         onClose={() => setIsContactModalOpen(false)}
         prefilledSubject={selectedPrefillSubject}
+      />
+
+      {/* LEGAL MODALS */}
+      <LegalModals 
+        activeDoc={activeLegalDoc} 
+        onClose={() => setActiveLegalDoc(null)} 
       />
 
     </div>

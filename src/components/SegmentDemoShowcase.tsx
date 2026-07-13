@@ -543,7 +543,7 @@ export default function SegmentDemoShowcase({ openContactWithPrefill }: SegmentD
                   <div className="flex-1 max-w-md mx-6 hidden md:block">
                     <div className="bg-slate-900 border border-slate-800 text-xs text-gray-400 py-1.5 px-4 rounded-xl text-center select-all font-mono truncate shadow-inner flex items-center justify-center gap-2">
                       <span className="text-gray-600 text-[10px]">https://</span>
-                      <span>{selectedSegment === 'marmoraria' ? 'imperial.marmoraria.demo.atlasdigital.com.br' : selectedSegment === 'solar' ? 'solaris.energia.demo.atlasdigital.com.br' : 'vitra.esquadrias.demo.atlasdigital.com.br'}</span>
+                      <span>{selectedSegment === 'marmoraria' ? 'imperial.marmoraria.demo.atlasdigital.ia.br' : selectedSegment === 'solar' ? 'solaris.energia.demo.atlasdigital.ia.br' : 'vitra.esquadrias.demo.atlasdigital.ia.br'}</span>
                     </div>
                   </div>
 
