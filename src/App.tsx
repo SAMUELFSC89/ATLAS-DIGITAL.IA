@@ -38,9 +38,6 @@ import {
   X,
   Phone,
   Mail,
-  Instagram,
-  Facebook,
-  Linkedin,
   ExternalLink,
   Play,
   Check,
@@ -733,17 +730,6 @@ export default function App() {
             <p className="text-[11px] text-gray-500 leading-relaxed">
               Especialistas em engenharia de conversão e sites de alto padrão para marmorarias, vidraçarias, energia solar e construtoras.
             </p>
-            <div className="flex gap-3 pt-1">
-              <a href="#" className="p-2 bg-gray-900/60 border border-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors" aria-label="instagram">
-                <Instagram className="w-3.5 h-3.5" />
-              </a>
-              <a href="#" className="p-2 bg-gray-900/60 border border-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors" aria-label="facebook">
-                <Facebook className="w-3.5 h-3.5" />
-              </a>
-              <a href="#" className="p-2 bg-gray-900/60 border border-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors" aria-label="linkedin">
-                <Linkedin className="w-3.5 h-3.5" />
-              </a>
-            </div>
           </div>
 
           {/* Col 2: Institucional (New!) */}
