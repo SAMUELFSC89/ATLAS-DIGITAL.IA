@@ -61,11 +61,11 @@ export default function MockupShowcase({ onSelectSegment, openContactModal }: Mo
         </button>
       </div>
 
-      {/* Main Mockup Container - Side-by-Side Laptop and Smartphone (Fully Responsive and No Overlaps) */}
-      <div className="relative mx-auto max-w-5xl px-4 select-none flex flex-col md:flex-row items-center md:items-end justify-center gap-8 lg:gap-12 pb-6 md:pb-12">
+      {/* Main Mockup Container - Laptop and Smartphone overlapping layout */}
+      <div className="relative mx-auto max-w-[500px] md:max-w-none px-4 select-none flex flex-col md:block items-center pb-12 md:pb-16 md:h-[420px] lg:h-[460px]">
         
         {/* LAPTOP CONTAINER WRAPPER */}
-        <div className="relative w-full max-w-[480px] lg:max-w-[520px] shrink-0 mb-8 md:mb-0">
+        <div className="relative w-full max-w-[460px] lg:max-w-[500px] md:absolute md:left-0 md:top-4 z-10 mb-8 md:mb-0">
           {/* LAPTOP MOCKUP */}
           <div className="relative w-full aspect-[16/10] bg-[#111827] border-[10px] border-[#1e293b] rounded-t-2xl shadow-2xl overflow-hidden group">
           {/* Laptop Screen Top Camera Bar */}
@@ -331,8 +331,8 @@ export default function MockupShowcase({ onSelectSegment, openContactModal }: Mo
         </div>
       </div>
 
-        {/* SMARTPHONE MOCKUP - Placed side-by-side with laptop on PC/Tablet screens */}
-        <div className="relative w-full max-w-[160px] lg:max-w-[185px] aspect-[9/19] bg-[#090d16] border-[8px] border-[#1e293b] rounded-[32px] shadow-2xl overflow-hidden z-20 flex flex-col justify-between shrink-0 md:mb-[-14px]">
+      {/* SMARTPHONE MOCKUP - Overlapping the laptop on desktop, centered below on mobile */}
+      <div className="relative mt-8 md:mt-0 md:absolute md:right-0 md:bottom-[-20px] lg:right-[-10px] lg:bottom-[-30px] w-full max-w-[150px] lg:max-w-[175px] aspect-[9/19] bg-[#090d16] border-[6px] md:border-[8px] border-[#1e293b] rounded-[24px] md:rounded-[32px] shadow-2xl overflow-hidden z-20 flex flex-col justify-between shrink-0">
           
           {/* Dynamic Island / Speaker notch */}
           <div className="absolute top-1 left-1/2 transform -translate-x-1/2 w-16 h-3.5 bg-black rounded-full z-30 flex items-center justify-around px-2.5">

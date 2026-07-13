@@ -129,7 +129,7 @@ export default function AtlasLogo({
 
         {/* Subtitle SITES QUE GERAM RESULTADOS */}
         {showSubtitle && (
-          <span className="text-[7px] md:text-[8px] text-gray-400 tracking-[0.18em] font-medium uppercase mt-1 leading-none">
+          <span className="hidden sm:inline-block text-[7px] md:text-[8px] text-gray-400 tracking-[0.18em] font-medium uppercase mt-1 leading-none">
             SITES QUE GERAM RESULTADOS
           </span>
         )}
