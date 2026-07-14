@@ -571,18 +571,29 @@ async function startServer() {
   });
 
   // Serve static files in production / Vite middleware in dev
-  if (process.env.NODE_ENV !== "production") {
+  // We check if process.env.NODE_ENV is "production", or if we are executing the bundled CJS file (inside dist)
+  const isProduction = 
+    process.env.NODE_ENV === "production" || 
+    __filename.includes("dist") || 
+    __filename.endsWith(".cjs");
+
+  if (isProduction) {
+    const distPath = __filename.includes("dist")
+      ? path.dirname(__filename)
+      : path.join(process.cwd(), 'dist');
+    
+    console.log(`Running in PRODUCTION mode. Serving static assets from: ${distPath}`);
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  } else {
+    console.log("Running in DEVELOPMENT mode with Vite middleware.");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
