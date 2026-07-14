@@ -52,63 +52,33 @@ export const PROBLEMS: ProblemItem[] = [
 export const SOLUTIONS: SolutionItem[] = [
   {
     id: 's1',
-    title: 'Design Premium',
-    description: 'Visual exclusivo e refinado que valoriza as fotos das suas obras e atrai clientes que pagam pelo alto padrão.',
-    iconName: 'Award'
+    title: 'Desenvolvimento de Sites',
+    description: 'Desenvolvemos plataformas corporativas e catálogos interativos de alto padrão com design exclusivo e sob medida. Focado em valorizar seus produtos, obras e projetos de luxo.',
+    iconName: 'Layout'
   },
   {
     id: 's2',
-    title: 'SEO Otimizado',
-    description: 'Estruturação avançada focada no ranqueamento do Google para buscas locais (ex: "marmoraria em São Paulo").',
+    title: 'SEO & Posicionamento',
+    description: 'Estratégia avançada de busca orgânica para ranqueamento regional no Google. Coloque sua empresa nas primeiras posições de busca local onde os melhores clientes estão.',
     iconName: 'TrendingUp'
   },
   {
     id: 's3',
-    title: 'Super Performance',
-    description: 'Código limpo de alta performance com carregamento ultra rápido de portfólios pesados.',
-    iconName: 'Gauge'
+    title: 'Automação com IA',
+    description: 'Implementamos sistemas inteligentes de triagem automática e assistentes virtuais de atendimento que qualificam os contatos e reduzem o tempo de resposta comercial a zero.',
+    iconName: 'Sparkles'
   },
   {
     id: 's4',
-    title: 'Hospedagem Dedicada',
-    description: 'Seu site sempre online, veloz e protegido em servidores em nuvem de última geração.',
-    iconName: 'Server'
+    title: 'Captação de Leads',
+    description: 'Engenharia completa de conversão (CRO) e funis de vendas de alto desempenho estruturados especificamente para gerar pedidos de orçamento qualificados de alto ticket.',
+    iconName: 'Target'
   },
   {
     id: 's5',
-    title: 'WhatsApp Estratégico',
-    description: 'Botões flutuantes e gatilhos posicionados para direcionar o cliente direto para o fechamento de orçamento.',
-    iconName: 'MessageSquareShare'
-  },
-  {
-    id: 's6',
-    title: 'Formulários Inteligentes',
-    description: 'Perguntas estratégicas que filtram curiosos e trazem leads qualificados detalhando o projeto deles.',
-    iconName: 'ClipboardList'
-  },
-  {
-    id: 's7',
-    title: 'Analytics Integrado',
-    description: 'Rastreamento de conversões para que você saiba exatamente de onde estão vindo seus melhores orçamentos.',
-    iconName: 'BarChart3'
-  },
-  {
-    id: 's8',
-    title: 'Segurança Máxima',
-    description: 'Certificado SSL gratuito de criptografia, backups frequentes e blindagem contra invasões.',
-    iconName: 'ShieldCheck'
-  },
-  {
-    id: 's9',
-    title: 'Google Maps Local',
-    description: 'Integração perfeita da sua localização para destacar seu raio de atendimento e atrair público regional.',
-    iconName: 'MapPin'
-  },
-  {
-    id: 's10',
-    title: 'Foco Total em CRO',
-    description: 'Gatilhos mentais de escassez, autoridade e prova social desenhados sob medida para conversão direta.',
-    iconName: 'MousePointerClick'
+    title: 'Diagnóstico Digital',
+    description: 'Análise profunda e consultoria de mercado. Mapeamos seus concorrentes locais, palavras-chave lucrativas e definimos a melhor estratégia antes de programar.',
+    iconName: 'SearchIcon'
   }
 ];
 

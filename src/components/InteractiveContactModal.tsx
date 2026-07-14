@@ -116,21 +116,21 @@ export default function InteractiveContactModal({ isOpen, onClose, prefilledSubj
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 15 }}
             transition={{ type: 'spring', duration: 0.5 }}
-            className="relative w-full max-w-lg bg-[#111827] border border-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 overflow-hidden z-10"
+            className="relative w-full max-w-lg bg-[#121214] border border-zinc-800 rounded-2xl shadow-2xl p-6 md:p-8 overflow-hidden z-10"
           >
             {/* Background Accent Gradients */}
-            <div className="absolute top-0 right-0 w-48 h-48 bg-[#F5B301] opacity-[0.03] rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute top-0 right-0 w-48 h-48 bg-[#E2B755] opacity-[0.03] rounded-full blur-3xl pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-600 opacity-[0.03] rounded-full blur-3xl pointer-events-none" />
 
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
               <div>
-                <span className="text-[9px] text-[#F5B301] uppercase tracking-widest font-mono font-bold">Diagnóstico Exclusivo</span>
+                <span className="text-[9px] text-[#E2B755] uppercase tracking-widest font-mono font-bold">Diagnóstico Exclusivo</span>
                 <h3 className="text-lg font-bold text-white font-display">Solicitar Análise Gratuita</h3>
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white transition-colors"
+                className="p-1.5 rounded-lg bg-gray-900 border border-zinc-800 text-gray-400 hover:text-white transition-colors"
                 id="close-modal-btn"
               >
                 <X className="w-4 h-4" />
@@ -155,9 +155,9 @@ export default function InteractiveContactModal({ isOpen, onClose, prefilledSubj
                   </p>
                 </div>
 
-                <div className="bg-[#0B0F19] border border-gray-800 rounded-xl p-3 text-left max-w-sm mx-auto">
-                  <div className="flex items-center gap-1.5 text-[#F5B301] font-bold text-[10px] uppercase font-mono mb-1">
-                    <Star className="w-3 h-3 text-[#F5B301] fill-[#F5B301]" />
+                <div className="bg-[#0B0B0E] border border-zinc-800 rounded-xl p-3 text-left max-w-sm mx-auto">
+                  <div className="flex items-center gap-1.5 text-[#E2B755] font-bold text-[10px] uppercase font-mono mb-1">
+                    <Star className="w-3 h-3 text-[#E2B755] fill-[#E2B755]" />
                     Próximo Passo
                   </div>
                   <p className="text-[10px] text-gray-400 leading-tight">
@@ -189,7 +189,7 @@ export default function InteractiveContactModal({ isOpen, onClose, prefilledSubj
                 {/* Progress Indicators */}
                 <div className="w-full h-1 bg-gray-950 rounded-full mb-6 overflow-hidden flex">
                   <div 
-                    className="bg-[#F5B301] transition-all duration-300 h-full"
+                    className="bg-[#E2B755] transition-all duration-300 h-full"
                     style={{ width: `${(step / 3) * 100}%` }}
                   />
                 </div>
@@ -236,8 +236,8 @@ export default function InteractiveContactModal({ isOpen, onClose, prefilledSubj
                               }}
                               className={`p-2.5 rounded-xl border text-xs font-medium text-left transition-all ${
                                 segment === seg
-                                  ? 'border-[#F5B301] bg-[#f5b3010b] text-white'
-                                  : 'border-gray-800 bg-[#0B0F19]/60 text-gray-400 hover:border-gray-700 hover:text-gray-300'
+                                  ? 'border-[#E2B755] bg-[#e2b7550b] text-white'
+                                  : 'border-zinc-800 bg-[#0B0B0E]/60 text-gray-400 hover:border-gray-700 hover:text-gray-300'
                               }`}
                             >
                               {seg}
@@ -269,7 +269,7 @@ export default function InteractiveContactModal({ isOpen, onClose, prefilledSubj
                               setCompanyName(e.target.value);
                               setError('');
                             }}
-                            className="w-full bg-[#0B0F19] border border-gray-800 rounded-xl py-2.5 px-4 text-xs text-white focus:outline-none focus:border-[#F5B301] transition-colors"
+                            className="w-full bg-[#0B0B0E] border border-zinc-800 rounded-xl py-2.5 px-4 text-xs text-white focus:outline-none focus:border-[#E2B755] transition-colors"
                           />
                         </div>
 
@@ -282,7 +282,7 @@ export default function InteractiveContactModal({ isOpen, onClose, prefilledSubj
                             placeholder="Ex: www.minhamarmoraria.com.br"
                             value={website}
                             onChange={(e) => setWebsite(e.target.value)}
-                            className="w-full bg-[#0B0F19] border border-gray-800 rounded-xl py-2.5 px-4 text-xs text-white focus:outline-none focus:border-[#F5B301] transition-colors"
+                            className="w-full bg-[#0B0B0E] border border-zinc-800 rounded-xl py-2.5 px-4 text-xs text-white focus:outline-none focus:border-[#E2B755] transition-colors"
                           />
                         </div>
                       </motion.div>
@@ -310,12 +310,12 @@ export default function InteractiveContactModal({ isOpen, onClose, prefilledSubj
                               setPhone(e.target.value);
                               setError('');
                             }}
-                            className="w-full bg-[#0B0F19] border border-gray-800 rounded-xl py-2.5 px-4 text-xs text-white focus:outline-none focus:border-[#F5B301] transition-colors"
+                            className="w-full bg-[#0B0B0E] border border-zinc-800 rounded-xl py-2.5 px-4 text-xs text-white focus:outline-none focus:border-[#E2B755] transition-colors"
                           />
                         </div>
 
-                        <div className="bg-gray-900/60 p-3 rounded-xl border border-gray-800 text-[10px] text-gray-400 leading-relaxed flex items-start gap-2">
-                          <Building2 className="w-4 h-4 text-[#F5B301] shrink-0" />
+                        <div className="bg-gray-900/60 p-3 rounded-xl border border-zinc-800 text-[10px] text-gray-400 leading-relaxed flex items-start gap-2">
+                          <Building2 className="w-4 h-4 text-[#E2B755] shrink-0" />
                           <span>
                             Sua privacidade está garantida. Seus dados serão usados exclusivamente por consultores da <strong>Atlas Digital</strong> para formular o seu diagnóstico técnico.
                           </span>
@@ -327,7 +327,7 @@ export default function InteractiveContactModal({ isOpen, onClose, prefilledSubj
                 </div>
 
                 {/* Footer buttons */}
-                <div className="flex justify-between items-center mt-8 pt-4 border-t border-gray-800">
+                <div className="flex justify-between items-center mt-8 pt-4 border-t border-zinc-800">
                   <div>
                     {step > 1 && (
                       <button
@@ -344,7 +344,7 @@ export default function InteractiveContactModal({ isOpen, onClose, prefilledSubj
                       <button
                         type="button"
                         onClick={handleNextStep}
-                        className="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-white text-xs font-semibold py-2.5 px-5 rounded-xl flex items-center gap-1 hover:scale-105 transition-all"
+                        className="bg-gray-900 hover:bg-gray-800 border border-zinc-800 text-white text-xs font-semibold py-2.5 px-5 rounded-xl flex items-center gap-1 hover:scale-105 transition-all"
                       >
                         Avançar
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -354,7 +354,7 @@ export default function InteractiveContactModal({ isOpen, onClose, prefilledSubj
                         type="button"
                         onClick={handleSubmit}
                         disabled={submitting}
-                        className="bg-[#F5B301] text-[#0B0F19] text-xs font-black py-2.5 px-6 rounded-xl flex items-center gap-1 hover:scale-105 disabled:opacity-50 disabled:scale-100 transition-all shadow-lg shadow-[#f5b3011e]"
+                        className="bg-[#E2B755] text-[#0B0B0E] text-xs font-black py-2.5 px-6 rounded-xl flex items-center gap-1 hover:scale-105 disabled:opacity-50 disabled:scale-100 transition-all shadow-lg shadow-[#e2b7551e]"
                       >
                         {submitting ? 'Processando...' : 'Finalizar Solicitação'}
                         {!submitting && <Check className="w-3.5 h-3.5 stroke-[3]" />}

@@ -52,6 +52,7 @@ import SegmentDemoShowcase from './components/SegmentDemoShowcase';
 import AtlasLogo from './components/AtlasLogo';
 import FAQSection from './components/FAQSection';
 import LegalModals, { LegalDocType } from './components/LegalModals';
+import AtlasScoreModule from './components/AtlasScoreModule';
 
 export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -88,7 +89,7 @@ export default function App() {
   };
 
   // Icon mapping helper
-  function renderIcon(name: string, className = "w-6 h-6 text-[#F5B301]") {
+  function renderIcon(name: string, className = "w-6 h-6 text-[#E2B755]") {
     switch (name) {
       case 'ZapOff': return <ZapOff className={className} />;
       case 'SearchCode': return <SearchCode className={className} />;
@@ -126,14 +127,14 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-[#E5E7EB] font-sans antialiased overflow-x-hidden selection:bg-[#F5B301]/30 selection:text-white">
+    <div className="min-h-screen bg-[#0B0B0E] text-[#F3F4F6] font-sans antialiased overflow-x-hidden selection:bg-[#E2B755]/20 selection:text-white">
       
       {/* HEADER / NAVIGATION */}
       <header 
         className={`fixed top-0 inset-x-0 z-40 transition-all duration-300 ${
           scrolled 
-            ? 'bg-[#0B0F19]/90 backdrop-blur-md border-b border-gray-900/80 py-3 shadow-lg' 
-            : 'bg-transparent py-5'
+            ? 'bg-[#0B0B0E]/95 backdrop-blur-md border-b border-zinc-900/60 py-3.5 shadow-xl' 
+            : 'bg-transparent py-6'
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
@@ -144,27 +145,27 @@ export default function App() {
           </div>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-8 text-xs font-semibold tracking-wider uppercase text-gray-300">
-            <button onClick={() => scrollToSection('home')} className="hover:text-[#F5B301] transition-colors">Início</button>
-            <button onClick={() => scrollToSection('problemas')} className="hover:text-[#F5B301] transition-colors">Problemas</button>
-            <button onClick={() => scrollToSection('solucoes')} className="hover:text-[#F5B301] transition-colors">Soluções</button>
-            <button onClick={() => scrollToSection('portfolio')} className="hover:text-[#F5B301] transition-colors">Portfólio</button>
-            <button onClick={() => scrollToSection('processo')} className="hover:text-[#F5B301] transition-colors">Como Funciona</button>
-            <button onClick={() => scrollToSection('diferenciais')} className="hover:text-[#F5B301] transition-colors">Sobre</button>
-            <button onClick={() => scrollToSection('simulador')} className="text-[#F5B301] hover:text-white font-bold flex items-center gap-1 transition-colors">
-              <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-              Simulador
+          <nav className="hidden lg:flex items-center gap-8 text-[11px] font-medium tracking-widest uppercase text-zinc-400">
+            <button onClick={() => scrollToSection('home')} className="hover:text-white transition-colors">Início</button>
+            <button onClick={() => scrollToSection('solucoes')} className="hover:text-white transition-colors">Soluções</button>
+            <button onClick={() => scrollToSection('portfolio')} className="hover:text-white transition-colors">Portfólio</button>
+            <button onClick={() => scrollToSection('diagnostico')} className="text-zinc-200 hover:text-white transition-all font-semibold flex items-center gap-1.5 border border-zinc-800 rounded-full px-3 py-1 bg-zinc-900/30 hover:bg-zinc-900/80">
+              <Award className="w-3.5 h-3.5" />
+              Atlas Score
             </button>
+            <button onClick={() => scrollToSection('processo')} className="hover:text-white transition-colors">Como Funciona</button>
+            <button onClick={() => scrollToSection('diferenciais')} className="hover:text-white transition-colors">Sobre</button>
+            <button onClick={() => scrollToSection('simulador')} className="hover:text-white transition-colors">Simulador</button>
           </nav>
 
           {/* Desktop Call to Action */}
           <div className="hidden lg:block">
             <button
-              onClick={() => openContactWithPrefill('')}
-              className="bg-[#F5B301] hover:bg-[#b48400] text-[#0B0F19] font-bold text-xs uppercase tracking-wide py-2.5 px-5 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-[#f5b3011e]"
+              onClick={() => openContactWithPrefill('Diagnóstico Gratuito de Presença Digital')}
+              className="bg-white hover:bg-zinc-200 text-black font-semibold text-xs py-2.5 px-6 rounded-full transition-all duration-300 hover:scale-[1.02]"
               id="header-cta-btn"
             >
-              Solicitar Análise Gratuita
+              Iniciar Diagnóstico
             </button>
           </div>
 
@@ -189,103 +190,101 @@ export default function App() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="fixed inset-x-0 top-[60px] z-30 bg-[#0B0F19] border-b border-gray-800 p-6 flex flex-col gap-4 text-sm font-semibold tracking-widest uppercase text-gray-300 lg:hidden shadow-2xl"
+            className="fixed inset-x-0 top-[60px] z-30 bg-[#0B0B0E] border-b border-zinc-900 p-6 flex flex-col gap-4 text-xs font-semibold tracking-widest uppercase text-gray-300 lg:hidden shadow-2xl"
           >
-            <button onClick={() => scrollToSection('home')} className="text-left py-2 hover:text-[#F5B301]">Início</button>
-            <button onClick={() => scrollToSection('problemas')} className="text-left py-2 hover:text-[#F5B301]">Problemas</button>
-            <button onClick={() => scrollToSection('solucoes')} className="text-left py-2 hover:text-[#F5B301]">Soluções</button>
-            <button onClick={() => scrollToSection('portfolio')} className="text-left py-2 hover:text-[#F5B301]">Portfólio</button>
-            <button onClick={() => scrollToSection('processo')} className="text-left py-2 hover:text-[#F5B301]">Como Funciona</button>
-            <button onClick={() => scrollToSection('diferenciais')} className="text-left py-2 hover:text-[#F5B301]">Diferenciais</button>
-            <button onClick={() => scrollToSection('simulador')} className="text-left py-2 text-[#F5B301] font-bold flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4" />
-              Simulador de Escopo
+            <button onClick={() => scrollToSection('home')} className="text-left py-2 hover:text-[#E2B755]">Início</button>
+            <button onClick={() => scrollToSection('solucoes')} className="text-left py-2 hover:text-[#E2B755]">Soluções</button>
+            <button onClick={() => scrollToSection('portfolio')} className="text-left py-2 hover:text-[#E2B755]">Portfólio</button>
+            <button onClick={() => { setIsMenuOpen(false); scrollToSection('diagnostico'); }} className="text-left py-2 text-[#E2B755] font-bold flex items-center gap-1.5">
+              <Award className="w-4 h-4" />
+              Diagnóstico Atlas Score
             </button>
+            <button onClick={() => scrollToSection('processo')} className="text-left py-2 hover:text-[#E2B755]">Como Funciona</button>
+            <button onClick={() => scrollToSection('diferenciais')} className="text-left py-2 hover:text-[#E2B755]">Diferenciais</button>
+            <button onClick={() => scrollToSection('simulador')} className="text-left py-2 hover:text-[#E2B755]">Simulador</button>
             <button
               onClick={() => {
                 setIsMenuOpen(false);
                 setIsContactModalOpen(true);
               }}
-              className="w-full bg-[#F5B301] text-[#0B0F19] font-bold py-3 px-5 rounded-lg text-center mt-2 hover:bg-yellow-500"
+              className="w-full bg-[#E2B755] text-[#0B0B0E] font-bold py-3.5 px-5 rounded-lg text-center mt-2 hover:bg-yellow-500"
             >
-              Solicitar Análise Gratuita
+              Analisar minha presença digital
             </button>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* HERO SECTION */}
-      <section id="home" className="relative min-h-screen pt-32 pb-20 flex items-center justify-center overflow-hidden">
+      <section id="home" className="relative min-h-screen pt-36 pb-24 flex items-center justify-center overflow-hidden bg-[#0B0B0E]">
         
         {/* Background Image of building with premium overlay styling */}
         <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-b from-[#0B0F19]/90 via-[#0B0F19]/80 to-[#0B0F19] z-10" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#0B0B0E]/95 via-[#0B0B0E]/85 to-[#0B0B0E] z-10" />
           <img 
-            src="https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&q=80&w=2000" 
-            alt="Modern building construction" 
-            className="w-full h-full object-cover filter blur-[3px] scale-105 opacity-30"
+            src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=2000" 
+            alt="Arquitetura de Negócios Luxo" 
+            className="w-full h-full object-cover opacity-15"
             referrerPolicy="no-referrer"
           />
         </div>
 
-        {/* Decorative Grid Lines / Tech aesthetic */}
-        <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px] opacity-20 pointer-events-none z-0" />
+        {/* Decorative Grid Lines / Elegant spacing */}
+        <div className="absolute inset-0 bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:24px_24px] opacity-25 pointer-events-none z-0" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
           
           {/* Left Hero Column */}
-          <div className="lg:col-span-6 space-y-6 md:space-y-8 text-center lg:text-left">
+          <div className="lg:col-span-6 space-y-10 text-center lg:text-left">
             
             {/* Dynamic Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-900/80 border border-gray-800 text-xs text-white font-medium">
-              <span className="w-2 h-2 rounded-full bg-[#F5B301] animate-pulse"></span>
-              <span className="text-[#9CA3AF]">Agência Digital Premium</span>
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-950/80 border border-zinc-900 text-[10px] uppercase font-semibold tracking-[0.15em] text-zinc-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#E2B755]"></span>
+              <span>Atlas Digital &bull; Experiência Premium</span>
             </div>
 
-            <div className="space-y-4">
-              {/* Massive Bold Heading */}
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-display font-extrabold tracking-tight text-white leading-[1.1]">
-                Sites que ajudam empresas da{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#F5B301] via-yellow-400 to-[#b48400]">
-                  construção e acabamento
-                </span>{' '}
-                a gerar mais orçamentos.
+            <div className="space-y-6">
+              {/* Massive Premium Bold Heading */}
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-6.5xl font-display font-black tracking-tight text-white leading-[1.1]">
+                Transformamos empresas em marcas digitais de alta performance.
               </h1>
 
               {/* Persuasive Subheading */}
-              <p className="text-sm md:text-base text-gray-400 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                Desenvolvemos sites profissionais, rápidos e otimizados para empresas que desejam atrair mais clientes, fortalecer sua presença digital e dominar o mercado de alto padrão.
+              <p className="text-base sm:text-lg text-zinc-400 max-w-xl mx-auto lg:mx-0 leading-relaxed font-sans font-light">
+                Sites premium, SEO e inteligência artificial para gerar mais oportunidades comerciais.
               </p>
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-5 pt-2">
               <button
-                onClick={() => openContactWithPrefill('')}
-                className="w-full sm:w-auto bg-[#F5B301] hover:bg-[#b48400] text-[#0B0F19] font-extrabold text-sm uppercase tracking-wider py-4 px-8 rounded-xl shadow-lg shadow-[#f5b3011e] hover:scale-105 active:scale-95 transition-all duration-300"
+                onClick={() => {
+                  const el = document.getElementById('diagnostico');
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+                className="w-full sm:w-auto bg-white hover:bg-zinc-200 text-[#000000] font-semibold text-xs uppercase tracking-wider py-4 px-8 rounded-full shadow-2xl transition-all duration-300 hover:scale-[1.02] active:scale-95"
                 id="hero-primary-cta"
               >
-                Solicitar Análise Gratuita
+                Solicitar diagnóstico digital
               </button>
               
               <button
-                onClick={() => scrollToSection('portfolio')}
-                className="w-full sm:w-auto bg-[#111827]/80 hover:bg-[#111827] text-white border border-gray-800 hover:border-gray-700 font-extrabold text-sm uppercase tracking-wider py-4 px-8 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 hover:scale-105"
+                onClick={() => openContactWithPrefill('Solicitação de Diagnóstico Gratuito - Home')}
+                className="w-full sm:w-auto bg-zinc-950/90 hover:bg-zinc-900 text-white border border-zinc-800 hover:border-zinc-700 font-semibold text-xs uppercase tracking-wider py-4 px-8 rounded-full flex items-center justify-center gap-2 transition-all duration-300 hover:scale-[1.02]"
                 id="hero-secondary-cta"
               >
-                <Play className="w-4 h-4 text-[#F5B301] fill-[#F5B301]" />
-                Ver Portfólio
+                Falar com consultor
               </button>
             </div>
 
             {/* Targeted Segments Small Slider */}
-            <div className="pt-4 border-t border-gray-900/60 max-w-lg mx-auto lg:mx-0">
-              <span className="block text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest mb-2">Exclusivo para o seu nicho</span>
-              <div className="flex flex-wrap justify-center lg:justify-start gap-1.5">
+            <div className="pt-6 border-t border-zinc-900/60 max-w-lg mx-auto lg:mx-0">
+              <span className="block text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest mb-3">Atendimento especializado em alto padrão</span>
+              <div className="flex flex-wrap justify-center lg:justify-start gap-2">
                 {TARGET_SEGMENTS.map((seg, idx) => (
                   <span 
                     key={idx} 
-                    className="text-[10px] font-bold bg-[#111827] text-gray-300 py-1 px-2.5 rounded border border-gray-800 hover:border-[#F5B301]/30 hover:text-white transition-colors cursor-default"
+                    className="text-[10px] font-bold bg-[#121214] text-zinc-400 py-1.5 px-3 rounded-lg border border-zinc-800 hover:border-[#E2B755]/30 hover:text-white transition-colors cursor-default"
                   >
                     {seg}
                   </span>
@@ -307,34 +306,33 @@ export default function App() {
       </section>
 
       {/* SEÇÃO PROBLEMA */}
-      <section id="problemas" className="py-20 bg-[#111827]/30 border-y border-gray-900 relative">
+      <section id="problemas" className="py-20 bg-[#121214]/40 border-y border-zinc-900 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           {/* Section Header */}
-          <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
-            <span className="text-[10px] text-[#F5B301] uppercase tracking-widest font-mono font-bold">O Diagnóstico Real</span>
-            <h2 className="text-2xl sm:text-3xl font-display font-black text-white uppercase tracking-tight">
-              Seu site está gerando clientes <span className="text-[#F5B301]">ou apenas existe?</span>
+          <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
+            <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-mono font-bold">O Diagnóstico Real</span>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-white tracking-tight leading-tight">
+              Seu site está gerando clientes ou apenas existe?
             </h2>
-            <div className="w-16 h-1 bg-[#F5B301] mx-auto rounded-full mt-2" />
-            <p className="text-xs md:text-sm text-gray-400">
-              Ter um site defasado hoje em dia é pior do que não ter um site. Ele afasta seus melhores leads e desvaloriza seu trabalho.
+            <p className="text-sm md:text-base text-zinc-400 font-light leading-relaxed max-w-2xl mx-auto">
+              Ter um site defasado afasta seus melhores leads e desvaloriza a percepção sobre a sua entrega.
             </p>
           </div>
 
           {/* 6 Problems Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {PROBLEMS.map((prob) => (
               <div 
                 key={prob.id}
-                className="p-6 bg-[#111827] border border-gray-800 rounded-2xl transition-all duration-300 hover:border-red-950/40 hover:bg-red-950/[0.02] flex gap-4"
+                className="p-8 bg-zinc-950/40 border border-zinc-900 rounded-3xl transition-all duration-300 hover:border-zinc-800 flex flex-col gap-5 text-left"
               >
-                <div className="p-3 bg-gray-950 rounded-xl shrink-0 flex items-center justify-center border border-gray-800 text-red-500">
-                  {renderIcon(prob.iconName, "w-5 h-5 text-[#F5B301]")}
+                <div className="w-10 h-10 rounded-full flex items-center justify-center border border-zinc-900 bg-zinc-950 text-zinc-300">
+                  {renderIcon(prob.iconName, "w-4 h-4 text-zinc-300")}
                 </div>
-                <div className="space-y-1">
-                  <h3 className="font-semibold text-white text-sm">{prob.title}</h3>
-                  <p className="text-[11px] text-gray-400 leading-relaxed">{prob.description}</p>
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-white text-base tracking-tight">{prob.title}</h3>
+                  <p className="text-xs text-zinc-400 leading-relaxed font-light">{prob.description}</p>
                 </div>
               </div>
             ))}
@@ -344,37 +342,36 @@ export default function App() {
       </section>
 
       {/* SEÇÃO SOLUÇÃO */}
-      <section id="solucoes" className="py-20 relative">
-        {/* Decorative background light */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#F5B301]/[0.015] rounded-full blur-[100px] pointer-events-none" />
+      <section id="solucoes" className="py-32 relative bg-black">
+        {/* Decorative subtle background gradient */}
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-zinc-900/[0.05] rounded-full blur-[120px] pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           
           {/* Section Header */}
-          <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
-            <span className="text-[10px] text-[#F5B301] uppercase tracking-widest font-mono font-bold">Nosso DNA</span>
-            <h2 className="text-2xl sm:text-3xl font-display font-black text-white uppercase tracking-tight">
-              A Solução que <span className="text-[#F5B301]">Sua Empresa Precisa</span>
+          <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
+            <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-mono font-bold">Nosso DNA</span>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-white tracking-tight leading-tight">
+              A Solução que Sua Empresa Precisa
             </h2>
-            <div className="w-16 h-1 bg-[#F5B301] mx-auto rounded-full mt-2" />
-            <p className="text-xs md:text-sm text-gray-400">
-              Não fazemos sites comuns. Criamos portais corporativos de alto padrão, desenhados para captar fotos em alta resolução, automatizar cálculos e converter visitantes em chamadas no WhatsApp.
+            <p className="text-sm md:text-base text-zinc-400 font-light leading-relaxed max-w-2xl mx-auto">
+              Não fazemos sites comuns. Desenvolvemos plataformas corporativas e catálogos interativos de altíssimo padrão, desenhados cirurgicamente para gerar oportunidades e novos negócios.
             </p>
           </div>
 
           {/* Solutions Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             {SOLUTIONS.map((sol) => (
               <div 
                 key={sol.id}
-                className="p-5 bg-[#111827]/60 border border-gray-800/80 rounded-2xl flex flex-col justify-between transition-all duration-300 hover:border-[#F5B301]/40 hover:bg-[#111827] shadow-sm hover:shadow-md"
+                className="p-6 bg-zinc-950/40 border border-zinc-900 rounded-3xl flex flex-col justify-between transition-all duration-300 hover:border-zinc-800"
               >
-                <div className="space-y-3">
-                  <div className="p-2.5 bg-gray-950 rounded-lg w-10 h-10 flex items-center justify-center border border-gray-800/60">
-                    {renderIcon(sol.iconName, "w-4 h-4 text-[#F5B301]")}
+                <div className="space-y-4 text-left">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center border border-zinc-900 bg-zinc-950 text-zinc-300">
+                    {renderIcon(sol.iconName, "w-4 h-4 text-zinc-300")}
                   </div>
-                  <h3 className="font-bold text-xs text-white uppercase tracking-wide">{sol.title}</h3>
-                  <p className="text-[10px] text-gray-400 leading-relaxed">{sol.description}</p>
+                  <h3 className="font-semibold text-sm text-white tracking-tight">{sol.title}</h3>
+                  <p className="text-xs text-zinc-400 leading-relaxed font-light">{sol.description}</p>
                 </div>
               </div>
             ))}
@@ -384,18 +381,17 @@ export default function App() {
       </section>
 
       {/* PORTFÓLIO */}
-      <section id="portfolio" className="py-20 bg-[#111827]/40 border-y border-gray-900 relative">
+      <section id="portfolio" className="py-32 bg-black border-y border-zinc-900/40 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           {/* Section Header */}
-          <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
-            <span className="text-[10px] text-[#F5B301] uppercase tracking-widest font-mono font-bold font-bold">Demonstração Prática</span>
-            <h2 className="text-2xl sm:text-3xl font-display font-black text-white uppercase tracking-tight">
-              Sites Feitos Para <span className="text-[#F5B301]">O Seu Segmento</span>
+          <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
+            <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-mono font-bold">Portfólio Selecionado</span>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-white tracking-tight leading-tight">
+              Experiências Digitais Sob Medida
             </h2>
-            <div className="w-16 h-1 bg-[#F5B301] mx-auto rounded-full mt-2" />
-            <p className="text-xs md:text-sm text-gray-400">
-              Cada nicho exige uma abordagem diferente. Clique para ver os diferenciais e a anatomia da página perfeita de conversão.
+            <p className="text-sm md:text-base text-zinc-400 font-light leading-relaxed max-w-2xl mx-auto">
+              Cada segmento exige uma engenharia exclusiva. Conheça a anatomia de alguns de nossos projetos desenvolvidos para máxima performance.
             </p>
           </div>
 
@@ -404,41 +400,41 @@ export default function App() {
             {PORTFOLIO.map((item) => (
               <div 
                 key={item.id}
-                className="group flex flex-col justify-between bg-[#111827] border border-gray-800 rounded-3xl overflow-hidden transition-all duration-300 hover:border-[#F5B301]/40 hover:shadow-2xl hover:shadow-[#f5b3010c] h-full"
+                className="group flex flex-col justify-between bg-zinc-950/50 border border-zinc-900 rounded-[32px] overflow-hidden transition-all duration-300 hover:border-zinc-800 h-full"
               >
                 {/* Image Container with Hover Zoom */}
-                <div className="relative aspect-[16/10] overflow-hidden bg-gray-950">
-                  <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent z-10 opacity-60" />
+                <div className="relative aspect-[16/10] overflow-hidden bg-zinc-950">
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent z-10 opacity-60" />
                   <img 
                     src={item.image} 
                     alt={item.title} 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-102"
                     referrerPolicy="no-referrer"
                   />
-                  <span className="absolute top-4 left-4 z-20 bg-gray-900/90 border border-gray-800 text-[#F5B301] text-[10px] font-black uppercase tracking-widest py-1 px-3 rounded-full">
+                  <span className="absolute top-4 left-4 z-20 bg-black/80 backdrop-blur-md border border-zinc-800 text-white text-[10px] font-medium tracking-wider uppercase py-1 px-3 rounded-full">
                     {item.segment}
                   </span>
                 </div>
 
                 {/* Info Container */}
-                <div className="p-6 space-y-4 flex-1 flex flex-col justify-between">
-                  <div className="space-y-3">
+                <div className="p-8 space-y-6 flex-1 flex flex-col justify-between text-left">
+                  <div className="space-y-4">
                     <div>
-                      <span className="text-[10px] uppercase font-mono font-bold text-gray-500">{item.subtitle}</span>
-                      <h3 className="text-base font-bold text-white group-hover:text-[#F5B301] transition-colors leading-tight">
+                      <span className="text-[10px] uppercase font-mono font-medium tracking-wider text-zinc-500">{item.subtitle}</span>
+                      <h3 className="text-lg font-semibold text-white group-hover:text-zinc-200 transition-colors leading-tight mt-1">
                         {item.title}
                       </h3>
                     </div>
                     
-                    <p className="text-[11px] text-gray-400 leading-relaxed">
+                    <p className="text-xs text-zinc-400 leading-relaxed font-light">
                       {item.description}
                     </p>
 
                     {/* Features badges */}
                     <div className="flex flex-wrap gap-1.5 pt-1">
                       {item.features.map((feat, idx) => (
-                        <span key={idx} className="text-[9px] font-medium bg-[#0B0F19] text-gray-300 py-1 px-2.5 rounded border border-gray-800 flex items-center gap-1">
-                          <span className="w-1 h-1 rounded-full bg-[#F5B301]"></span>
+                        <span key={idx} className="text-[9px] font-medium bg-black text-zinc-400 py-1.5 px-3 rounded-full border border-zinc-900 flex items-center gap-1.5">
+                          <span className="w-1 h-1 rounded-full bg-zinc-400"></span>
                           {feat}
                         </span>
                       ))}
@@ -446,10 +442,10 @@ export default function App() {
                   </div>
 
                   {/* CTA button */}
-                  <div className="pt-4 border-t border-gray-900/80">
+                  <div className="pt-6 border-t border-zinc-900">
                     <button
                       onClick={() => openContactWithPrefill(item.segment)}
-                      className="w-full bg-[#0B0F19] hover:bg-[#F5B301] text-gray-400 hover:text-[#0B0F19] border border-gray-800 hover:border-[#F5B301] font-bold text-xs uppercase tracking-wider py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-300"
+                      className="w-full bg-black hover:bg-white text-zinc-400 hover:text-black border border-zinc-900 hover:border-white font-medium text-xs uppercase tracking-wider py-3 px-5 rounded-full flex items-center justify-center gap-1.5 transition-all duration-300"
                     >
                       Solicitar Projeto Similar
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -467,16 +463,16 @@ export default function App() {
       <SegmentDemoShowcase openContactWithPrefill={openContactWithPrefill} />
 
       {/* INTERACTIVE SCOPE BUILDER / CALCULATOR HIGHLIGHT */}
-      <section id="simulador" className="py-20 relative">
+      <section id="simulador" className="py-32 relative bg-black">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          <div className="text-center max-w-2xl mx-auto mb-10 space-y-3">
-            <span className="text-[10px] text-[#F5B301] uppercase tracking-widest font-mono font-bold">Interativo & Exclusivo</span>
-            <h2 className="text-2xl sm:text-3xl font-display font-black text-white uppercase tracking-tight">
-              Construa seu Escopo <span className="text-[#F5B301]">em 1 Minuto</span>
+          <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
+            <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-mono font-bold">Personalização</span>
+            <h2 className="text-3xl sm:text-4xl font-display font-black text-white tracking-tight leading-tight">
+              Personalize seu projeto
             </h2>
-            <p className="text-xs text-gray-400">
-              Personalize os recursos, informe seu segmento e envie sua configuração para receber uma análise preliminar gratuita sem compromisso.
+            <p className="text-sm text-zinc-400 font-light leading-relaxed">
+              Defina os recursos de que sua marca necessita e envie a configuração para receber uma proposta sob medida sem qualquer compromisso.
             </p>
           </div>
 
@@ -485,46 +481,48 @@ export default function App() {
         </div>
       </section>
 
+      {/* ATLAS DIGITAL SCORE PREMIUM DIAGNOSTIC MODULE */}
+      <AtlasScoreModule />
+
       {/* COMO FUNCIONA (TIMELINE) */}
-      <section id="processo" className="py-20 bg-[#111827]/30 border-y border-gray-900 relative">
+      <section id="processo" className="py-32 bg-black border-y border-zinc-900/40 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           {/* Section Header */}
-          <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
-            <span className="text-[10px] text-[#F5B301] uppercase tracking-widest font-mono font-bold font-bold">Transparência</span>
-            <h2 className="text-2xl sm:text-3xl font-display font-black text-white uppercase tracking-tight">
-              Metodologia <span className="text-[#F5B301]">Passo a Passo</span>
+          <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
+            <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-mono font-bold">Metodologia</span>
+            <h2 className="text-3xl sm:text-4xl font-display font-black text-white tracking-tight leading-tight">
+              Do conceito ao resultado
             </h2>
-            <div className="w-16 h-1 bg-[#F5B301] mx-auto rounded-full mt-2" />
-            <p className="text-xs md:text-sm text-gray-400">
-              Garantimos velocidade e tranquilidade. Do primeiro diagnóstico gratuito à entrega final com suporte técnico constante.
+            <p className="text-sm md:text-base text-zinc-400 font-light leading-relaxed max-w-2xl mx-auto">
+              Garantimos velocidade e excelência técnica, desde a concepção do diagnóstico até a entrega do projeto com suporte contínuo.
             </p>
           </div>
 
           {/* Timeline Grid layout */}
           <div className="relative">
             {/* Dashed Line behind steps for tablet/desktop */}
-            <div className="hidden lg:block absolute top-[60px] inset-x-8 h-0.5 border-t-2 border-dashed border-gray-800 z-0" />
+            <div className="hidden lg:block absolute top-[60px] inset-x-8 h-0.5 border-t border-dashed border-zinc-900 z-0" />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 relative z-10">
               {STEPS.map((step, idx) => (
                 <div 
                   key={idx}
-                  className="bg-[#111827] border border-gray-800 p-5 rounded-2xl flex flex-col justify-between relative hover:border-[#F5B301]/30 transition-all duration-300"
+                  className="bg-zinc-950/40 border border-zinc-900 p-6 rounded-3xl flex flex-col justify-between relative hover:border-zinc-800 transition-all duration-300 text-left"
                 >
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {/* Circle counter */}
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-black font-mono text-[#F5B301] bg-[#f5b30113] w-7 h-7 rounded-full flex items-center justify-center">
+                      <span className="text-xs font-semibold font-mono text-white bg-zinc-900 w-8 h-8 rounded-full flex items-center justify-center">
                         {step.number}
                       </span>
-                      <div className="text-gray-600">
-                        {renderIcon(step.iconName, "w-4 h-4 text-gray-600")}
+                      <div className="text-zinc-500">
+                        {renderIcon(step.iconName, "w-4 h-4 text-zinc-500")}
                       </div>
                     </div>
                     
-                    <h3 className="font-bold text-xs text-white tracking-wide uppercase">{step.title}</h3>
-                    <p className="text-[10px] text-gray-400 leading-relaxed">{step.description}</p>
+                    <h3 className="font-semibold text-sm text-white tracking-tight">{step.title}</h3>
+                    <p className="text-xs text-zinc-400 leading-relaxed font-light">{step.description}</p>
                   </div>
                 </div>
               ))}
@@ -532,22 +530,22 @@ export default function App() {
           </div>
 
           {/* Call to action card right below timeline */}
-          <div className="mt-12 bg-gradient-to-r from-[#F5B301]/10 to-transparent border border-[#F5B301]/20 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="mt-16 bg-zinc-950/40 border border-zinc-900 rounded-[32px] p-8 flex flex-col md:flex-row items-center justify-between gap-6 text-left">
             <div className="flex items-start gap-4">
-              <div className="p-3 bg-[#F5B301] text-gray-900 rounded-xl shrink-0">
-                <CheckCircle2 className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center shrink-0 border border-zinc-800 text-white">
+                <CheckCircle2 className="w-4 h-4" />
               </div>
               <div className="space-y-1">
-                <h4 className="text-sm font-bold text-white">Pronto para dar o próximo passo na sua presença digital?</h4>
-                <p className="text-[11px] text-gray-400 max-w-xl">
+                <h4 className="text-base font-semibold text-white">Pronto para dar o próximo passo na sua presença digital?</h4>
+                <p className="text-xs text-zinc-400 max-w-xl font-light">
                   Criamos um diagnóstico gratuito exclusivo avaliando sua concorrência local, as palavras-chave mais buscadas e os recursos recomendados.
                 </p>
               </div>
             </div>
             
             <button
-              onClick={() => openContactWithPrefill('')}
-              className="bg-[#F5B301] hover:bg-[#b48400] text-[#0B0F19] text-xs font-bold py-3.5 px-6 rounded-xl shrink-0 transition-all hover:scale-105"
+              onClick={() => openContactWithPrefill('Diagnóstico Gratuito - Timeline')}
+              className="w-full md:w-auto bg-white hover:bg-zinc-200 text-black text-xs font-semibold py-3.5 px-6 rounded-full shrink-0 transition-all hover:scale-[1.02]"
             >
               Solicitar Diagnóstico Gratuito
             </button>
@@ -557,18 +555,17 @@ export default function App() {
       </section>
 
       {/* DIFERENCIAIS */}
-      <section id="diferenciais" className="py-20 relative">
+      <section id="diferenciais" className="py-32 relative bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           {/* Section Header */}
-          <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
-            <span className="text-[10px] text-[#F5B301] uppercase tracking-widest font-mono font-bold font-bold">Por Que a Atlas?</span>
-            <h2 className="text-2xl sm:text-3xl font-display font-black text-white uppercase tracking-tight">
-              Os Diferenciais da <span className="text-[#F5B301]">Nossa Engenharia</span>
+          <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
+            <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-mono font-bold">Excelência</span>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-white tracking-tight leading-tight">
+              Os diferenciais de nossa engenharia
             </h2>
-            <div className="w-16 h-1 bg-[#F5B301] mx-auto rounded-full mt-2" />
-            <p className="text-xs md:text-sm text-gray-400">
-              Não entregamos apenas layouts bonitos. Nossa prioridade absoluta é velocidade extrema, SEO de alto impacto local e código sob medida de alta segurança.
+            <p className="text-sm md:text-base text-zinc-400 font-light leading-relaxed max-w-2xl mx-auto">
+              Não entregamos apenas layouts limpos. Nossa prioridade absoluta é velocidade extrema, SEO de alto impacto local e código sob medida de alta segurança.
             </p>
           </div>
 
@@ -577,14 +574,14 @@ export default function App() {
             {DIFFERENTIALS.map((diff) => (
               <div 
                 key={diff.id}
-                className="p-5 bg-[#111827] border border-gray-800 rounded-2xl flex flex-col justify-between transition-all duration-300 hover:border-[#F5B301]/30 hover:shadow-lg hover:shadow-[#f5b30104]"
+                className="p-6 bg-zinc-950/40 border border-zinc-900 rounded-[32px] flex flex-col justify-between transition-all duration-300 hover:border-zinc-800 text-left"
               >
-                <div className="space-y-3">
-                  <div className="p-2 bg-gray-950 rounded-lg w-9 h-9 flex items-center justify-center border border-gray-800 text-[#F5B301]">
-                    {renderIcon(diff.iconName, "w-4 h-4 text-[#F5B301]")}
+                <div className="space-y-4">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center border border-zinc-900 bg-zinc-950 text-zinc-300">
+                    {renderIcon(diff.iconName, "w-4 h-4 text-zinc-300")}
                   </div>
-                  <h3 className="font-bold text-xs text-white uppercase tracking-wide">{diff.title}</h3>
-                  <p className="text-[10px] text-gray-400 leading-relaxed">{diff.description}</p>
+                  <h3 className="font-semibold text-sm text-white tracking-tight">{diff.title}</h3>
+                  <p className="text-xs text-zinc-400 leading-relaxed font-light">{diff.description}</p>
                 </div>
               </div>
             ))}
@@ -594,17 +591,16 @@ export default function App() {
       </section>
 
       {/* DEPOIMENTOS */}
-      <section id="depoimentos" className="py-20 bg-[#111827]/40 border-y border-gray-900 relative">
+      <section id="depoimentos" className="py-32 bg-black border-y border-zinc-900/40 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           {/* Section Header */}
-          <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
-            <span className="text-[10px] text-[#F5B301] uppercase tracking-widest font-mono font-bold font-bold">Prova Social</span>
-            <h2 className="text-2xl sm:text-3xl font-display font-black text-white uppercase tracking-tight">
-              Quem Confia na <span className="text-[#F5B301]">Atlas Digital</span>
+          <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
+            <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-mono font-bold">Resultados</span>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-white tracking-tight leading-tight">
+              Quem confia na Atlas
             </h2>
-            <div className="w-16 h-1 bg-[#F5B301] mx-auto rounded-full mt-2" />
-            <p className="text-xs md:text-sm text-gray-400">
+            <p className="text-sm md:text-base text-zinc-400 font-light leading-relaxed max-w-2xl mx-auto">
               Veja depoimentos de empresários da marmoraria, energia solar e vidraçarias que viram seus pedidos de orçamento decolarem.
             </p>
           </div>
@@ -614,25 +610,25 @@ export default function App() {
             {TESTIMONIALS.map((test) => (
               <div 
                 key={test.id}
-                className="bg-[#111827] border border-gray-800 rounded-2xl p-6 flex flex-col justify-between gap-6"
+                className="bg-zinc-950/40 border border-zinc-900 rounded-[32px] p-8 flex flex-col justify-between gap-6 text-left"
               >
                 <div className="space-y-4">
                   {/* Rating Stars */}
                   <div className="flex gap-1">
                     {[...Array(test.rating)].map((_, i) => (
-                      <Star key={i} className="w-3.5 h-3.5 text-[#F5B301] fill-[#F5B301]" />
+                      <Star key={i} className="w-3.5 h-3.5 text-[#E2B755] fill-[#E2B755]" />
                     ))}
                   </div>
 
                   {/* Text */}
-                  <p className="text-xs text-gray-300 leading-relaxed italic">
+                  <p className="text-xs text-zinc-300 leading-relaxed font-light italic">
                     "{test.text}"
                   </p>
                 </div>
 
                 {/* Profile Card */}
-                <div className="flex items-center gap-3 pt-4 border-t border-gray-900">
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-900 shrink-0 border border-gray-800">
+                <div className="flex items-center gap-3 pt-4 border-t border-zinc-900">
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-zinc-950 shrink-0 border border-zinc-900">
                     <img 
                       src={test.avatar} 
                       alt={test.name} 
@@ -641,8 +637,8 @@ export default function App() {
                     />
                   </div>
                   <div>
-                    <h4 className="font-bold text-xs text-white leading-none">{test.name}</h4>
-                    <span className="text-[10px] text-gray-500 font-medium">{test.company}</span>
+                    <h4 className="font-semibold text-xs text-white leading-none">{test.name}</h4>
+                    <span className="text-[10px] text-zinc-500 font-medium">{test.company}</span>
                   </div>
                 </div>
               </div>
@@ -656,43 +652,43 @@ export default function App() {
       <FAQSection />
 
       {/* CTA FINAL */}
-      <section className="py-24 relative overflow-hidden text-center bg-gradient-to-b from-[#0B0F19] to-[#111827] border-b border-gray-900">
+      <section className="py-32 relative overflow-hidden text-center bg-black border-t border-zinc-900/40">
         
-        {/* Glow dots decoration */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[#F5B301]/[0.03] rounded-full blur-[120px] pointer-events-none" />
+        {/* Subtle glow decoration */}
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-zinc-900/[0.03] rounded-full blur-[120px] pointer-events-none" />
         
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-10">
           
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-yellow-950/15 border border-[#F5B301]/20 text-[#F5B301] text-[10px] font-mono font-bold uppercase rounded-full">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-zinc-950 border border-zinc-900 text-zinc-400 text-[10px] font-mono font-bold uppercase rounded-full">
             <Sparkles className="w-3.5 h-3.5" />
             Parceria de Sucesso Comercial
           </div>
 
           <div className="space-y-4">
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-white leading-tight">
-              SUA EMPRESA MERECE <br className="hidden sm:inline" />
-              <span className="text-[#F5B301]">UM SITE QUE VENDE.</span>
+              Sua empresa merece <br className="hidden sm:inline" />
+              um site de alta performance.
             </h2>
             
-            <p className="text-xs sm:text-sm text-gray-400 max-w-xl mx-auto leading-relaxed">
+            <p className="text-sm text-zinc-400 max-w-xl mx-auto leading-relaxed font-light">
               Chega de perder clientes qualificados por ter uma presença digital fraca. Solicite agora uma análise gratuita e descubra como podemos aumentar seus pedidos de orçamento.
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto pt-4">
             <button
-              onClick={() => openContactWithPrefill('')}
-              className="w-full bg-[#F5B301] hover:bg-[#b48400] text-[#0B0F19] font-black text-sm uppercase tracking-wider py-4 px-8 rounded-xl shadow-lg shadow-[#f5b3011e] hover:scale-105 transition-all duration-300"
+              onClick={() => openContactWithPrefill('Diagnóstico Gratuito - CTA Final')}
+              className="w-full bg-white hover:bg-zinc-200 text-black font-semibold text-xs uppercase tracking-wider py-4 px-8 rounded-full transition-all duration-300 hover:scale-[1.02]"
               id="cta-final-btn"
             >
-              Solicitar Análise Gratuita
+              Solicitar Diagnóstico Gratuito
             </button>
             
             <a
               href="https://wa.me/5551994578544?text=Ol%C3%A1!%20Gostaria%20de%20solicitar%20uma%20an%C3%A1lise%20gratuita%20do%20meu%20site%20e%20saber%20dos%20or%C3%A7amentos."
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full bg-slate-900 hover:bg-slate-800 border border-gray-800 text-white font-bold text-xs uppercase tracking-widest py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors"
+              className="w-full bg-zinc-950/90 hover:bg-zinc-900 border border-zinc-900 hover:border-zinc-800 text-white font-semibold text-xs uppercase tracking-wider py-4 px-6 rounded-full flex items-center justify-center gap-2 transition-colors"
             >
               <MessageCircle className="w-4 h-4 text-green-500 fill-green-500" />
               WhatsApp Direto
@@ -700,20 +696,20 @@ export default function App() {
           </div>
 
           {/* Quick Stats list under CTA */}
-          <div className="pt-10 flex flex-wrap justify-center gap-6 md:gap-12 text-center text-gray-500 text-[11px] uppercase tracking-wider font-mono">
+          <div className="pt-10 flex flex-wrap justify-center gap-6 md:gap-12 text-center text-zinc-500 text-[11px] uppercase tracking-wider font-mono">
             <div>
-              <div className="text-[#F5B301] text-base font-black">100%</div>
-              <div>Exclusivo</div>
+              <div className="text-white text-base font-semibold">100%</div>
+              <div className="mt-1">Exclusivo</div>
             </div>
-            <div className="w-px h-6 bg-gray-800 self-center hidden sm:block"></div>
+            <div className="w-px h-6 bg-zinc-900 self-center hidden sm:block"></div>
             <div>
-              <div className="text-[#F5B301] text-base font-black">&lt; 1.5s</div>
-              <div>Carregamento</div>
+              <div className="text-white text-base font-semibold">&lt; 1.5s</div>
+              <div className="mt-1">Carregamento</div>
             </div>
-            <div className="w-px h-6 bg-gray-800 self-center hidden sm:block"></div>
+            <div className="w-px h-6 bg-zinc-900 self-center hidden sm:block"></div>
             <div>
-              <div className="text-[#F5B301] text-base font-black">95+</div>
-              <div>Lighthouse SEO</div>
+              <div className="text-white text-base font-semibold">95+</div>
+              <div className="mt-1">Lighthouse SEO</div>
             </div>
           </div>
 
@@ -721,57 +717,57 @@ export default function App() {
       </section>
 
       {/* FOOTER */}
-      <footer className="bg-[#090d16] border-t border-gray-900 py-12 md:py-16 text-gray-400 text-xs">
+      <footer className="bg-black border-t border-zinc-900/60 py-16 md:py-20 text-zinc-400 text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 md:gap-12">
           
           {/* Col 1: Brand details */}
           <div className="space-y-4">
             <AtlasLogo />
-            <p className="text-[11px] text-gray-500 leading-relaxed">
+            <p className="text-[11px] text-zinc-500 leading-relaxed font-light">
               Especialistas em engenharia de conversão e sites de alto padrão para marmorarias, vidraçarias, energia solar e construtoras.
             </p>
           </div>
 
-          {/* Col 2: Institucional (New!) */}
+          {/* Col 2: Institucional */}
           <div className="space-y-3">
-            <h4 className="text-white font-bold uppercase tracking-wider text-[11px]">Institucional</h4>
-            <ul className="space-y-2 text-[11px] font-medium">
-              <li><button onClick={() => setActiveLegalDoc('sobre')} className="hover:text-[#F5B301] transition-colors text-left">Sobre Nós</button></li>
-              <li><button onClick={() => setIsContactModalOpen(true)} className="hover:text-[#F5B301] transition-colors text-left">Contato</button></li>
-              <li><button onClick={() => scrollToSection('faq')} className="hover:text-[#F5B301] transition-colors text-left">Perguntas Frequentes</button></li>
+            <h4 className="text-white font-semibold uppercase tracking-widest text-[10px]">Institucional</h4>
+            <ul className="space-y-2 text-[11px] font-light">
+              <li><button onClick={() => setActiveLegalDoc('sobre')} className="hover:text-white transition-colors text-left">Sobre Nós</button></li>
+              <li><button onClick={() => setIsContactModalOpen(true)} className="hover:text-white transition-colors text-left">Contato</button></li>
+              <li><button onClick={() => scrollToSection('faq')} className="hover:text-white transition-colors text-left">Perguntas Frequentes</button></li>
             </ul>
           </div>
 
           {/* Col 3: Navigation Map */}
           <div className="space-y-3">
-            <h4 className="text-white font-bold uppercase tracking-wider text-[11px]">Navegação</h4>
-            <ul className="space-y-2 text-[11px] font-medium">
-              <li><button onClick={() => scrollToSection('home')} className="hover:text-[#F5B301] transition-colors text-left">Início</button></li>
-              <li><button onClick={() => scrollToSection('problemas')} className="hover:text-[#F5B301] transition-colors text-left">Problemas</button></li>
-              <li><button onClick={() => scrollToSection('solucoes')} className="hover:text-[#F5B301] transition-colors text-left">Nossas Soluções</button></li>
-              <li><button onClick={() => scrollToSection('portfolio')} className="hover:text-[#F5B301] transition-colors text-left">Portfólio / Casos</button></li>
-              <li><button onClick={() => scrollToSection('processo')} className="hover:text-[#F5B301] transition-colors text-left">Como Trabalhamos</button></li>
+            <h4 className="text-white font-semibold uppercase tracking-widest text-[10px]">Navegação</h4>
+            <ul className="space-y-2 text-[11px] font-light">
+              <li><button onClick={() => scrollToSection('home')} className="hover:text-white transition-colors text-left">Início</button></li>
+              <li><button onClick={() => scrollToSection('solucoes')} className="hover:text-white transition-colors text-left">Nossas Soluções</button></li>
+              <li><button onClick={() => scrollToSection('portfolio')} className="hover:text-white transition-colors text-left">Portfólio / Casos</button></li>
+              <li><button onClick={() => scrollToSection('diagnostico')} className="hover:text-white transition-colors text-left">Atlas Score IA</button></li>
+              <li><button onClick={() => scrollToSection('processo')} className="hover:text-white transition-colors text-left">Como Trabalhamos</button></li>
             </ul>
           </div>
 
-          {/* Col 4: Legal (New!) */}
+          {/* Col 4: Legal */}
           <div className="space-y-3">
-            <h4 className="text-white font-bold uppercase tracking-wider text-[11px]">Legal</h4>
-            <ul className="space-y-2 text-[11px] font-medium">
-              <li><button onClick={() => setActiveLegalDoc('privacidade')} className="hover:text-[#F5B301] transition-colors text-left">Política de Privacidade</button></li>
-              <li><button onClick={() => setActiveLegalDoc('termos')} className="hover:text-[#F5B301] transition-colors text-left">Termos de Uso</button></li>
-              <li><button onClick={() => setActiveLegalDoc('cookies')} className="hover:text-[#F5B301] transition-colors text-left">Política de Cookies</button></li>
-              <li><button onClick={() => setActiveLegalDoc('reembolso')} className="hover:text-[#F5B301] transition-colors text-left">Política de Cancelamento e Reembolso</button></li>
+            <h4 className="text-white font-semibold uppercase tracking-widest text-[10px]">Legal</h4>
+            <ul className="space-y-2 text-[11px] font-light">
+              <li><button onClick={() => setActiveLegalDoc('privacidade')} className="hover:text-white transition-colors text-left">Política de Privacidade</button></li>
+              <li><button onClick={() => setActiveLegalDoc('termos')} className="hover:text-white transition-colors text-left">Termos de Uso</button></li>
+              <li><button onClick={() => setActiveLegalDoc('cookies')} className="hover:text-white transition-colors text-left">Política de Cookies</button></li>
+              <li><button onClick={() => setActiveLegalDoc('reembolso')} className="hover:text-white transition-colors text-left">Política de Reembolso</button></li>
             </ul>
           </div>
 
           {/* Col 5: Target Segments */}
           <div className="space-y-3">
-            <h4 className="text-white font-bold uppercase tracking-wider text-[11px]">Setores</h4>
-            <ul className="space-y-1.5 text-[11px]">
+            <h4 className="text-white font-semibold uppercase tracking-widest text-[10px]">Setores</h4>
+            <ul className="space-y-1.5 text-[11px] font-light">
               {TARGET_SEGMENTS.map((seg, idx) => (
-                <li key={idx} className="flex items-center gap-1.5 text-gray-500">
-                  <span className="w-1 h-1 rounded-full bg-[#F5B301]"></span>
+                <li key={idx} className="flex items-center gap-1.5 text-zinc-500">
+                  <span className="w-1 h-1 rounded-full bg-zinc-700"></span>
                   <span>{seg}</span>
                 </li>
               ))}
@@ -780,22 +776,22 @@ export default function App() {
 
           {/* Col 6: Contact details */}
           <div className="space-y-3">
-            <h4 className="text-white font-bold uppercase tracking-wider text-[11px]">Fale Conosco</h4>
-            <ul className="space-y-2.5 text-[11px]">
+            <h4 className="text-white font-semibold uppercase tracking-widest text-[10px]">Fale Conosco</h4>
+            <ul className="space-y-2.5 text-[11px] font-light">
               <li className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-[#F5B301] shrink-0" />
-                <a href="https://wa.me/5551994578544" target="_blank" rel="noopener noreferrer" className="hover:text-[#F5B301] transition-colors">
+                <Phone className="w-4 h-4 text-zinc-500 shrink-0" />
+                <a href="https://wa.me/5551994578544" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
                   +55 (51) 99457-8544
                 </a>
               </li>
               <li className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-[#F5B301] shrink-0" />
-                <a href="mailto:contato@atlasdigital.ia.br" className="hover:text-[#F5B301] transition-colors">
+                <Mail className="w-4 h-4 text-zinc-500 shrink-0" />
+                <a href="mailto:contato@atlasdigital.ia.br" className="hover:text-white transition-colors">
                   contato@atlasdigital.ia.br
                 </a>
               </li>
-              <li className="flex items-start gap-2 text-gray-500 leading-tight">
-                <MapPin className="w-4 h-4 text-[#F5B301] shrink-0" />
+              <li className="flex items-start gap-2 text-zinc-500 leading-tight">
+                <MapPin className="w-4 h-4 text-zinc-500 shrink-0 animate-pulse" />
                 <span>Atendimento presencial e remoto em todo o território nacional.</span>
               </li>
             </ul>
@@ -804,16 +800,16 @@ export default function App() {
         </div>
 
         {/* Copyright */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-6 border-t border-gray-900/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] text-gray-600">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 pt-8 border-t border-zinc-900/40 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] text-zinc-600 font-light">
           <div>
             &copy; {new Date().getFullYear()} Atlas Digital. Todos os direitos reservados. CNPJ: 66.204.635/0001-19.
           </div>
           <div className="flex gap-4">
-            <button onClick={() => setActiveLegalDoc('privacidade')} className="hover:text-[#F5B301] cursor-pointer">Política de Privacidade</button>
+            <button onClick={() => setActiveLegalDoc('privacidade')} className="hover:text-white cursor-pointer">Política de Privacidade</button>
             <span>&bull;</span>
-            <button onClick={() => setActiveLegalDoc('termos')} className="hover:text-[#F5B301] cursor-pointer">Termos de Uso</button>
+            <button onClick={() => setActiveLegalDoc('termos')} className="hover:text-white cursor-pointer">Termos de Uso</button>
             <span>&bull;</span>
-            <button onClick={() => setActiveLegalDoc('reembolso')} className="hover:text-[#F5B301] cursor-pointer">Política de Reembolso</button>
+            <button onClick={() => setActiveLegalDoc('reembolso')} className="hover:text-white cursor-pointer">Política de Reembolso</button>
           </div>
         </div>
       </footer>

@@ -46,3 +46,89 @@ export interface TestimonialItem {
   rating: number;
   text: string;
 }
+
+export interface AtlasScoreKeyword {
+  word: string;
+  volume: number;
+  position: number;
+  difficulty: string;
+  cpc: string;
+  trend: string;
+}
+
+export interface AtlasScoreSEOItem {
+  name: string;
+  status: string;
+  details: string;
+}
+
+export interface AtlasScorePerformanceItem {
+  name: string;
+  value: string;
+  rating: string;
+  details: string;
+}
+
+export interface AtlasScoreGoogleItem {
+  name: string;
+  value: string;
+  details: string;
+}
+
+export interface AtlasScoreCompetitor {
+  name: string;
+  authority: number;
+  speed: number;
+  seoScore: number;
+  reviews: string;
+  position: number;
+  site: string;
+}
+
+export interface AtlasScoreAIItem {
+  name: string;
+  detected: boolean;
+  details: string;
+}
+
+export interface AtlasScoreConversionItem {
+  name: string;
+  status: string;
+  details: string;
+}
+
+export interface AtlasScoreActionItem {
+  priority: string;
+  action: string;
+  impact: string;
+  effort: string;
+}
+
+export interface AtlasScoreReport {
+  score: number;
+  executiveSummary: string;
+  seo: {
+    score: number;
+    items: AtlasScoreSEOItem[];
+    keywords: AtlasScoreKeyword[];
+  };
+  performance: {
+    score: number;
+    items: AtlasScorePerformanceItem[];
+  };
+  googleProfile: {
+    score: number;
+    items: AtlasScoreGoogleItem[];
+  };
+  competitors: AtlasScoreCompetitor[];
+  aiIntegrations: {
+    score: number;
+    items: AtlasScoreAIItem[];
+  };
+  conversion: {
+    score: number;
+    items: AtlasScoreConversionItem[];
+  };
+  prioritizedActionPlan: AtlasScoreActionItem[];
+}
+

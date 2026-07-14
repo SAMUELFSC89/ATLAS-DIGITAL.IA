@@ -40,9 +40,9 @@ export default function SegmentDemoShowcase({ openContactWithPrefill }: SegmentD
       title: 'Imperial Marmoraria',
       phone: '(51) 99457-8544',
       address: 'Av. das Nações, 1420 - Porto Alegre, RS',
-      accentColor: 'text-[#F5B301]',
-      accentBg: 'bg-[#F5B301]',
-      accentBorder: 'border-[#F5B301]',
+      accentColor: 'text-[#E2B755]',
+      accentBg: 'bg-[#E2B755]',
+      accentBorder: 'border-[#E2B755]',
       heroImg: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
       tagline: 'Mármores, Granitos e Quartzitos de Altíssimo Padrão',
       heroSub: 'Transformamos pedras nobres em obras de arte para cozinhas, banheiros, escadas e ambientes gourmet sob medida.',
@@ -127,25 +127,22 @@ export default function SegmentDemoShowcase({ openContactWithPrefill }: SegmentD
   };
 
   return (
-    <section id="demonstracoes" className="py-24 bg-white text-[#111827] relative overflow-hidden">
+    <section id="demonstracoes" className="py-24 bg-white text-[#121214] relative overflow-hidden">
       {/* Background soft geometric patterns */}
       <div className="absolute top-0 inset-x-0 h-40 bg-gradient-to-b from-gray-50 to-white pointer-events-none" />
       <div className="absolute -left-32 top-1/4 w-96 h-96 bg-gray-100 rounded-full blur-3xl opacity-50 pointer-events-none" />
-      <div className="absolute -right-32 bottom-1/4 w-96 h-96 bg-[#F5B301]/5 rounded-full blur-3xl opacity-50 pointer-events-none" />
+      <div className="absolute -right-32 bottom-1/4 w-96 h-96 bg-[#E2B755]/5 rounded-full blur-3xl opacity-50 pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
         {/* SECTION HEADER */}
         <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
-          <span className="text-[11px] text-[#F5B301] uppercase tracking-widest font-mono font-bold bg-[#f5b30110] px-3.5 py-1.5 rounded-full border border-[#F5B301]/10">
-            Protótipos Interativos
-          </span>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-gray-950 tracking-tight leading-tight">
-            Veja como pode ser o <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-[#b48400] to-gray-950">site da sua empresa</span>
+          <span className="text-[10px] text-zinc-400 uppercase tracking-[0.2em] font-mono font-bold">Protótipos Interativos</span>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-zinc-950 tracking-tight leading-tight">
+            Veja como pode ser o site da sua empresa
           </h2>
-          <div className="w-20 h-1 bg-gradient-to-r from-[#F5B301] to-[#b48400] mx-auto rounded-full" />
-          <p className="text-sm md:text-base text-gray-600 font-medium max-w-2xl mx-auto leading-relaxed">
-            Escolha um segmento e explore uma demonstração interativa de um site desenvolvido para gerar mais credibilidade e pedidos de orçamento.
+          <p className="text-sm md:text-base text-zinc-500 font-light max-w-xl mx-auto leading-relaxed">
+            Escolha um segmento e explore uma demonstração interativa de um site desenvolvido para gerar o máximo de credibilidade e novos contatos.
           </p>
         </div>
 
@@ -164,7 +161,7 @@ export default function SegmentDemoShowcase({ openContactWithPrefill }: SegmentD
               {/* Notebook Mockup with Hover Autoscroll */}
               <div className="relative w-full aspect-[16/10.5] bg-gray-50 rounded-2xl overflow-hidden shadow-inner flex flex-col justify-between items-center p-3 border border-gray-100 group-hover:bg-amber-50/10 transition-colors duration-500">
                 {/* 3D Notebook Screen */}
-                <div className="relative w-full h-[90%] bg-gray-900 rounded-lg overflow-hidden border-[6px] border-gray-800 shadow-md flex-shrink-0 flex flex-col justify-between">
+                <div className="relative w-full h-[90%] bg-gray-900 rounded-lg overflow-hidden border-[6px] border-zinc-800 shadow-md flex-shrink-0 flex flex-col justify-between">
                   {/* Top camera notched dot */}
                   <div className="absolute top-0.5 inset-x-0 h-1 flex justify-center z-20">
                     <div className="w-1 h-1 rounded-full bg-black"></div>
@@ -175,8 +172,8 @@ export default function SegmentDemoShowcase({ openContactWithPrefill }: SegmentD
                       {/* Full Preview Image mimicking Marmoraria site */}
                       <div className="w-full bg-slate-900 flex flex-col">
                         {/* Header */}
-                        <div className="bg-slate-950 p-2 flex justify-between items-center border-b border-gray-800">
-                          <span className="text-[7px] font-black tracking-widest text-[#F5B301]">IMPERIAL MARBLES</span>
+                        <div className="bg-slate-950 p-2 flex justify-between items-center border-b border-zinc-800">
+                          <span className="text-[7px] font-black tracking-widest text-[#E2B755]">IMPERIAL MARBLES</span>
                           <span className="text-[5px] text-gray-400 gap-1 flex"><span>Início</span><span>Produtos</span><span>Contato</span></span>
                         </div>
                         {/* Hero */}
@@ -185,14 +182,14 @@ export default function SegmentDemoShowcase({ openContactWithPrefill }: SegmentD
                           <div className="relative z-10 space-y-1">
                             <h4 className="text-[8px] font-black leading-tight">Mármores Sob Medida</h4>
                             <p className="text-[5px] text-gray-300 max-w-[120px] mx-auto">Cozinhas, banheiros e painéis de alto padrão.</p>
-                            <span className="inline-block bg-[#F5B301] text-gray-950 text-[4px] font-black px-1.5 py-0.5 rounded-full mt-1">Orçamento Grátis</span>
+                            <span className="inline-block bg-[#E2B755] text-gray-950 text-[4px] font-black px-1.5 py-0.5 rounded-full mt-1">Orçamento Grátis</span>
                           </div>
                         </div>
                         {/* Services */}
                         <div className="bg-white p-3 text-gray-950 space-y-2">
                           <div className="text-center">
                             <h5 className="text-[7px] font-bold">Nossos Serviços</h5>
-                            <div className="w-4 h-0.5 bg-[#F5B301] mx-auto"></div>
+                            <div className="w-4 h-0.5 bg-[#E2B755] mx-auto"></div>
                           </div>
                           <div className="grid grid-cols-2 gap-1.5">
                             <div className="border border-gray-100 p-1 rounded space-y-0.5">
@@ -251,7 +248,7 @@ export default function SegmentDemoShowcase({ openContactWithPrefill }: SegmentD
             <div className="mt-6 pt-5 border-t border-gray-100">
               <button 
                 onClick={() => handleCardClick('marmoraria')}
-                className="w-full bg-[#0B0F19] hover:bg-[#F5B301] text-white hover:text-gray-950 border border-transparent font-bold text-xs uppercase tracking-widest py-4 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-gray-950/5 hover:shadow-[#f5b30122] transition-all duration-300 group-hover:scale-[1.02]"
+                className="w-full bg-[#0B0B0E] hover:bg-[#E2B755] text-white hover:text-gray-950 border border-transparent font-bold text-xs uppercase tracking-widest py-4 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-gray-950/5 hover:shadow-[#e2b75522] transition-all duration-300 group-hover:scale-[1.02]"
               >
                 Ver demonstração ao vivo ⭐
                 <Eye className="w-4 h-4 transition-transform duration-300 group-hover:scale-110" />
@@ -271,7 +268,7 @@ export default function SegmentDemoShowcase({ openContactWithPrefill }: SegmentD
               {/* Notebook Mockup with Hover Autoscroll */}
               <div className="relative w-full aspect-[16/10.5] bg-gray-50 rounded-2xl overflow-hidden shadow-inner flex flex-col justify-between items-center p-3 border border-gray-100 group-hover:bg-amber-50/10 transition-colors duration-500">
                 {/* 3D Notebook Screen */}
-                <div className="relative w-full h-[90%] bg-gray-900 rounded-lg overflow-hidden border-[6px] border-gray-800 shadow-md flex-shrink-0 flex flex-col justify-between">
+                <div className="relative w-full h-[90%] bg-gray-900 rounded-lg overflow-hidden border-[6px] border-zinc-800 shadow-md flex-shrink-0 flex flex-col justify-between">
                   {/* Top camera notched dot */}
                   <div className="absolute top-0.5 inset-x-0 h-1 flex justify-center z-20">
                     <div className="w-1 h-1 rounded-full bg-black"></div>
@@ -282,7 +279,7 @@ export default function SegmentDemoShowcase({ openContactWithPrefill }: SegmentD
                       {/* Full Preview Image mimicking Solar site */}
                       <div className="w-full bg-slate-900 flex flex-col">
                         {/* Header */}
-                        <div className="bg-slate-950 p-2 flex justify-between items-center border-b border-gray-800">
+                        <div className="bg-slate-950 p-2 flex justify-between items-center border-b border-zinc-800">
                           <span className="text-[7px] font-black tracking-widest text-amber-500">SOLARIS ENERGIA</span>
                           <span className="text-[5px] text-gray-400 gap-1 flex"><span>Início</span><span>Simular</span><span>Contato</span></span>
                         </div>
@@ -358,7 +355,7 @@ export default function SegmentDemoShowcase({ openContactWithPrefill }: SegmentD
             <div className="mt-6 pt-5 border-t border-gray-100">
               <button 
                 onClick={() => handleCardClick('solar')}
-                className="w-full bg-[#0B0F19] hover:bg-[#F5B301] text-white hover:text-gray-950 border border-transparent font-bold text-xs uppercase tracking-widest py-4 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-gray-950/5 hover:shadow-[#f5b30122] transition-all duration-300 group-hover:scale-[1.02]"
+                className="w-full bg-[#0B0B0E] hover:bg-[#E2B755] text-white hover:text-gray-950 border border-transparent font-bold text-xs uppercase tracking-widest py-4 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-gray-950/5 hover:shadow-[#e2b75522] transition-all duration-300 group-hover:scale-[1.02]"
               >
                 Ver demonstração ao vivo ⭐
                 <Eye className="w-4 h-4 transition-transform duration-300 group-hover:scale-110" />
@@ -378,7 +375,7 @@ export default function SegmentDemoShowcase({ openContactWithPrefill }: SegmentD
               {/* Notebook Mockup with Hover Autoscroll */}
               <div className="relative w-full aspect-[16/10.5] bg-gray-50 rounded-2xl overflow-hidden shadow-inner flex flex-col justify-between items-center p-3 border border-gray-100 group-hover:bg-amber-50/10 transition-colors duration-500">
                 {/* 3D Notebook Screen */}
-                <div className="relative w-full h-[90%] bg-gray-900 rounded-lg overflow-hidden border-[6px] border-gray-800 shadow-md flex-shrink-0 flex flex-col justify-between">
+                <div className="relative w-full h-[90%] bg-gray-900 rounded-lg overflow-hidden border-[6px] border-zinc-800 shadow-md flex-shrink-0 flex flex-col justify-between">
                   {/* Top camera notched dot */}
                   <div className="absolute top-0.5 inset-x-0 h-1 flex justify-center z-20">
                     <div className="w-1 h-1 rounded-full bg-black"></div>
@@ -389,7 +386,7 @@ export default function SegmentDemoShowcase({ openContactWithPrefill }: SegmentD
                       {/* Full Preview Image mimicking Vidracaria site */}
                       <div className="w-full bg-slate-900 flex flex-col">
                         {/* Header */}
-                        <div className="bg-slate-950 p-2 flex justify-between items-center border-b border-gray-800">
+                        <div className="bg-slate-950 p-2 flex justify-between items-center border-b border-zinc-800">
                           <span className="text-[7px] font-black tracking-widest text-sky-500">VITRA VIDROS</span>
                           <span className="text-[5px] text-gray-400 gap-1 flex"><span>Início</span><span>Portfólio</span><span>Contato</span></span>
                         </div>
@@ -465,7 +462,7 @@ export default function SegmentDemoShowcase({ openContactWithPrefill }: SegmentD
             <div className="mt-6 pt-5 border-t border-gray-100">
               <button 
                 onClick={() => handleCardClick('vidracaria')}
-                className="w-full bg-[#0B0F19] hover:bg-[#F5B301] text-white hover:text-gray-950 border border-transparent font-bold text-xs uppercase tracking-widest py-4 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-gray-950/5 hover:shadow-[#f5b30122] transition-all duration-300 group-hover:scale-[1.02]"
+                className="w-full bg-[#0B0B0E] hover:bg-[#E2B755] text-white hover:text-gray-950 border border-transparent font-bold text-xs uppercase tracking-widest py-4 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-gray-950/5 hover:shadow-[#e2b75522] transition-all duration-300 group-hover:scale-[1.02]"
               >
                 Ver demonstração ao vivo ⭐
                 <Eye className="w-4 h-4 transition-transform duration-300 group-hover:scale-110" />
@@ -517,7 +514,7 @@ export default function SegmentDemoShowcase({ openContactWithPrefill }: SegmentD
                 animate={{ scale: 1, y: 0 }}
                 exit={{ scale: 0.95, y: 30 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 120 }}
-                className="w-full h-full md:h-[94vh] md:max-w-6xl md:rounded-3xl bg-[#0B0F19] border border-slate-800 flex flex-col shadow-[0_30px_100px_rgba(0,0,0,0.8)] overflow-hidden"
+                className="w-full h-full md:h-[94vh] md:max-w-6xl md:rounded-3xl bg-[#0B0B0E] border border-slate-800 flex flex-col shadow-[0_30px_100px_rgba(0,0,0,0.8)] overflow-hidden"
               >
                 
                 {/* Simulated Web Browser Header */}
@@ -706,7 +703,7 @@ export default function SegmentDemoShowcase({ openContactWithPrefill }: SegmentD
                             </div>
                             <div className="p-4 text-left">
                               <h4 className="font-bold text-xs text-white leading-snug">{item.title}</h4>
-                              <p className="text-[9px] text-[#F5B301] font-bold uppercase tracking-widest mt-1">Garantia Certificada</p>
+                              <p className="text-[9px] text-[#E2B755] font-bold uppercase tracking-widest mt-1">Garantia Certificada</p>
                             </div>
                           </div>
                         ))}
@@ -726,7 +723,7 @@ export default function SegmentDemoShowcase({ openContactWithPrefill }: SegmentD
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {demoData.testimonials.map((t, i) => (
                           <div key={i} className="bg-slate-900/40 border border-slate-800 p-6 rounded-2xl relative space-y-4 text-left">
-                            <div className="flex gap-1 text-[#F5B301]">
+                            <div className="flex gap-1 text-[#E2B755]">
                               {[...Array(5)].map((_, idx) => (
                                 <Star key={idx} className="w-3.5 h-3.5 fill-current" />
                               ))}
@@ -753,7 +750,7 @@ export default function SegmentDemoShowcase({ openContactWithPrefill }: SegmentD
                   <section className="py-16 px-4 md:px-8 bg-gradient-to-t from-slate-950 via-slate-900 to-slate-950 border-t border-slate-800 text-slate-100 text-center relative overflow-hidden">
                     <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-green-500/30 to-transparent" />
                     <div className="absolute -left-32 top-1/4 w-72 h-72 bg-green-500/5 rounded-full blur-3xl pointer-events-none" />
-                    <div className="absolute -right-32 bottom-1/4 w-72 h-72 bg-[#F5B301]/5 rounded-full blur-3xl pointer-events-none" />
+                    <div className="absolute -right-32 bottom-1/4 w-72 h-72 bg-[#E2B755]/5 rounded-full blur-3xl pointer-events-none" />
 
                     <div className="max-w-4xl mx-auto space-y-10 relative z-10">
                       
@@ -774,7 +771,7 @@ export default function SegmentDemoShowcase({ openContactWithPrefill }: SegmentD
                       {/* Customization grid benefits */}
                       <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 max-w-2xl mx-auto">
                         <h4 className="text-xs font-bold uppercase text-gray-400 tracking-wider text-left mb-4 flex items-center gap-2">
-                          <GlassIcon className="w-4 h-4 text-[#F5B301]" />
+                          <GlassIcon className="w-4 h-4 text-[#E2B755]" />
                           O que está incluído na sua personalização:
                         </h4>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-left">

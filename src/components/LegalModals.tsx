@@ -31,7 +31,7 @@ export default function LegalModals({ activeDoc, onClose }: LegalModalsProps) {
         return {
           title: 'Sobre Nós',
           subtitle: 'Conheça a Atlas Digital.ia',
-          icon: <Users className="w-5 h-5 text-[#F5B301]" />,
+          icon: <Users className="w-5 h-5 text-[#E2B755]" />,
           text: `A Atlas Digital.ia é uma agência de tecnologia e engenharia de conversão digital de alto padrão. Somos especialistas em planejar, desenhar e programar sites, landing pages e ferramentas interativas voltadas especificamente para empresas da cadeia de construção civil e acabamentos, incluindo Marmorarias, Vidraçarias, Integradores de Energia Solar, Construtoras e Arquitetura.
 
 Nossa Missão:
@@ -59,7 +59,7 @@ Transparência, ética, velocidade e obsessão pela qualidade são as marcas reg
         return {
           title: 'Política de Privacidade',
           subtitle: 'Conformidade integral com a LGPD (Lei nº 13.709/2018)',
-          icon: <ShieldCheck className="w-5 h-5 text-[#F5B301]" />,
+          icon: <ShieldCheck className="w-5 h-5 text-[#E2B755]" />,
           text: `A Atlas Digital, em cumprimento com a Lei Geral de Proteção de Dados Pessoais (LGPD), assume o compromisso inabalável de proteger a privacidade, a segurança e a integridade de todas as informações pessoais coletadas de nossos usuários. Esta Política de Privacidade descreve de forma clara e transparente como tratamos, armazenamos e compartilhamos os seus dados pessoais obtidos durante sua visita ao nosso site ou através das nossas ferramentas interativas.`,
           sections: [
             {
@@ -89,7 +89,7 @@ Transparência, ética, velocidade e obsessão pela qualidade são as marcas reg
         return {
           title: 'Termos de Uso',
           subtitle: 'Condições gerais de navegação e uso das ferramentas',
-          icon: <Scale className="w-5 h-5 text-[#F5B301]" />,
+          icon: <Scale className="w-5 h-5 text-[#E2B755]" />,
           text: `Estes Termos de Uso regem o acesso e a utilização dos serviços, simuladores de escopo e conteúdos disponibilizados pela Atlas Digital por meio deste site. Ao navegar por nossa plataforma ou utilizar nosso simulador interativo, o visitante declara expressamente estar ciente e concordar integralmente com as condições estabelecidas neste documento legal.`,
           sections: [
             {
@@ -115,7 +115,7 @@ Transparência, ética, velocidade e obsessão pela qualidade são as marcas reg
         return {
           title: 'Política de Cookies',
           subtitle: 'Transparência sobre rastreamento e funcionamento técnico',
-          icon: <Cookie className="w-5 h-5 text-[#F5B301]" />,
+          icon: <Cookie className="w-5 h-5 text-[#E2B755]" />,
           text: `Utilizamos cookies para otimizar o funcionamento técnico de nossas ferramentas, garantir a integridade das simulações de escopo e compreender o comportamento de navegação para aprimorar continuamente a experiência do usuário. Explicamos abaixo como essas tecnologias funcionam e como você pode gerenciá-las de acordo com sua conveniência.`,
           sections: [
             {
@@ -137,7 +137,7 @@ Transparência, ética, velocidade e obsessão pela qualidade são as marcas reg
         return {
           title: 'Cancelamento e Reembolso',
           subtitle: 'Diretrizes comerciais e regras para início de serviços',
-          icon: <Ban className="w-5 h-5 text-[#F5B301]" />,
+          icon: <Ban className="w-5 h-5 text-[#E2B755]" />,
           text: `Esta Política de Cancelamento e Reembolso visa estabelecer regras comerciais justas, transparentes e previamente acordadas sobre a contratação de nossos serviços de engenharia e desenvolvimento de software. Em virtude da natureza altamente personalizada, exclusiva e técnica dos serviços prestados pela Atlas Digital, aplicam-se as seguintes condições comerciais:`,
           sections: [
             {
@@ -200,12 +200,12 @@ Transparência, ética, velocidade e obsessão pela qualidade são as marcas reg
             className="w-full max-w-3xl bg-[#090d16] border border-gray-900 rounded-2xl shadow-2xl relative z-10 overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[80vh]"
           >
             {/* Gradient accent top-border */}
-            <div className="h-1 w-full bg-gradient-to-r from-[#F5B301] via-slate-500 to-gray-700" />
+            <div className="h-1 w-full bg-gradient-to-r from-[#E2B755] via-slate-500 to-gray-700" />
 
             {/* Modal Header */}
             <div className="p-6 border-b border-gray-900 flex items-center justify-between gap-4 shrink-0 bg-[#0c121e]">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-gray-950/80 border border-gray-800 rounded-xl">
+                <div className="p-2.5 bg-gray-950/80 border border-zinc-800 rounded-xl">
                   {doc.icon}
                 </div>
                 <div>
@@ -219,7 +219,7 @@ Transparência, ética, velocidade e obsessão pela qualidade são as marcas reg
               {/* Close Button */}
               <button
                 onClick={onClose}
-                className="p-2 text-gray-500 hover:text-white bg-gray-950 border border-gray-900 hover:border-gray-800 rounded-lg transition-colors"
+                className="p-2 text-gray-500 hover:text-white bg-gray-950 border border-gray-900 hover:border-zinc-800 rounded-lg transition-colors"
                 aria-label="Fechar"
               >
                 <X className="w-4 h-4" />
@@ -236,7 +236,7 @@ Transparência, ética, velocidade e obsessão pela qualidade são as marcas reg
                 {doc.sections.map((sec, i) => (
                   <div key={i} className="space-y-2 p-5 rounded-xl bg-gray-950/40 border border-gray-950">
                     <h4 className="text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#F5B301]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#E2B755]" />
                       {sec.title}
                     </h4>
                     <p className="text-gray-400 font-sans leading-relaxed text-xs">
@@ -254,11 +254,11 @@ Transparência, ética, velocidade e obsessão pela qualidade são as marcas reg
             </div>
 
             {/* Action Footer */}
-            <div className="p-4 bg-[#0B0F19] border-t border-gray-900 flex items-center justify-between gap-3 shrink-0">
+            <div className="p-4 bg-[#0B0B0E] border-t border-gray-900 flex items-center justify-between gap-3 shrink-0">
               <div className="flex gap-2">
                 <button
                   onClick={() => handleCopy(getFullTextForClipboard())}
-                  className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-white bg-gray-950 border border-gray-900 hover:border-gray-800 rounded-lg transition-colors flex items-center gap-1.5"
+                  className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-white bg-gray-950 border border-gray-900 hover:border-zinc-800 rounded-lg transition-colors flex items-center gap-1.5"
                 >
                   {copied ? (
                     <>
@@ -274,7 +274,7 @@ Transparência, ética, velocidade e obsessão pela qualidade são as marcas reg
                 </button>
                 <button
                   onClick={handlePrint}
-                  className="hidden sm:flex px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-white bg-gray-950 border border-gray-900 hover:border-gray-800 rounded-lg transition-colors items-center gap-1.5"
+                  className="hidden sm:flex px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-white bg-gray-950 border border-gray-900 hover:border-zinc-800 rounded-lg transition-colors items-center gap-1.5"
                 >
                   <Printer className="w-3.5 h-3.5" />
                   Imprimir
@@ -283,7 +283,7 @@ Transparência, ética, velocidade e obsessão pela qualidade são as marcas reg
 
               <button
                 onClick={onClose}
-                className="px-5 py-2 text-[10px] font-black uppercase tracking-widest text-[#0B0F19] bg-[#F5B301] hover:bg-[#b48400] rounded-lg transition-colors flex items-center gap-1.5"
+                className="px-5 py-2 text-[10px] font-black uppercase tracking-widest text-[#0B0B0E] bg-[#E2B755] hover:bg-[#b48400] rounded-lg transition-colors flex items-center gap-1.5"
               >
                 Entendido
               </button>

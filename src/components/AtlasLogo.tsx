@@ -30,7 +30,7 @@ export function AtlasLogoIcon({ className = 'w-10 h-10', variant = 'gold' }: { c
         {/* Premium Gold Gradient for the chart pillars and inner accent */}
         <linearGradient id="gold-metallic" x1="90" y1="40" x2="170" y2="160" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#FFE066" />
-          <stop offset="30%" stopColor="#F5B301" />
+          <stop offset="30%" stopColor="#E2B755" />
           <stop offset="70%" stopColor="#B48400" />
           <stop offset="100%" stopColor="#D97706" />
         </linearGradient>
@@ -120,11 +120,11 @@ export default function AtlasLogo({
         
         {/* DIGITAL with golden accent lines */}
         <div className="flex items-center gap-1.5 mt-1">
-          <div className="h-[1px] w-3 bg-[#F5B301] opacity-70"></div>
-          <span className="text-[9px] md:text-[10px] font-mono font-bold tracking-[0.35em] text-[#F5B301] uppercase leading-none">
+          <div className="h-[1px] w-3 bg-[#E2B755] opacity-70"></div>
+          <span className="text-[9px] md:text-[10px] font-mono font-bold tracking-[0.35em] text-[#E2B755] uppercase leading-none">
             DIGITAL
           </span>
-          <div className="h-[1px] w-3 bg-[#F5B301] opacity-70"></div>
+          <div className="h-[1px] w-3 bg-[#E2B755] opacity-70"></div>
         </div>
 
         {/* Subtitle SITES QUE GERAM RESULTADOS */}

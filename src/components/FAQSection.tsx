@@ -58,22 +58,22 @@ export default function FAQSection() {
   };
 
   return (
-    <section id="faq" className="py-20 bg-[#0B0F19] border-t border-gray-900 relative overflow-hidden">
+    <section id="faq" className="py-20 bg-[#0B0B0E] border-t border-zinc-900 relative overflow-hidden">
       {/* Background decoration elements */}
-      <div className="absolute top-0 right-1/4 w-[400px] h-[400px] bg-[#F5B301]/[0.015] rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-0 right-1/4 w-[400px] h-[400px] bg-[#E2B755]/[0.015] rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] bg-[#9CA3AF]/[0.01] rounded-full blur-[120px] pointer-events-none" />
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
-          <span className="text-[10px] text-[#F5B301] uppercase tracking-widest font-mono font-bold">Tire Suas Dúvidas</span>
+          <span className="text-[10px] text-[#E2B755] uppercase tracking-widest font-mono font-bold">Tire Suas Dúvidas</span>
           <h2 className="text-2xl sm:text-3xl font-display font-black text-white uppercase tracking-tight">
-            Perguntas <span className="text-[#F5B301]">Frequentes</span>
+            Perguntas <span className="text-[#E2B755]">Frequentes</span>
           </h2>
-          <div className="w-16 h-1 bg-[#F5B301] mx-auto rounded-full mt-2" />
-          <p className="text-xs md:text-sm text-gray-400">
-            Reunimos as dúvidas mais comuns sobre nossos serviços para que você tenha total transparência antes de iniciar seu projeto.
+          <div className="w-16 h-1 bg-[#E2B755] mx-auto rounded-full mt-2" />
+          <p className="text-xs md:text-sm text-zinc-400">
+            Reunimos as dúvidas mais comuns sobre nossos services para que você tenha total transparência antes de iniciar seu projeto.
           </p>
         </div>
 
@@ -84,7 +84,7 @@ export default function FAQSection() {
             return (
               <div 
                 key={idx}
-                className="bg-[#111827]/40 border border-gray-900 hover:border-gray-800/80 rounded-xl overflow-hidden transition-all duration-300"
+                className="bg-[#121214]/40 border border-zinc-900 hover:border-zinc-800/80 rounded-xl overflow-hidden transition-all duration-300"
               >
                 <button
                   onClick={() => toggleItem(idx)}
@@ -92,13 +92,13 @@ export default function FAQSection() {
                   aria-expanded={isOpen}
                 >
                   <div className="flex items-center gap-3">
-                    <HelpCircle className="w-4 h-4 text-[#F5B301]/80 shrink-0" />
-                    <span className="text-xs md:text-sm font-bold text-gray-200 group-hover:text-white transition-colors">
+                    <HelpCircle className="w-4 h-4 text-[#E2B755]/80 shrink-0" />
+                    <span className="text-xs md:text-sm font-bold text-zinc-200 group-hover:text-white transition-colors">
                       {item.question}
                     </span>
                   </div>
-                  <div className={`p-1 rounded-lg bg-gray-900 border border-gray-800 transition-transform duration-300 ${isOpen ? 'rotate-180 border-[#F5B301]/40' : ''}`}>
-                    <ChevronDown className={`w-4 h-4 ${isOpen ? 'text-[#F5B301]' : 'text-gray-500'}`} />
+                  <div className={`p-1 rounded-lg bg-zinc-950 border border-zinc-800 transition-transform duration-300 ${isOpen ? 'rotate-180 border-[#E2B755]/40' : ''}`}>
+                    <ChevronDown className={`w-4 h-4 ${isOpen ? 'text-[#E2B755]' : 'text-zinc-500'}`} />
                   </div>
                 </button>
 
@@ -110,7 +110,7 @@ export default function FAQSection() {
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.25, ease: "easeInOut" }}
                     >
-                      <div className="px-5 pb-5 md:px-6 md:pb-6 pt-0 text-xs md:text-[13px] text-gray-400 leading-relaxed border-t border-gray-900/60 font-sans">
+                      <div className="px-5 pb-5 md:px-6 md:pb-6 pt-0 text-xs md:text-[13px] text-zinc-400 leading-relaxed border-t border-zinc-900/60 font-sans">
                         {item.answer}
                       </div>
                     </motion.div>
@@ -122,21 +122,21 @@ export default function FAQSection() {
         </div>
 
         {/* Contact CTA banner under FAQ */}
-        <div className="mt-12 p-6 rounded-2xl bg-gradient-to-r from-gray-950 to-gray-900/60 border border-gray-900 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+        <div className="mt-12 p-6 rounded-2xl bg-gradient-to-r from-zinc-950 to-zinc-900/60 border border-zinc-900 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <div className="flex items-center gap-3 flex-col sm:flex-row">
-            <div className="p-3 bg-[#F5B301]/10 rounded-xl text-[#F5B301] shrink-0">
+            <div className="p-3 bg-[#E2B755]/10 rounded-xl text-[#E2B755] shrink-0">
               <MessageSquare className="w-5 h-5" />
             </div>
             <div>
               <h4 className="text-white text-xs font-bold uppercase tracking-wider">Ainda tem alguma dúvida específica?</h4>
-              <p className="text-[11px] text-gray-500">Nossa equipe comercial está pronta para lhe atender sem compromisso.</p>
+              <p className="text-[11px] text-zinc-500">Nossa equipe comercial está pronta para lhe atender sem compromisso.</p>
             </div>
           </div>
           <a
             href="https://wa.me/5551994578544?text=Ol%C3%A1!%20Li%20o%20FAQ%20mas%20tenho%20uma%20d%C3%BAvida%20espec%C3%ADfica."
             target="_blank"
             rel="noopener noreferrer"
-            className="px-5 py-2.5 bg-[#F5B301] hover:bg-[#b48400] text-[#0B0F19] text-[10px] font-black uppercase tracking-wider rounded-xl transition-all hover:scale-105"
+            className="px-5 py-2.5 bg-[#E2B755] hover:bg-[#c5a25d] text-[#0B0B0E] text-[10px] font-black uppercase tracking-wider rounded-xl transition-all hover:scale-105"
           >
             Falar pelo WhatsApp
           </a>

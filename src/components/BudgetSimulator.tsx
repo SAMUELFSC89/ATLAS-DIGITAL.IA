@@ -15,8 +15,7 @@ import {
   Check,
   FolderHeart,
   Home,
-  Compass,
-  FileSpreadsheet
+  Compass
 } from 'lucide-react';
 
 type SegmentType = 'Marmoraria' | 'Vidraçaria' | 'Energia Solar' | 'Esquadrias' | 'Coberturas' | 'Serralheria' | 'Móveis Planejados';
@@ -133,21 +132,21 @@ export default function BudgetSimulator() {
   };
 
   return (
-    <div className="w-full bg-[#111827] border border-gray-800 rounded-2xl p-6 md:p-8 relative overflow-hidden shadow-2xl">
+    <div className="w-full bg-[#121214] border border-zinc-800 rounded-2xl p-6 md:p-8 relative overflow-hidden shadow-2xl">
       {/* Decorative gradients */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-[#F5B301] opacity-[0.03] rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-600 opacity-[0.02] rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute top-0 right-0 w-64 h-64 bg-[#E2B755] opacity-[0.03] rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#E2B755] opacity-[0.01] rounded-full blur-3xl pointer-events-none"></div>
 
       {/* Header Info */}
-      <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-800">
+      <div className="flex justify-between items-center mb-6 pb-4 border-b border-zinc-800">
         <div>
-          <span className="text-[10px] text-[#F5B301] uppercase tracking-widest font-mono font-bold">Simulador Inteligente</span>
+          <span className="text-[10px] text-[#E2B755] uppercase tracking-widest font-mono font-bold">Simulador Inteligente</span>
           <h3 className="text-lg font-bold text-white font-display">Planeje Seu Novo Site</h3>
         </div>
         <div className="text-right">
-          <span className="text-xs text-gray-500">Passo</span>
+          <span className="text-xs text-zinc-500">Passo</span>
           <div className="text-base font-black text-white">
-            <span className="text-[#F5B301]">{step}</span>/4
+            <span className="text-[#E2B755]">{step}</span>/4
           </div>
         </div>
       </div>
@@ -165,7 +164,7 @@ export default function BudgetSimulator() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-4"
             >
-              <p className="text-sm text-gray-300">
+              <p className="text-sm text-zinc-300">
                 Selecione o <span className="text-white font-semibold">segmento principal</span> de atuação da sua empresa da construção ou acabamento:
               </p>
               
@@ -179,19 +178,19 @@ export default function BudgetSimulator() {
                       onClick={() => setSelectedSegment(seg.name)}
                       className={`p-3.5 rounded-xl border text-left transition-all duration-300 flex items-start gap-3 hover:scale-[1.01] ${
                         isSelected 
-                          ? 'border-[#F5B301] bg-[#f5b3010b] text-white shadow-md' 
-                          : 'border-gray-800 bg-[#0B0F19]/60 text-gray-400 hover:border-gray-700 hover:text-gray-300'
+                          ? 'border-[#E2B755] bg-[#e2b7550b] text-white shadow-md' 
+                          : 'border-zinc-800 bg-[#0B0B0E]/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-300'
                       }`}
                     >
-                      <div className={`p-2 rounded-lg shrink-0 ${isSelected ? 'bg-[#F5B301] text-gray-900' : 'bg-gray-950 text-[#F5B301]'}`}>
+                      <div className={`p-2 rounded-lg shrink-0 ${isSelected ? 'bg-[#E2B755] text-[#0B0B0E]' : 'bg-zinc-950 text-[#E2B755]'}`}>
                         <IconComp className="w-4 h-4" />
                       </div>
                       <div>
                         <div className="font-semibold text-sm leading-none mb-1 text-white flex items-center gap-1.5">
                           {seg.name}
-                          {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-[#F5B301]"></span>}
+                          {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-[#E2B755]"></span>}
                         </div>
-                        <p className="text-[11px] text-gray-500 leading-tight">{seg.placeholder}</p>
+                        <p className="text-[11px] text-zinc-500 leading-tight">{seg.placeholder}</p>
                       </div>
                     </button>
                   );
@@ -210,10 +209,10 @@ export default function BudgetSimulator() {
               className="space-y-4"
             >
               <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-300">
+                <p className="text-sm text-zinc-300">
                   Quais <span className="text-white font-semibold">recursos estratégicos</span> deseja implementar no seu site?
                 </p>
-                <span className="text-[10px] bg-slate-900 px-2 py-0.5 rounded text-gray-400">
+                <span className="text-[10px] bg-zinc-900 px-2 py-0.5 rounded text-zinc-400">
                   Focado em {selectedSegment}
                 </span>
               </div>
@@ -229,12 +228,12 @@ export default function BudgetSimulator() {
                       className={`p-3 rounded-xl border text-left transition-all duration-300 flex items-center justify-between gap-3 ${
                         isSelected 
                           ? 'border-yellow-600 bg-yellow-950/10 text-white' 
-                          : 'border-gray-800 bg-[#0B0F19]/40 text-gray-400 hover:border-gray-700'
+                          : 'border-zinc-800 bg-[#0B0B0E]/40 text-zinc-400 hover:border-zinc-700'
                       }`}
                     >
                       <div className="flex items-start gap-2.5">
                         <div className={`w-4 h-4 rounded border mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
-                          isSelected ? 'bg-[#F5B301] border-[#F5B301] text-gray-900' : 'border-gray-700 bg-gray-950'
+                          isSelected ? 'bg-[#E2B755] border-[#E2B755] text-[#0B0B0E]' : 'border-zinc-700 bg-zinc-950'
                         }`}>
                           {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                         </div>
@@ -242,12 +241,12 @@ export default function BudgetSimulator() {
                           <div className="font-semibold text-xs text-white leading-tight mb-0.5 flex items-center gap-1.5">
                             {feat.label}
                             {isRecommended && (
-                              <span className="text-[9px] font-bold text-[#F5B301] bg-[#f5b30113] px-1 rounded uppercase tracking-wider">
+                              <span className="text-[9px] font-bold text-[#E2B755] bg-[#e2b75513] px-1 rounded uppercase tracking-wider">
                                 Recomendado
                               </span>
                             )}
                           </div>
-                          <p className="text-[10px] text-gray-500 leading-tight">{feat.description}</p>
+                          <p className="text-[10px] text-zinc-500 leading-tight">{feat.description}</p>
                         </div>
                       </div>
                     </button>
@@ -267,7 +266,7 @@ export default function BudgetSimulator() {
               className="space-y-5"
             >
               <div>
-                <p className="text-sm text-gray-300 mb-2.5">
+                <p className="text-sm text-zinc-300 mb-2.5">
                   Qual o seu <span className="text-white font-semibold">prazo ideal</span> para ver seu site rodando e vendendo?
                 </p>
                 <div className="grid grid-cols-3 gap-2">
@@ -279,42 +278,42 @@ export default function BudgetSimulator() {
                         onClick={() => setSelectedTimeline(time.id)}
                         className={`p-3 rounded-xl border text-center transition-all duration-300 ${
                           isSelected 
-                            ? 'border-[#F5B301] bg-[#f5b3010b] text-white' 
-                            : 'border-gray-800 bg-[#0B0F19]/40 text-gray-400 hover:border-gray-700'
+                            ? 'border-[#E2B755] bg-[#e2b7550b] text-white' 
+                            : 'border-zinc-800 bg-[#0B0B0E]/40 text-zinc-400 hover:border-zinc-700'
                         }`}
                       >
                         <div className="font-semibold text-xs text-white mb-0.5">{time.label}</div>
-                        <div className="text-[9px] text-gray-500 leading-none">{time.desc}</div>
+                        <div className="text-[9px] text-zinc-500 leading-none">{time.desc}</div>
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              <div className="border-t border-gray-800 pt-4 space-y-3">
-                <p className="text-sm text-gray-300">
+              <div className="border-t border-zinc-800 pt-4 space-y-3">
+                <p className="text-sm text-zinc-300">
                   Para gerar o escopo customizado, preencha seus <span className="text-white font-semibold">dados de contato</span>:
                 </p>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] uppercase text-gray-500 font-mono font-bold mb-1">Nome da Empresa</label>
+                    <label className="block text-[10px] uppercase text-zinc-500 font-mono font-bold mb-1">Nome da Empresa</label>
                     <input 
                       type="text"
                       placeholder="Ex: Marmoraria Real"
                       value={userName}
                       onChange={(e) => setUserName(e.target.value)}
-                      className="w-full bg-[#0B0F19] border border-gray-800 rounded-lg py-2 px-3 text-xs text-white focus:outline-none focus:border-[#F5B301] transition-colors"
+                      className="w-full bg-[#0B0B0E] border border-zinc-800 rounded-lg py-2 px-3 text-xs text-white focus:outline-none focus:border-[#E2B755] transition-colors"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] uppercase text-gray-500 font-mono font-bold mb-1">Telefone (WhatsApp)</label>
+                    <label className="block text-[10px] uppercase text-zinc-500 font-mono font-bold mb-1">Telefone (WhatsApp)</label>
                     <input 
                       type="tel"
                       placeholder="Ex: (11) 99999-9999"
                       value={userPhone}
                       onChange={(e) => setUserPhone(e.target.value)}
-                      className="w-full bg-[#0B0F19] border border-gray-800 rounded-lg py-2 px-3 text-xs text-white focus:outline-none focus:border-[#F5B301] transition-colors"
+                      className="w-full bg-[#0B0B0E] border border-zinc-800 rounded-lg py-2 px-3 text-xs text-white focus:outline-none focus:border-[#E2B755] transition-colors"
                     />
                   </div>
                 </div>
@@ -331,16 +330,16 @@ export default function BudgetSimulator() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-4"
             >
-              <div className="bg-[#0B0F19] border border-gray-800 rounded-xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="bg-[#0B0B0E] border border-zinc-800 rounded-xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-[#F5B301] font-mono text-[10px] font-bold">
-                    <Sparkles className="w-3 h-3 text-[#F5B301]" />
+                  <div className="flex items-center gap-2 text-[#E2B755] font-mono text-[10px] font-bold">
+                    <Sparkles className="w-3 h-3 text-[#E2B755]" />
                     ESCOPO CUSTOMIZADO GERADO COM SUCESSO!
                   </div>
                   <h4 className="text-base font-bold text-white font-display">
                     Estratégia de Alto Padrão para {selectedSegment}
                   </h4>
-                  <p className="text-gray-400 text-[11px] leading-relaxed max-w-lg">
+                  <p className="text-zinc-400 text-[11px] leading-relaxed max-w-lg">
                     {selectedSegment === 'Marmoraria' && "Recomendamos foco total em fotografia de luxo, zoom de alta fidelidade e filtros rápidos de pedras para atrair arquitetos e projetos de alto valor."}
                     {selectedSegment === 'Vidraçaria' && "Seu site necessita de apelo visual refinado focado em sacadas e fechamentos, além de agendador integrado de visitas técnicas locais."}
                     {selectedSegment === 'Energia Solar' && "O ponto chave é o simulador de economia, gerando leads qualificados educados e prontos para fechamentos comerciais."}
@@ -351,16 +350,16 @@ export default function BudgetSimulator() {
                   </p>
                 </div>
 
-                <div className="bg-[#111827] border border-gray-800 p-3 rounded-lg shrink-0 flex flex-col items-center justify-center text-center">
-                  <Gauge className="w-6 h-6 text-[#F5B301] mb-1" />
-                  <div className="text-[10px] uppercase text-gray-500 font-mono">Performance Estimada</div>
+                <div className="bg-[#121214] border border-zinc-800 p-3 rounded-lg shrink-0 flex flex-col items-center justify-center text-center">
+                  <Gauge className="w-6 h-6 text-[#E2B755] mb-1" />
+                  <div className="text-[10px] uppercase text-zinc-500 font-mono">Performance Estimada</div>
                   <div className="text-lg font-black text-white">98 / 100</div>
                   <div className="text-[8px] text-green-400">Excelente no Google</div>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-left">
-                <div className="p-3 rounded-xl bg-gray-900 border border-gray-800 flex items-center gap-2.5">
+                <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center gap-2.5">
                   <div className="w-7 h-7 rounded-lg bg-green-950 text-green-400 flex items-center justify-center shrink-0">
                     <MousePointerClick className="w-4 h-4" />
                   </div>
@@ -369,20 +368,20 @@ export default function BudgetSimulator() {
                     <div className="text-[10px] text-green-400 font-bold">+45% a +120% de contatos</div>
                   </div>
                 </div>
-                <div className="p-3 rounded-xl bg-gray-900 border border-gray-800 flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-[#f5b30113] text-[#F5B301] flex items-center justify-center shrink-0">
+                <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-[#e2b75513] text-[#E2B755] flex items-center justify-center shrink-0">
                     <CheckCircle className="w-4 h-4" />
                   </div>
                   <div>
                     <div className="text-xs font-bold text-white">Atendimento Garantido</div>
-                    <div className="text-[10px] text-gray-400">Parceria local exclusiva Atlas</div>
+                    <div className="text-[10px] text-zinc-400">Parceria local exclusiva Atlas</div>
                   </div>
                 </div>
               </div>
 
               <div className="bg-yellow-950/10 border border-yellow-800/30 p-3 rounded-xl flex items-start gap-2">
-                <span className="text-[#F5B301] text-xs">ℹ</span>
-                <p className="text-[10px] text-gray-400 leading-tight">
+                <span className="text-[#E2B755] text-xs">ℹ</span>
+                <p className="text-[10px] text-zinc-400 leading-tight">
                   Ao clicar no botão abaixo, geraremos um layout preliminar no Figma com base nessas configurações. O diagnóstico é 100% gratuito e sem compromisso.
                 </p>
               </div>
@@ -393,12 +392,12 @@ export default function BudgetSimulator() {
       </div>
 
       {/* Footer Navigation */}
-      <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-800">
+      <div className="flex justify-between items-center mt-6 pt-4 border-t border-zinc-800">
         <div>
           {step > 1 && (
             <button
               onClick={handlePrev}
-              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors py-2 px-1"
+              className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors py-2 px-1"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               Voltar
@@ -409,7 +408,7 @@ export default function BudgetSimulator() {
           {step < 4 ? (
             <button
               onClick={handleNext}
-              className="bg-[#F5B301] text-[#0B0F19] text-xs font-bold py-2.5 px-5 rounded-lg flex items-center gap-1.5 hover:scale-105 transition-all"
+              className="bg-[#E2B755] text-[#0B0B0E] text-xs font-bold py-2.5 px-5 rounded-lg flex items-center gap-1.5 hover:scale-105 transition-all"
             >
               Continuar
               <ArrowRight className="w-3.5 h-3.5" />
