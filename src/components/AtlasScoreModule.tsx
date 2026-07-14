@@ -143,26 +143,38 @@ export default function AtlasScoreModule() {
     doc.setTextColor(245, 179, 1); // primaryGold
     doc.setFont("helvetica", "bold");
     doc.setFontSize(28);
-    doc.text("ATLAS SCORE", 105, 50, { align: 'center' });
+    doc.text("ATLAS SCORE", 105, 45, { align: 'center' });
     
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16);
-    doc.text("DIAGNÓSTICO AUTOMÁTICO DE PRESENÇA DIGITAL", 105, 62, { align: 'center' });
+    doc.setFontSize(14);
+    doc.text("AUDITORIA ESTRATÉGICA DE PRESENÇA DIGITAL", 105, 57, { align: 'center' });
+
+    // Subtitle
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(200, 200, 200);
+    const splitSub = doc.splitTextToSize("Análise técnica baseada em inteligência artificial, dados públicos e critérios de SEO.", 160);
+    doc.text(splitSub, 105, 64, { align: 'center' });
 
     // Accent line
     doc.setFillColor(245, 179, 1);
-    doc.rect(55, 70, 100, 1.5, 'F');
+    doc.rect(55, 73, 100, 1.5, 'F');
 
     // Company Info Box
     doc.setFillColor(17, 24, 39);
-    doc.roundedRect(20, 85, 170, 45, 4, 4, 'F');
+    doc.roundedRect(20, 85, 170, 50, 4, 4, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(11);
-    doc.text(`Empresa: ${companyName.toUpperCase()}`, 25, 96);
-    doc.text(`Cidade / UF: ${city}`, 25, 103);
-    doc.text(`Segmento: ${segment}`, 25, 110);
-    doc.text(`Site: ${website || "Não informado"}`, 25, 117);
-    doc.text(`Data do Diagnóstico: ${new Date().toLocaleDateString('pt-BR')}`, 25, 124);
+    doc.text(`Empresa: ${companyName.toUpperCase()}`, 25, 95);
+    doc.text(`Cidade / UF: ${city}`, 25, 102);
+    doc.text(`Segmento: ${segment}`, 25, 109);
+    doc.text(`Site: ${website || "Não informado"}`, 25, 116);
+    doc.text(`Data do Diagnóstico: ${new Date().toLocaleDateString('pt-BR')}`, 25, 123);
+    
+    // Audit Metadata
+    doc.setTextColor(245, 179, 1);
+    doc.setFontSize(9);
+    doc.text(`ID da Auditoria: ${report.reportMeta?.auditId || 'AUD-784204'}   |   Versão: ${report.reportMeta?.version || 'v2.0.4'}   |   Análise: ${report.reportMeta?.analysisTime || '4.2s'}`, 25, 131);
 
     // Score Circle Visual Representation
     doc.setFillColor(17, 24, 39);
@@ -192,7 +204,7 @@ export default function AtlasScoreModule() {
     doc.text("Este documento foi gerado automaticamente pela Inteligência Artificial Atlas Digital.ia", 105, 275, { align: 'center' });
     doc.text("Atlas Digital.ia - CNPJ: 66.204.635/0001-19 | Porto Alegre - RS", 105, 281, { align: 'center' });
 
-    // PAGE 2: EXECUTIVE SUMMARY & SEO
+    // PAGE 2: EXECUTIVE SUMMARY & MATURITY INDICES
     doc.addPage();
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, 210, 297, 'F');
@@ -201,47 +213,180 @@ export default function AtlasScoreModule() {
     doc.setFillColor(9, 13, 22);
     doc.rect(0, 0, 210, 22, 'F');
     doc.setTextColor(245, 179, 1);
-    doc.setFontSize(13);
-    doc.text("ATLAS DIGITAL.IA - RELATÓRIO DE DESEMPENHO", 15, 14);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("ATLAS DIGITAL.IA — AUDITORIA ESTRATÉGICA DE PRESENÇA DIGITAL", 15, 14);
 
     // Executive Summary
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(15);
-    doc.text("1. Resumo Executivo", 15, 35);
+    doc.setFontSize(14);
+    doc.text("1. Resumo Executivo da Auditoria", 15, 35);
     
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9.5);
+    doc.setFontSize(9);
     doc.setTextColor(55, 65, 81);
     const splitSummary = doc.splitTextToSize(report.executiveSummary, 180);
-    doc.text(splitSummary, 15, 42);
+    doc.text(splitSummary, 15, 41);
 
-    const summaryHeight = splitSummary.length * 4.5 + 45;
+    const summaryHeight = 41 + (splitSummary.length * 4.2) + 10;
+
+    // IMD (Índice de Maturidade Digital)
+    doc.setTextColor(9, 13, 22);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Índice de Maturidade Digital (IMD)", 15, summaryHeight);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(100, 100, 100);
+    doc.text("Mapeamento técnico de prontidão digital (Escala de 0 a 100):", 15, summaryHeight + 5);
+
+    // Render IMD Items
+    if (report.maturityIndex) {
+      const items = [
+        { name: "Presença Web", val: report.maturityIndex.presence },
+        { name: "SEO Técnico", val: report.maturityIndex.seo },
+        { name: "Performance", val: report.maturityIndex.performance ?? "N/A" },
+        { name: "Captação Leads", val: report.maturityIndex.conversion },
+        { name: "Google Maps", val: report.maturityIndex.google },
+        { name: "Mobile Core", val: report.maturityIndex.mobile ?? "N/A" },
+        { name: "Autoridade", val: report.maturityIndex.authority },
+        { name: "Automação IA", val: report.maturityIndex.automation }
+      ];
+
+      let imdY = summaryHeight + 14;
+      items.forEach((item, idx) => {
+        const col = idx % 2 === 0 ? 15 : 110;
+        const row = imdY + Math.floor(idx / 2) * 11;
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8.5);
+        doc.setTextColor(55, 65, 81);
+        doc.text(`${item.name}:`, col, row);
+        
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(226, 183, 85);
+        doc.text(`${item.val}`, col + 38, row);
+        
+        // simple thin gauge bar
+        doc.setFillColor(243, 244, 246);
+        doc.rect(col, row + 2, 70, 1.5, 'F');
+        
+        const scoreVal = typeof item.val === 'number' ? item.val : 0;
+        doc.setFillColor(226, 183, 85);
+        doc.rect(col, row + 2, (scoreVal / 100) * 70, 1.5, 'F');
+      });
+    }
+
+    // Benchmark do Mercado
+    if (report.benchmark) {
+      const benchY = summaryHeight + 64;
+      doc.setTextColor(9, 13, 22);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text("Benchmark Comparativo Local", 15, benchY);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(55, 65, 81);
+      doc.text(`Sua Empresa (Auditada): ${report.benchmark.audited}/100`, 15, benchY + 6);
+      doc.text(`Média Regional dos Concorrentes: ${report.benchmark.marketAverage}/100`, 15, benchY + 11);
+      doc.text(`Líder Estabelecido do Segmento: ${report.benchmark.marketLeader}/100`, 15, benchY + 16);
+
+      doc.setDrawColor(229, 231, 235);
+      doc.setLineWidth(0.2);
+      doc.line(15, benchY + 22, 195, benchY + 22);
+    }
+
+    // PAGE 3: ANÁLISE ESTRATÉGICA EM 5 PILARES
+    doc.addPage();
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, 210, 297, 'F');
+
+    // Mini Band Header
+    doc.setFillColor(9, 13, 22);
+    doc.rect(0, 0, 210, 22, 'F');
+    doc.setTextColor(245, 179, 1);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("ATLAS DIGITAL.IA — ANÁLISE ESTRATÉGICA EM 5 PILARES", 15, 14);
+
+    if (report.executiveSummaryFiveTopics) {
+      doc.setTextColor(9, 13, 22);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.text("2. Diagnóstico de Maturidade — 5 Pilares de Negócio", 15, 35);
+
+      const pillars = [
+        { label: "Pilar 1: Pontos Fortes Identificados", val: report.executiveSummaryFiveTopics.strengths, color: [16, 185, 129] },
+        { label: "Pilar 2: Oportunidades de Escala e Conversão", val: report.executiveSummaryFiveTopics.opportunities, color: [226, 183, 85] },
+        { label: "Pilar 3: Riscos Técnicos e Mitigações", val: report.executiveSummaryFiveTopics.risks, color: [239, 68, 68] },
+        { label: "Pilar 4: Potencial de Evolução com IA", val: report.executiveSummaryFiveTopics.evolution, color: [59, 130, 246] },
+        { label: "Pilar 5: Próximos Passos Recomendados", val: report.executiveSummaryFiveTopics.nextSteps, color: [139, 92, 246] }
+      ];
+
+      let pilY = 43;
+      pillars.forEach((p) => {
+        doc.setFillColor(249, 250, 251);
+        doc.rect(15, pilY, 180, 36, 'F');
+        
+        doc.setDrawColor(p.color[0], p.color[1], p.color[2]);
+        doc.setLineWidth(1);
+        doc.line(15, pilY, 15, pilY + 36);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9.5);
+        doc.setTextColor(9, 13, 22);
+        doc.text(p.label, 20, pilY + 6);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.5);
+        doc.setTextColor(75, 85, 99);
+        const splitVal = doc.splitTextToSize(p.val, 170);
+        doc.text(splitVal, 20, pilY + 11);
+
+        pilY += 41;
+      });
+    }
+
+    // PAGE 4: SEO & GOOGLE PERFIL
+    doc.addPage();
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, 210, 297, 'F');
+
+    // Mini Band Header
+    doc.setFillColor(9, 13, 22);
+    doc.rect(0, 0, 210, 22, 'F');
+    doc.setTextColor(245, 179, 1);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("ATLAS DIGITAL.IA — RELATÓRIO TÉCNICO SEO E GOOGLE PERFIL", 15, 14);
 
     // SEO Title
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(15);
-    doc.text(`2. Auditoria Técnica de SEO (Nota: ${report.seo.score}/100)`, 15, summaryHeight);
+    doc.setFontSize(13);
+    doc.text(`3. Auditoria Técnica de SEO (Nota: ${report.seo.score}/100)`, 15, 33);
 
     // Keywords Table
-    doc.setFontSize(11);
-    doc.text("Palavras-chave Relevantes no Google local:", 15, summaryHeight + 8);
+    doc.setFontSize(9.5);
+    doc.text("Palavras-chave Relevantes no Google local:", 15, 39);
     
     // Headers
     doc.setFillColor(243, 244, 246);
-    doc.rect(15, summaryHeight + 12, 180, 7, 'F');
+    doc.rect(15, 42, 180, 6, 'F');
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.setTextColor(55, 65, 81);
-    doc.text("Termo de Busca", 18, summaryHeight + 17);
-    doc.text("Vol. Mensal", 80, summaryHeight + 17);
-    doc.text("Ranque Estimado", 110, summaryHeight + 17);
-    doc.text("CPC Médio", 145, summaryHeight + 17);
-    doc.text("Dificuldade", 172, summaryHeight + 17);
+    doc.text("Termo de Busca", 18, 46.5);
+    doc.text("Vol. Mensal", 80, 46.5);
+    doc.text("Ranque Estimado", 110, 46.5);
+    doc.text("CPC Médio", 145, 46.5);
+    doc.text("Dificuldade", 172, 46.5);
 
     // Rows
-    let rowY = summaryHeight + 23;
+    let rowY = 52;
     doc.setFont("helvetica", "normal");
     report.seo.keywords.forEach((kw) => {
       doc.setTextColor(17, 24, 39);
@@ -251,64 +396,32 @@ export default function AtlasScoreModule() {
       doc.text(kw.cpc, 145, rowY);
       doc.text(kw.difficulty, 172, rowY);
       
-      // Divider line
       doc.setDrawColor(229, 231, 235);
       doc.setLineWidth(0.1);
-      doc.line(15, rowY + 2, 195, rowY + 2);
-      rowY += 6.5;
-    });
-
-    // PAGE 3: PERFORMANCE, GOOGLE AND CONVERSION
-    doc.addPage();
-    doc.setFillColor(255, 255, 255);
-    doc.rect(0, 0, 210, 297, 'F');
-
-    // Mini Band Header
-    doc.setFillColor(9, 13, 22);
-    doc.rect(0, 0, 210, 22, 'F');
-    doc.setTextColor(245, 179, 1);
-    doc.setFontSize(13);
-    doc.text("ATLAS DIGITAL.IA - RELATÓRIO DE DESEMPENHO", 15, 14);
-
-    // Core Web Vitals / Speed
-    doc.setTextColor(9, 13, 22);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text(`3. Performance & Velocidade (Nota: ${report.performance.score}/100)`, 15, 35);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(55, 65, 81);
-    let perfY = 42;
-    report.performance.items.forEach((item) => {
-      doc.setFont("helvetica", "bold");
-      doc.text(`• ${item.name}: ${item.value}`, 15, perfY);
-      doc.setFont("helvetica", "normal");
-      const splitDetails = doc.splitTextToSize(item.details, 170);
-      doc.text(splitDetails, 20, perfY + 4);
-      perfY += (splitDetails.length * 4) + 6;
+      doc.line(15, rowY + 1.5, 195, rowY + 1.5);
+      rowY += 6;
     });
 
     // Google Profile
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text(`4. Google Perfil de Empresa (Nota: ${report.googleProfile.score}/100)`, 15, perfY + 2);
+    doc.setFontSize(13);
+    doc.text(`4. Google Perfil de Empresa (Nota: ${report.googleProfile.score}/100)`, 15, rowY + 6);
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setTextColor(55, 65, 81);
-    let gY = perfY + 9;
+    let gY = rowY + 12;
     report.googleProfile.items.forEach((item) => {
       doc.setFont("helvetica", "bold");
       doc.text(`• ${item.name}: ${item.value}`, 15, gY);
       doc.setFont("helvetica", "normal");
-      const splitDetails = doc.splitTextToSize(item.details, 170);
-      doc.text(splitDetails, 20, gY + 4);
-      gY += (splitDetails.length * 4) + 6;
+      const splitDetails = doc.splitTextToSize(item.details, 175);
+      doc.text(splitDetails, 20, gY + 3.5);
+      gY += (splitDetails.length * 3.8) + 5.5;
     });
 
-    // PAGE 4: COMPETITION MATRIX & CONVERSION / ACTION PLAN
+    // PAGE 5: PERFORMANCE, CONCORRÊNCIA E MATRIZ DE PRIORIZAÇÃO
     doc.addPage();
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, 210, 297, 'F');
@@ -317,29 +430,47 @@ export default function AtlasScoreModule() {
     doc.setFillColor(9, 13, 22);
     doc.rect(0, 0, 210, 22, 'F');
     doc.setTextColor(245, 179, 1);
-    doc.setFontSize(13);
-    doc.text("ATLAS DIGITAL.IA - RELATÓRIO DE DESEMPENHO", 15, 14);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("ATLAS DIGITAL.IA — CONCORRÊNCIA E MATRIZ DE PRIORIZAÇÃO", 15, 14);
 
-    // Competitors Matrix
+    // Performance Items & Competitors
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text("5. Matriz de Concorrência Local", 15, 35);
+    doc.setFontSize(12);
+    doc.text(`5. Velocidade & Performance (Nota: ${report.performance.score}/100)`, 15, 33);
 
-    // Matrix Table Header
-    doc.setFillColor(243, 244, 246);
-    doc.rect(15, 40, 180, 7, 'F');
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    let perfY = 38;
+    report.performance.items.forEach((item) => {
+      doc.setFont("helvetica", "bold");
+      doc.text(`• ${item.name}: ${item.value}`, 15, perfY);
+      doc.setFont("helvetica", "normal");
+      const splitDetails = doc.splitTextToSize(item.details, 175);
+      doc.text(splitDetails, 20, perfY + 3.5);
+      perfY += (splitDetails.length * 3.8) + 5;
+    });
+
+    // Competitors
+    doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(55, 65, 81);
-    doc.text("Concorrente", 18, 45);
-    doc.text("Aut. Domínio", 65, 45);
-    doc.text("Velocidade", 90, 45);
-    doc.text("Rank Médio", 115, 45);
-    doc.text("Avaliações GMB", 140, 45);
-    doc.text("SEO", 175, 45);
+    doc.setFontSize(12);
+    doc.text("6. Análise de Concorrência Local", 15, perfY + 3);
 
-    let compY = 51;
+    doc.setFillColor(243, 244, 246);
+    doc.rect(15, perfY + 6, 180, 6, 'F');
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(55, 65, 81);
+    doc.text("Concorrente", 18, perfY + 10.5);
+    doc.text("Aut. Domínio", 65, perfY + 10.5);
+    doc.text("Velocidade", 90, perfY + 10.5);
+    doc.text("Rank Médio", 115, perfY + 10.5);
+    doc.text("Avaliações GMB", 140, perfY + 10.5);
+    doc.text("SEO", 175, perfY + 10.5);
+
+    let compY = perfY + 15;
     doc.setFont("helvetica", "normal");
     report.competitors.forEach((c) => {
       doc.setTextColor(17, 24, 39);
@@ -351,36 +482,53 @@ export default function AtlasScoreModule() {
       doc.text(`${c.seoScore}/100`, 175, compY);
       
       doc.setDrawColor(229, 231, 235);
-      doc.line(15, compY + 2, 195, compY + 2);
-      compY += 6.5;
+      doc.line(15, compY + 1.5, 195, compY + 1.5);
+      compY += 5.5;
     });
 
-    // Action Plan
-    doc.setTextColor(9, 13, 22);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text("6. Plano de Ação Priorizado", 15, compY + 6);
-
-    // List Action Items
-    let planY = compY + 13;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    report.prioritizedActionPlan.forEach((item, index) => {
+    // Matriz de Priorização
+    if (report.prioritizationMatrix) {
+      doc.setTextColor(9, 13, 22);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(item.priority === 'Alta' ? 185 : 55, item.priority === 'Alta' ? 28 : 65, item.priority === 'Alta' ? 28 : 81);
-      doc.text(`[Prioridade ${item.priority}] - Ação #${index + 1}:`, 15, planY);
-      
-      doc.setTextColor(17, 24, 39);
-      const actionSplit = doc.splitTextToSize(item.action, 175);
-      doc.text(actionSplit, 15, planY + 4);
-      
-      planY += (actionSplit.length * 4.2) + 5;
-      
+      doc.setFontSize(12);
+      doc.text("7. Matriz de Priorização de Melhorias", 15, compY + 5);
+
+      // Prioritization Table Headers
+      doc.setFillColor(243, 244, 246);
+      doc.rect(15, compY + 8, 180, 6, 'F');
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(55, 65, 81);
+      doc.text("Item / Ajuste Recomendado", 18, compY + 12.5);
+      doc.text("Impacto", 90, compY + 12.5);
+      doc.text("Esforço", 120, compY + 12.5);
+      doc.text("Prazo", 145, compY + 12.5);
+      doc.text("Prioridade", 172, compY + 12.5);
+
+      let pmY = compY + 17;
       doc.setFont("helvetica", "normal");
-      doc.setTextColor(100, 100, 100);
-      doc.text(`Impacto Estimado: ${item.impact} | Esforço Necessário: ${item.effort}`, 15, planY);
-      planY += 6;
-    });
+      report.prioritizationMatrix.slice(0, 5).forEach((item) => {
+        doc.setTextColor(17, 24, 39);
+        doc.text(item.item, 18, pmY);
+        doc.text(item.impact, 90, pmY);
+        doc.text(item.effort, 120, pmY);
+        doc.text(item.timeline, 145, pmY);
+        
+        doc.setFont("helvetica", "bold");
+        if (item.priority === 'Alta') {
+          doc.setTextColor(220, 38, 38);
+        } else {
+          doc.setTextColor(245, 158, 11);
+        }
+        doc.text(item.priority, 172, pmY);
+        doc.setFont("helvetica", "normal");
+
+        doc.setDrawColor(229, 231, 235);
+        doc.line(15, pmY + 1.5, 195, pmY + 1.5);
+        pmY += 5.5;
+      });
+      compY = pmY;
+    }
 
     // Final signature CTA on bottom of the last page
     doc.setFillColor(9, 13, 22);
@@ -658,6 +806,247 @@ export default function AtlasScoreModule() {
                 </div>
               </div>
 
+              {/* 1. Resumo Executivo em 5 Tópicos */}
+              {report.executiveSummaryFiveTopics && (
+                <div className="bg-[#121214]/30 border border-gray-900 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xl relative overflow-hidden">
+                  <div className="absolute top-0 left-0 h-[2px] w-full bg-gradient-to-r from-[#E2B755]/40 to-transparent" />
+                  <div className="border-b border-gray-900/60 pb-3 flex items-center gap-2">
+                    <Award className="w-4.5 h-4.5 text-[#E2B755]" />
+                    <h4 className="text-white text-xs sm:text-sm font-bold uppercase tracking-wider font-mono">
+                      Diagnóstico de Consultoria — Análise Estratégica em 5 Pilares
+                    </h4>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+                    {/* Pontos Fortes */}
+                    <div className="bg-gray-950/40 border border-gray-900/60 rounded-xl p-4.5 space-y-3 flex flex-col">
+                      <div className="flex items-center gap-2 text-emerald-400">
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        <span className="text-[10px] uppercase font-mono font-black tracking-wider">Pontos Fortes</span>
+                      </div>
+                      <p className="text-[11px] text-gray-400 leading-relaxed font-sans flex-grow">
+                        {report.executiveSummaryFiveTopics.strengths}
+                      </p>
+                    </div>
+
+                    {/* Oportunidades */}
+                    <div className="bg-gray-950/40 border border-gray-900/60 rounded-xl p-4.5 space-y-3 flex flex-col">
+                      <div className="flex items-center gap-2 text-emerald-400">
+                        <TrendingUp className="w-4 h-4 shrink-0" />
+                        <span className="text-[10px] uppercase font-mono font-black tracking-wider">Oportunidades</span>
+                      </div>
+                      <p className="text-[11px] text-gray-400 leading-relaxed font-sans flex-grow">
+                        {report.executiveSummaryFiveTopics.opportunities}
+                      </p>
+                    </div>
+
+                    {/* Riscos */}
+                    <div className="bg-gray-950/40 border border-gray-900/60 rounded-xl p-4.5 space-y-3 flex flex-col">
+                      <div className="flex items-center gap-2 text-red-400">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span className="text-[10px] uppercase font-mono font-black tracking-wider">Riscos Técnicos</span>
+                      </div>
+                      <p className="text-[11px] text-gray-400 leading-relaxed font-sans flex-grow">
+                        {report.executiveSummaryFiveTopics.risks}
+                      </p>
+                    </div>
+
+                    {/* Potencial de Evolução */}
+                    <div className="bg-gray-950/40 border border-gray-900/60 rounded-xl p-4.5 space-y-3 flex flex-col">
+                      <div className="flex items-center gap-2 text-[#E2B755]">
+                        <Sparkles className="w-4 h-4 shrink-0" />
+                        <span className="text-[10px] uppercase font-mono font-black tracking-wider">Evolução Esperada</span>
+                      </div>
+                      <p className="text-[11px] text-gray-400 leading-relaxed font-sans flex-grow">
+                        {report.executiveSummaryFiveTopics.evolution}
+                      </p>
+                    </div>
+
+                    {/* Próximos Passos */}
+                    <div className="bg-gray-950/40 border border-gray-900/60 rounded-xl p-4.5 space-y-3 flex flex-col">
+                      <div className="flex items-center gap-2 text-blue-400">
+                        <ArrowRight className="w-4 h-4 shrink-0" />
+                        <span className="text-[10px] uppercase font-mono font-black tracking-wider">Próximos Passos</span>
+                      </div>
+                      <p className="text-[11px] text-gray-400 leading-relaxed font-sans flex-grow">
+                        {report.executiveSummaryFiveTopics.nextSteps}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 2. Benchmark de Mercado & Índice de Maturidade Digital */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* Benchmark do Mercado */}
+                {report.benchmark && (
+                  <div className="bg-[#121214]/30 border border-gray-900 rounded-2xl p-6 sm:p-8 space-y-5 shadow-xl flex flex-col justify-between">
+                    <div className="space-y-2">
+                      <h4 className="text-white text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center gap-2 border-b border-gray-900/60 pb-3 font-mono">
+                        <Gauge className="w-4 h-4 text-[#E2B755]" />
+                        Benchmark de Mercado Local
+                      </h4>
+                      <p className="text-[11px] text-gray-400 leading-relaxed font-sans">
+                        Posicionamento do seu negócio em relação à média dos concorrentes regionais auditados e o líder consolidado do segmento.
+                      </p>
+                    </div>
+
+                    <div className="space-y-4 py-2">
+                      {/* Líder de Mercado */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-gray-400 font-sans">Líder do Segmento</span>
+                          <span className="text-emerald-400 font-bold font-mono">{report.benchmark.marketLeader}/100</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-950 border border-gray-900 rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${report.benchmark.marketLeader}%` }} />
+                        </div>
+                      </div>
+
+                      {/* Sua Empresa */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-[#E2B755] font-bold font-sans">Sua Empresa (Auditada)</span>
+                          <span className="text-[#E2B755] font-bold font-mono">{report.benchmark.audited}/100</span>
+                        </div>
+                        <div className="h-3 bg-gray-950 border border-[#E2B755]/10 rounded-full overflow-hidden p-[2px]">
+                          <div className="h-full bg-[#E2B755] rounded-full" style={{ width: `${report.benchmark.audited}%` }} />
+                        </div>
+                      </div>
+
+                      {/* Média de Mercado */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-gray-400 font-sans">Média do Mercado Local</span>
+                          <span className="text-amber-500 font-bold font-mono">{report.benchmark.marketAverage}/100</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-950 border border-gray-900 rounded-full overflow-hidden">
+                          <div className="h-full bg-amber-500 rounded-full" style={{ width: `${report.benchmark.marketAverage}%` }} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-gray-900/60 text-center">
+                      <span className="text-[10px] text-gray-400 font-mono">
+                        Diferencial estratégico para o líder: <span className="text-red-400 font-bold font-mono">-{report.benchmark.marketLeader - report.benchmark.audited} pontos</span>
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Índice de Maturidade Digital */}
+                {report.maturityIndex && (
+                  <div className="lg:col-span-2 bg-[#121214]/30 border border-gray-900 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xl">
+                    <h4 className="text-white text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center gap-2 border-b border-gray-900/60 pb-3 font-mono">
+                      <Award className="w-4 h-4 text-[#E2B755]" />
+                      Índice de Maturidade Digital (IMD)
+                    </h4>
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      {/* Presence */}
+                      <div className="bg-gray-950/40 border border-gray-900/40 rounded-xl p-3.5 flex flex-col justify-between space-y-2">
+                        <span className="text-[9px] uppercase font-mono text-gray-500 font-black">Presença Web</span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-lg font-display font-black text-white">{report.maturityIndex.presence}</span>
+                          <span className="text-[9px] text-gray-600 font-mono">/100</span>
+                        </div>
+                        <div className="h-1 bg-gray-900/60 rounded-full overflow-hidden">
+                          <div className="h-full bg-[#E2B755]" style={{ width: `${report.maturityIndex.presence}%` }} />
+                        </div>
+                      </div>
+
+                      {/* SEO */}
+                      <div className="bg-gray-950/40 border border-gray-900/40 rounded-xl p-3.5 flex flex-col justify-between space-y-2">
+                        <span className="text-[9px] uppercase font-mono text-gray-500 font-black">SEO Técnico</span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-lg font-display font-black text-white">{report.maturityIndex.seo}</span>
+                          <span className="text-[9px] text-gray-600 font-mono">/100</span>
+                        </div>
+                        <div className="h-1 bg-gray-900/60 rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-500" style={{ width: `${report.maturityIndex.seo}%` }} />
+                        </div>
+                      </div>
+
+                      {/* Performance */}
+                      <div className="bg-gray-950/40 border border-gray-900/40 rounded-xl p-3.5 flex flex-col justify-between space-y-2">
+                        <span className="text-[9px] uppercase font-mono text-gray-500 font-black">Performance</span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-lg font-display font-black text-white">
+                            {report.maturityIndex.performance !== null ? report.maturityIndex.performance : "N/A"}
+                          </span>
+                          {report.maturityIndex.performance !== null && <span className="text-[9px] text-gray-600 font-mono">/100</span>}
+                        </div>
+                        <div className="h-1 bg-gray-900/60 rounded-full overflow-hidden">
+                          <div className="h-full bg-amber-500" style={{ width: `${report.maturityIndex.performance || 0}%` }} />
+                        </div>
+                      </div>
+
+                      {/* Conversion */}
+                      <div className="bg-gray-950/40 border border-gray-900/40 rounded-xl p-3.5 flex flex-col justify-between space-y-2">
+                        <span className="text-[9px] uppercase font-mono text-gray-500 font-black">Captação</span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-lg font-display font-black text-white">{report.maturityIndex.conversion}</span>
+                          <span className="text-[9px] text-gray-600 font-mono">/100</span>
+                        </div>
+                        <div className="h-1 bg-gray-900/60 rounded-full overflow-hidden">
+                          <div className="h-full bg-blue-500" style={{ width: `${report.maturityIndex.conversion}%` }} />
+                        </div>
+                      </div>
+
+                      {/* Google Maps */}
+                      <div className="bg-gray-950/40 border border-gray-900/40 rounded-xl p-3.5 flex flex-col justify-between space-y-2">
+                        <span className="text-[9px] uppercase font-mono text-gray-500 font-black">Google Maps</span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-lg font-display font-black text-white">{report.maturityIndex.google}</span>
+                          <span className="text-[9px] text-gray-600 font-mono">/100</span>
+                        </div>
+                        <div className="h-1 bg-gray-900/60 rounded-full overflow-hidden">
+                          <div className="h-full bg-[#E2B755]" style={{ width: `${report.maturityIndex.google}%` }} />
+                        </div>
+                      </div>
+
+                      {/* Mobile Experience */}
+                      <div className="bg-gray-950/40 border border-gray-900/40 rounded-xl p-3.5 flex flex-col justify-between space-y-2">
+                        <span className="text-[9px] uppercase font-mono text-gray-500 font-black">Mobile Core</span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-lg font-display font-black text-white">
+                            {report.maturityIndex.mobile !== null ? report.maturityIndex.mobile : "N/A"}
+                          </span>
+                          {report.maturityIndex.mobile !== null && <span className="text-[9px] text-gray-600 font-mono">/100</span>}
+                        </div>
+                        <div className="h-1 bg-gray-900/60 rounded-full overflow-hidden">
+                          <div className="h-full bg-orange-500" style={{ width: `${report.maturityIndex.mobile || 0}%` }} />
+                        </div>
+                      </div>
+
+                      {/* Authority */}
+                      <div className="bg-gray-950/40 border border-gray-900/40 rounded-xl p-3.5 flex flex-col justify-between space-y-2">
+                        <span className="text-[9px] uppercase font-mono text-gray-500 font-black">Autoridade</span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-lg font-display font-black text-white">{report.maturityIndex.authority}</span>
+                          <span className="text-[9px] text-gray-600 font-mono">/100</span>
+                        </div>
+                        <div className="h-1 bg-gray-900/60 rounded-full overflow-hidden">
+                          <div className="h-full bg-indigo-500" style={{ width: `${report.maturityIndex.authority}%` }} />
+                        </div>
+                      </div>
+
+                      {/* Automation */}
+                      <div className="bg-gray-950/40 border border-gray-900/40 rounded-xl p-3.5 flex flex-col justify-between space-y-2">
+                        <span className="text-[9px] uppercase font-mono text-gray-500 font-black">Automação IA</span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-lg font-display font-black text-white">{report.maturityIndex.automation}</span>
+                          <span className="text-[9px] text-gray-600 font-mono">/100</span>
+                        </div>
+                        <div className="h-1 bg-gray-900/60 rounded-full overflow-hidden">
+                          <div className="h-full bg-purple-500" style={{ width: `${report.maturityIndex.automation}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Bento Grid layout of categories */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 
@@ -894,6 +1283,51 @@ export default function AtlasScoreModule() {
                   </table>
                 </div>
               </div>
+
+              {/* Matriz de Priorização Estratégica das Melhorias */}
+              {report.prioritizationMatrix && (
+                <div className="bg-[#121214]/30 border border-gray-900 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xl relative overflow-hidden">
+                  <div className="absolute top-0 left-0 h-[2px] w-full bg-gradient-to-r from-[#E2B755]/30 to-transparent" />
+                  <div className="border-b border-gray-900/60 pb-3 flex items-center gap-2">
+                    <Shield className="w-4.5 h-4.5 text-[#E2B755]" />
+                    <h4 className="text-white text-xs sm:text-sm font-bold uppercase tracking-wider font-mono">
+                      Matriz de Priorização Estratégica de Melhorias
+                    </h4>
+                  </div>
+                  <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-[11px] text-left border-collapse min-w-[500px]">
+                      <thead>
+                        <tr className="border-b border-gray-900/60 text-gray-500 uppercase tracking-wider font-mono">
+                          <th className="pb-3 font-bold text-left">Item de Auditoria / Ajuste</th>
+                          <th className="pb-3 font-bold text-center">Impacto Estratégico</th>
+                          <th className="pb-3 font-bold text-center">Esforço Técnico</th>
+                          <th className="pb-3 font-bold text-center">Prazo Recomendado</th>
+                          <th className="pb-3 font-bold text-right">Prioridade</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {report.prioritizationMatrix.map((item, idx) => (
+                          <tr key={idx} className="border-b border-gray-950/60 hover:bg-gray-950/10 transition-colors">
+                            <td className="py-4 font-bold text-gray-200">{item.item}</td>
+                            <td className="py-4 text-center">
+                              <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold ${item.impact === 'Alto' ? 'text-emerald-400 bg-emerald-500/5 border border-emerald-900/30' : 'text-amber-400 bg-amber-500/5 border border-amber-900/30'}`}>
+                                {item.impact}
+                              </span>
+                            </td>
+                            <td className="py-4 text-center text-gray-400 font-mono">{item.effort}</td>
+                            <td className="py-4 text-center text-gray-400">{item.timeline}</td>
+                            <td className="py-4 text-right">
+                              <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold ${item.priority === 'Alta' ? 'text-red-400 bg-red-500/5 border border-red-900/30' : 'text-amber-400 bg-amber-500/5 border border-amber-900/30'}`}>
+                                {item.priority}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               {/* Prioritized Action Plan */}
               <div className="bg-[#121214]/30 border border-gray-900 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xl">

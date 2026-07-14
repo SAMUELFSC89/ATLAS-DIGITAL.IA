@@ -107,13 +107,48 @@ export interface AtlasScoreActionItem {
 export interface AtlasScoreReport {
   score: number;
   executiveSummary: string;
+  reportMeta?: {
+    version: string;
+    date: string;
+    auditId: string;
+    analysisTime: string;
+  };
+  executiveSummaryFiveTopics?: {
+    strengths: string;
+    opportunities: string;
+    risks: string;
+    evolution: string;
+    nextSteps: string;
+  };
+  benchmark?: {
+    audited: number;
+    marketAverage: number;
+    marketLeader: number;
+  };
+  maturityIndex?: {
+    presence: number;
+    seo: number;
+    performance: number | null;
+    conversion: number;
+    google: number;
+    mobile: number | null;
+    authority: number;
+    automation: number;
+  };
+  prioritizationMatrix?: {
+    item: string;
+    impact: string;
+    effort: string;
+    timeline: string;
+    priority: string;
+  }[];
   seo: {
     score: number;
     items: AtlasScoreSEOItem[];
     keywords: AtlasScoreKeyword[];
   };
   performance: {
-    score: number;
+    score: number | null;
     items: AtlasScorePerformanceItem[];
   };
   googleProfile: {
