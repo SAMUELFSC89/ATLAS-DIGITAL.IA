@@ -10,15 +10,26 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Initialize Gemini SDK with telemetry header
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
+// Initialize Gemini SDK lazily to prevent server crashes if the API key is not yet set.
+let aiClient: GoogleGenAI | null = null;
+
+function getAiClient() {
+  if (!aiClient) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("A chave de API 'GEMINI_API_KEY' não está configurada. Configure a chave nos segredos ou ambiente do aplicativo.");
     }
+    aiClient = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
   }
-});
+  return aiClient;
+}
 
 async function startServer() {
   const app = express();
@@ -34,6 +45,8 @@ async function startServer() {
       if (!companyName || !city || !segment) {
         return res.status(400).json({ error: "Nome da empresa, cidade e segmento são obrigatórios." });
       }
+
+      const ai = getAiClient();
 
       const prompt = `Faça uma auditoria e diagnóstico completo e realista da presença digital para a empresa "${companyName}" localizada em "${city}", atuando no segmento "${segment}".
       Site fornecido: "${website || "Não informado - verifique se há um existente ou estime a ausência"}"

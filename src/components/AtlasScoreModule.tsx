@@ -84,7 +84,17 @@ export default function AtlasScoreModule() {
       });
 
       if (!response.ok) {
-        throw new Error("Erro no servidor ao processar o diagnóstico.");
+        let errorMsg = "Erro no servidor ao processar o diagnóstico.";
+        try {
+          const errData = await response.json();
+          if (errData && errData.error) {
+            errorMsg = errData.error;
+            if (errData.details) {
+              errorMsg += ` (${errData.details})`;
+            }
+          }
+        } catch (_) {}
+        throw new Error(errorMsg);
       }
 
       const data = await response.json();
