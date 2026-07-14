@@ -104,9 +104,40 @@ export interface AtlasScoreActionItem {
   effort: string;
 }
 
+export interface AtlasScoreReliabilityIndicator {
+  confidence: number;
+  status: 'Confirmado' | 'Estimado' | 'Não Validado';
+  explanation: string;
+}
+
+export interface AtlasScoreReliability {
+  score: number;
+  processingTime: string;
+  analysisDate: string;
+  version: string;
+  checksCount: number;
+  indicatorsCount: number;
+  opportunitiesCount: number;
+  inconsistenciesCount: number;
+  keywordsCount: number;
+  competitorsCount: number;
+  status: string;
+  unavailabilityReasons: string[];
+  confidenceMatrix: {
+    seo: AtlasScoreReliabilityIndicator;
+    performance: AtlasScoreReliabilityIndicator;
+    googleProfile: AtlasScoreReliabilityIndicator;
+    keywords: AtlasScoreReliabilityIndicator;
+    competitors: AtlasScoreReliabilityIndicator;
+    ai: AtlasScoreReliabilityIndicator;
+    automation: AtlasScoreReliabilityIndicator;
+  };
+}
+
 export interface AtlasScoreReport {
   score: number;
   executiveSummary: string;
+  reliability?: AtlasScoreReliability;
   reportMeta?: {
     version: string;
     date: string;
@@ -141,6 +172,7 @@ export interface AtlasScoreReport {
     effort: string;
     timeline: string;
     priority: string;
+    expectedBenefit?: string;
   }[];
   seo: {
     score: number;

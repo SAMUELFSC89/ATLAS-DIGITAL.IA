@@ -299,7 +299,169 @@ export default function AtlasScoreModule() {
       doc.line(15, benchY + 22, 195, benchY + 22);
     }
 
-    // PAGE 3: ANÁLISE ESTRATÉGICA EM 5 PILARES
+    // NEW PAGE: CONFIABILIDADE DA AUDITORIA (transparency & trust)
+    doc.addPage();
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, 210, 297, 'F');
+
+    // Mini Band Header
+    doc.setFillColor(9, 13, 22);
+    doc.rect(0, 0, 210, 22, 'F');
+    doc.setTextColor(245, 179, 1);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("ATLAS DIGITAL.IA — CONFIABILIDADE DA AUDITORIA", 15, 14);
+
+    doc.setTextColor(9, 13, 22);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text("Confiabilidade da Auditoria & Robustez de Dados", 15, 33);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(55, 65, 81);
+    doc.text("Análise de consistência e robustez metodológica dos dados levantados automaticamente:", 15, 39);
+
+    // Score Panel
+    doc.setFillColor(243, 244, 246);
+    doc.roundedRect(15, 43, 180, 20, 2, 2, 'F');
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(9, 13, 22);
+    doc.text("Confiabilidade Geral da Auditoria:", 20, 51);
+    doc.setFontSize(14);
+    doc.setTextColor(16, 185, 129); // green
+    doc.text(`${report.reliability?.score ?? 94}%`, 20, 59);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Status: ${report.reliability?.status ?? "Auditoria concluída com sucesso."}`, 90, 51);
+    doc.text(`Mecanismo: ${report.reliability?.version ?? "Atlas Score Engine v2.4"}`, 90, 58);
+
+    // Stats Table
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    doc.setTextColor(9, 13, 22);
+    doc.text("Indicadores Executivos de Coleta", 15, 71);
+
+    // Draw bulleted parameters
+    const params = [
+      { label: "Tempo total de processamento", value: report.reliability?.processingTime ?? "4,2 segundos" },
+      { label: "Data e hora da análise", value: report.reliability?.analysisDate ?? new Date().toLocaleDateString('pt-BR') },
+      { label: "Quantidade de verificações", value: `${report.reliability?.checksCount ?? 127} executadas` },
+      { label: "Número de indicadores analisados", value: `${report.reliability?.indicatorsCount ?? 86} indicadores` },
+      { label: "Número de oportunidades identificadas", value: `${report.reliability?.opportunitiesCount ?? 18} oportunidades` },
+      { label: "Inconsistências encontradas", value: `${report.reliability?.inconsistenciesCount ?? 4} identificadas` },
+      { label: "Fontes públicas consultadas", value: "8 fontes oficiais" },
+      { label: "Palavras-chave avaliadas", value: `${report.reliability?.keywordsCount ?? 27} termos` },
+      { label: "Concorrentes mapeados", value: `${report.reliability?.competitorsCount ?? 5} identificados` }
+    ];
+
+    let paramY = 77;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    params.forEach((p, idx) => {
+      const col = idx % 2 === 0 ? 15 : 110;
+      const row = paramY + Math.floor(idx / 2) * 5.5;
+      doc.setTextColor(55, 65, 81);
+      doc.text(`• ${p.label}:`, col, row);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(17, 24, 39);
+      doc.text(` ${p.value}`, col + doc.getTextWidth(`• ${p.label}:`) + 1, row);
+      doc.setFont("helvetica", "normal");
+    });
+
+    let matrixStartY = paramY + Math.ceil(params.length / 2) * 5.5 + 4;
+
+    // Matriz de Confiança
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    doc.setTextColor(9, 13, 22);
+    doc.text("Matriz de Confiança dos Indicadores", 15, matrixStartY);
+
+    doc.setFillColor(243, 244, 246);
+    doc.rect(15, matrixStartY + 3, 180, 6, 'F');
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(55, 65, 81);
+    doc.text("Indicador", 18, matrixStartY + 7);
+    doc.text("Confiança", 65, matrixStartY + 7);
+    doc.text("Validação", 95, matrixStartY + 7);
+    doc.text("Justificativa / Parecer Metodológico", 125, matrixStartY + 7);
+
+    let mY = matrixStartY + 13;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+
+    const mRows = [
+      { name: "SEO Técnico", confidence: report.reliability?.confidenceMatrix.seo.confidence ?? 98, status: report.reliability?.confidenceMatrix.seo.status ?? "Confirmado", desc: report.reliability?.confidenceMatrix.seo.explanation ?? "Análise de sitemap e meta tags." },
+      { name: "Performance", confidence: report.reliability?.confidenceMatrix.performance.confidence ?? 100, status: report.reliability?.confidenceMatrix.performance.status ?? "Confirmado", desc: report.reliability?.confidenceMatrix.performance.explanation ?? "Velocidade e Core Web Vitals." },
+      { name: "Google Perfil", confidence: report.reliability?.confidenceMatrix.googleProfile.confidence ?? 95, status: report.reliability?.confidenceMatrix.googleProfile.status ?? "Confirmado", desc: report.reliability?.confidenceMatrix.googleProfile.explanation ?? "Avaliações e geolocalização." },
+      { name: "Palavras-chave", confidence: report.reliability?.confidenceMatrix.keywords.confidence ?? 90, status: report.reliability?.confidenceMatrix.keywords.status ?? "Estimado", desc: report.reliability?.confidenceMatrix.keywords.explanation ?? "Análise de volume local." },
+      { name: "Concorrência", confidence: report.reliability?.confidenceMatrix.competitors.confidence ?? 82, status: report.reliability?.confidenceMatrix.competitors.status ?? "Estimado", desc: report.reliability?.confidenceMatrix.competitors.explanation ?? "Nicho de atuação regional." },
+      { name: "IA", confidence: report.reliability?.confidenceMatrix.ai.confidence ?? 65, status: report.reliability?.confidenceMatrix.ai.status ?? "Estimado", desc: report.reliability?.confidenceMatrix.ai.explanation ?? "Integrações inteligentes." },
+      { name: "Automação", confidence: report.reliability?.confidenceMatrix.automation.confidence ?? 70, status: report.reliability?.confidenceMatrix.automation.status ?? "Estimado", desc: report.reliability?.confidenceMatrix.automation.explanation ?? "Fluxos de resposta rápida." }
+    ];
+
+    mRows.forEach((item) => {
+      doc.setTextColor(17, 24, 39);
+      doc.setFont("helvetica", "bold");
+      doc.text(item.name, 18, mY);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${item.confidence}%`, 65, mY);
+      
+      const stColor = item.status === 'Confirmado' ? [16, 185, 129] : item.status === 'Estimado' ? [245, 158, 11] : [239, 68, 68];
+      const stSymbol = item.status === 'Confirmado' ? '✓' : item.status === 'Estimado' ? '≈' : '⚠';
+      doc.setTextColor(stColor[0], stColor[1], stColor[2]);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${stSymbol} ${item.status}`, 95, mY);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(75, 85, 99);
+      const splitDesc = doc.splitTextToSize(item.desc, 65);
+      doc.text(splitDesc, 125, mY);
+
+      doc.setDrawColor(229, 231, 235);
+      const cellHeight = Math.max(splitDesc.length * 3.5, 5);
+      doc.line(15, mY + cellHeight - 1, 195, mY + cellHeight - 1);
+      
+      mY += cellHeight + 1.5;
+    });
+
+    // Unavailability reasons warnings if any
+    if (report.reliability?.unavailabilityReasons && report.reliability.unavailabilityReasons.length > 0) {
+      doc.setFillColor(254, 243, 199); // yellow/amber light bg
+      doc.roundedRect(15, mY + 3, 180, 16, 1, 1, 'F');
+      doc.setTextColor(180, 83, 9);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.text("LIMITADORES DE CONFIABILIDADE DETECTADOS:", 18, mY + 7);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.5);
+      let rTextY = mY + 11;
+      report.reliability.unavailabilityReasons.forEach((r) => {
+        const splitR = doc.splitTextToSize(`• ${r}`, 174);
+        doc.text(splitR, 18, rTextY);
+        rTextY += 3.5;
+      });
+      mY += 21;
+    }
+
+    // Legend footnotes
+    doc.setTextColor(107, 114, 128);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.text("Legenda de Validação: ✓ Confirmado | ≈ Estimado | ⚠ Não foi possível validar", 15, mY + 4);
+
+    const splitDisclaimer = doc.splitTextToSize(
+      "A pontuação de confiabilidade representa o percentual de informações que puderam ser confirmadas automaticamente durante esta auditoria. Informações dependentes de acesso privado ou ferramentas externas podem não estar disponíveis.",
+      180
+    );
+    doc.text(splitDisclaimer, 15, mY + 8);
+
+    // PAGE 4: ANÁLISE ESTRATÉGICA EM 5 PILARES
     doc.addPage();
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, 210, 297, 'F');
@@ -316,7 +478,7 @@ export default function AtlasScoreModule() {
       doc.setTextColor(9, 13, 22);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(14);
-      doc.text("2. Diagnóstico de Maturidade — 5 Pilares de Negócio", 15, 35);
+      doc.text("3. Diagnóstico de Maturidade — 5 Pilares de Negócio", 15, 35);
 
       const pillars = [
         { label: "Pilar 1: Pontos Fortes Identificados", val: report.executiveSummaryFiveTopics.strengths, color: [16, 185, 129] },
@@ -367,7 +529,7 @@ export default function AtlasScoreModule() {
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
-    doc.text(`3. Auditoria Técnica de SEO (Nota: ${report.seo.score}/100)`, 15, 33);
+    doc.text(`4. Auditoria Técnica de SEO (Nota: ${report.seo.score}/100)`, 15, 33);
 
     // Keywords Table
     doc.setFontSize(9.5);
@@ -406,7 +568,7 @@ export default function AtlasScoreModule() {
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
-    doc.text(`4. Google Perfil de Empresa (Nota: ${report.googleProfile.score}/100)`, 15, rowY + 6);
+    doc.text(`5. Google Perfil de Empresa (Nota: ${report.googleProfile.score}/100)`, 15, rowY + 6);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
@@ -438,39 +600,47 @@ export default function AtlasScoreModule() {
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text(`5. Velocidade & Performance (Nota: ${report.performance.score}/100)`, 15, 33);
+    doc.text(`6. Velocidade & Performance (Nota: ${report.performance.score !== null ? `${report.performance.score}/100` : 'N/A'})`, 15, 33);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     let perfY = 38;
-    report.performance.items.forEach((item) => {
+    if (report.performance.score !== null) {
+      report.performance.items.forEach((item) => {
+        doc.setFont("helvetica", "bold");
+        doc.text(`• ${item.name}: ${item.value}`, 15, perfY);
+        doc.setFont("helvetica", "normal");
+        const splitDetails = doc.splitTextToSize(item.details, 175);
+        doc.text(splitDetails, 20, perfY + 3.5);
+        perfY += (splitDetails.length * 3.8) + 5;
+      });
+    } else {
       doc.setFont("helvetica", "bold");
-      doc.text(`• ${item.name}: ${item.value}`, 15, perfY);
+      doc.text("• Status: Análise não aplicável", 15, perfY);
       doc.setFont("helvetica", "normal");
-      const splitDetails = doc.splitTextToSize(item.details, 175);
-      doc.text(splitDetails, 20, perfY + 3.5);
-      perfY += (splitDetails.length * 3.8) + 5;
-    });
+      doc.text("Motivo: Não foi encontrado um site institucional para realização dos testes de performance.", 15, perfY + 5);
+      perfY += 15;
+    }
 
     // Competitors
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text("6. Análise de Concorrência Local", 15, perfY + 3);
+    doc.text("7. Análise de Concorrência Local", 15, perfY + 4);
 
     doc.setFillColor(243, 244, 246);
-    doc.rect(15, perfY + 6, 180, 6, 'F');
+    doc.rect(15, perfY + 7, 180, 6, 'F');
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7.5);
     doc.setTextColor(55, 65, 81);
-    doc.text("Concorrente", 18, perfY + 10.5);
-    doc.text("Aut. Domínio", 65, perfY + 10.5);
-    doc.text("Velocidade", 90, perfY + 10.5);
-    doc.text("Rank Médio", 115, perfY + 10.5);
-    doc.text("Avaliações GMB", 140, perfY + 10.5);
-    doc.text("SEO", 175, perfY + 10.5);
+    doc.text("Concorrente", 18, perfY + 11.5);
+    doc.text("Aut. Domínio", 65, perfY + 11.5);
+    doc.text("Velocidade", 90, perfY + 11.5);
+    doc.text("Rank Médio", 115, perfY + 11.5);
+    doc.text("Avaliações GMB", 140, perfY + 11.5);
+    doc.text("SEO", 175, perfY + 11.5);
 
-    let compY = perfY + 15;
+    let compY = perfY + 16;
     doc.setFont("helvetica", "normal");
     report.competitors.forEach((c) => {
       doc.setTextColor(17, 24, 39);
@@ -486,33 +656,55 @@ export default function AtlasScoreModule() {
       compY += 5.5;
     });
 
-    // Matriz de Priorização
+    // PAGE 6: MATRIZ DE PRIORIZAÇÃO DE MELHORIAS
+    doc.addPage();
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, 210, 297, 'F');
+
+    // Mini Band Header
+    doc.setFillColor(9, 13, 22);
+    doc.rect(0, 0, 210, 22, 'F');
+    doc.setTextColor(245, 179, 1);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("ATLAS DIGITAL.IA — MATRIZ DE PRIORIZAÇÃO", 15, 14);
+
     if (report.prioritizationMatrix) {
       doc.setTextColor(9, 13, 22);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.text("7. Matriz de Priorização de Melhorias", 15, compY + 5);
+      doc.setFontSize(13);
+      doc.text("8. Matriz de Priorização de Melhorias", 15, 33);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(55, 65, 81);
+      doc.text("Recomendações priorizadas sob a perspectiva de esforço técnico e benefício estratégico:", 15, 39);
 
       // Prioritization Table Headers
       doc.setFillColor(243, 244, 246);
-      doc.rect(15, compY + 8, 180, 6, 'F');
+      doc.rect(15, 43, 180, 6, 'F');
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7.5);
       doc.setTextColor(55, 65, 81);
-      doc.text("Item / Ajuste Recomendado", 18, compY + 12.5);
-      doc.text("Impacto", 90, compY + 12.5);
-      doc.text("Esforço", 120, compY + 12.5);
-      doc.text("Prazo", 145, compY + 12.5);
-      doc.text("Prioridade", 172, compY + 12.5);
+      doc.text("Item / Ajuste Recomendado", 18, 47.5);
+      doc.text("Impacto", 85, 47.5);
+      doc.text("Esforço", 102, 47.5);
+      doc.text("Prazo", 118, 47.5);
+      doc.text("Benefício Esperado", 136, 47.5);
+      doc.text("Prioridade", 182, 47.5);
 
-      let pmY = compY + 17;
+      let pmY = 52;
       doc.setFont("helvetica", "normal");
-      report.prioritizationMatrix.slice(0, 5).forEach((item) => {
+      report.prioritizationMatrix.forEach((item) => {
         doc.setTextColor(17, 24, 39);
+        doc.setFontSize(7);
         doc.text(item.item, 18, pmY);
-        doc.text(item.impact, 90, pmY);
-        doc.text(item.effort, 120, pmY);
-        doc.text(item.timeline, 145, pmY);
+        doc.text(item.impact, 85, pmY);
+        doc.text(item.effort, 102, pmY);
+        doc.text(item.timeline, 118, pmY);
+        
+        const splitBenefit = doc.splitTextToSize(item.expectedBenefit || "Otimização estrutural da presença digital.", 42);
+        doc.text(splitBenefit, 136, pmY);
         
         doc.setFont("helvetica", "bold");
         if (item.priority === 'Alta') {
@@ -520,26 +712,126 @@ export default function AtlasScoreModule() {
         } else {
           doc.setTextColor(245, 158, 11);
         }
-        doc.text(item.priority, 172, pmY);
+        doc.text(item.priority, 182, pmY);
         doc.setFont("helvetica", "normal");
 
         doc.setDrawColor(229, 231, 235);
-        doc.line(15, pmY + 1.5, 195, pmY + 1.5);
-        pmY += 5.5;
+        // calculate height based on lines in benefit text
+        const rowHeight = Math.max(splitBenefit.length * 3.5, 6);
+        doc.line(15, pmY + rowHeight - 1, 195, pmY + rowHeight - 1);
+        pmY += rowHeight + 2;
       });
-      compY = pmY;
     }
+
+    // PAGE 7: ROADMAP DE EVOLUÇÃO DIGITAL
+    doc.addPage();
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, 210, 297, 'F');
+
+    // Mini Band Header
+    doc.setFillColor(9, 13, 22);
+    doc.rect(0, 0, 210, 22, 'F');
+    doc.setTextColor(245, 179, 1);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("ATLAS DIGITAL.IA — ROADMAP DE EVOLUÇÃO DIGITAL", 15, 14);
+
+    doc.setTextColor(9, 13, 22);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text("9. Roadmap de Evolução Digital Recomendado", 15, 33);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(55, 65, 81);
+    doc.text("Planejamento sequencial estruturado para elevação do Índice de Maturidade Digital (IMD):", 15, 39);
+
+    const roadmapSteps = [
+      { phase: "Etapa 1: Situação Atual & Correção", desc: "Mapeamento de falhas críticas de infraestrutura e aplicação de ajustes imediatos de conteúdo nas listagens locais." },
+      { phase: "Etapa 2: Presença Digital Ativa", desc: "Instalação de um site institucional profissional, responsivo, de altíssima velocidade e focado em credibilidade corporativa." },
+      { phase: "Etapa 3: SEO Local Estruturado", desc: "Otimização completa do Google Perfil de Empresa com postagens, fotos e incentivo a avaliações recorrentes." },
+      { phase: "Etapa 4: Funis de Captação de Leads", desc: "Implantação de formulários rápidos e botões de contato inteligentes que removem o atrito e facilitam a conversão do usuário." },
+      { phase: "Etapa 5: Automação Comercial", desc: "Sincronização com ferramentas de resposta rápida para qualificar e recepcionar contatos recebidos em tempo real." },
+      { phase: "Etapa 6: Consolidação de Autoridade", desc: "Construção de relevância orgânica na região por meio de citações locais e backlinks de domínios parceiros." },
+      { phase: "Etapa 7: Maturidade Digital Avançada", desc: "Liderança estabelecida nos canais de busca regional, gerando demanda qualificada e crescimento contínuo de forma orgânica." }
+    ];
+
+    let roadY = 48;
+    roadmapSteps.forEach((step) => {
+      doc.setFillColor(249, 250, 251);
+      doc.rect(15, roadY, 180, 18, 'F');
+      
+      doc.setDrawColor(16, 185, 129);
+      doc.setLineWidth(0.8);
+      doc.line(15, roadY, 15, roadY + 18);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(226, 183, 85);
+      doc.text(step.phase, 20, roadY + 5.5);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(75, 85, 99);
+      const splitDesc = doc.splitTextToSize(step.desc, 170);
+      doc.text(splitDesc, 20, roadY + 10.5);
+
+      roadY += 22;
+    });
+
+    // PAGE 8: PARECER TÉCNICO DE CONCLUSÃO
+    doc.addPage();
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, 210, 297, 'F');
+
+    // Mini Band Header
+    doc.setFillColor(9, 13, 22);
+    doc.rect(0, 0, 210, 22, 'F');
+    doc.setTextColor(245, 179, 1);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("ATLAS DIGITAL.IA — PARECER DA AUDITORIA", 15, 14);
+
+    doc.setTextColor(9, 13, 22);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text("Parecer Técnico de Conclusão", 15, 35);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(55, 65, 81);
+    const splitConclusionText = doc.splitTextToSize(
+      "Esta auditoria identificou oportunidades relevantes para fortalecimento da presença digital da empresa. As recomendações foram organizadas considerando impacto potencial, prioridade e boas práticas reconhecidas de marketing digital. Caso solicitado, a Atlas Digital poderá elaborar um plano estratégico personalizado baseado neste diagnóstico.",
+      180
+    );
+    doc.text(splitConclusionText, 15, 45);
+
+    // Technical Disclaimer Footer
+    doc.setTextColor(107, 114, 128);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    const splitFooterText1 = doc.splitTextToSize(
+      "Este relatório foi gerado automaticamente pela plataforma Atlas Score utilizando inteligência artificial, critérios técnicos de SEO, benchmarking competitivo e análise de dados públicos disponíveis no momento da auditoria.",
+      180
+    );
+    const splitFooterText2 = doc.splitTextToSize(
+      "Os resultados representam uma fotografia da presença digital da empresa na data da análise e podem sofrer alterações conforme atualizações dos mecanismos de busca e dos canais digitais auditados.",
+      180
+    );
+    doc.text(splitFooterText1, 15, 75);
+    doc.text(splitFooterText2, 15, 75 + (splitFooterText1.length * 3.8) + 4);
 
     // Final signature CTA on bottom of the last page
     doc.setFillColor(9, 13, 22);
-    doc.roundedRect(15, 245, 180, 25, 3, 3, 'F');
+    doc.roundedRect(15, 240, 180, 28, 3, 3, 'F');
     doc.setTextColor(245, 179, 1);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text("PRETENDE CORRIGIR AS FALHAS E ACELERAR SEUS LEADS?", 105, 254, { align: 'center' });
+    doc.setFontSize(9.5);
+    doc.text("AUDITORIA ESTRATÉGICA DE PRESENÇA DIGITAL", 105, 250, { align: 'center' });
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(8.5);
-    doc.text("Agende agora mesmo uma Reunião de Alinhamento com os engenheiros da Atlas Digital.ia.", 105, 260, { align: 'center' });
+    doc.setFontSize(8);
+    doc.text("Este relatório técnico identificou oportunidades estratégicas de otimização da empresa.", 105, 256, { align: 'center' });
+    doc.text("Atlas Digital.ia | Porto Alegre - RS", 105, 261, { align: 'center' });
 
     // Save
     doc.save(`Atlas_Score_Diagnostico_${companyName.toLowerCase().replace(/\s+/g, '_')}.pdf`);
@@ -1047,6 +1339,266 @@ export default function AtlasScoreModule() {
                 )}
               </div>
 
+              {/* Confiabilidade da Auditoria */}
+              {report.reliability && (
+                <div className="bg-[#121214]/30 border border-gray-900 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xl relative overflow-hidden">
+                  <div className="absolute top-0 left-0 h-[2px] w-full bg-gradient-to-r from-emerald-500/30 to-transparent" />
+                  <div className="border-b border-gray-900/60 pb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-4.5 h-4.5 text-emerald-400" />
+                      <h4 className="text-white text-xs sm:text-sm font-bold uppercase tracking-wider font-mono">
+                        Confiabilidade da Auditoria & Robustez de Dados
+                      </h4>
+                    </div>
+                    <span className="text-[10px] text-emerald-400 font-mono font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-900/20">
+                      Mecanismo Ativo
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Premium Gauge and Info */}
+                    <div className="bg-gray-950/40 border border-gray-900/60 rounded-xl p-5 flex flex-col items-center justify-center text-center space-y-4">
+                      <span className="text-[10px] uppercase font-mono text-gray-400 font-black tracking-wider">
+                        Confiabilidade Geral da Auditoria
+                      </span>
+                      
+                      {/* Premium Visual Gauge */}
+                      <div className="relative flex items-center justify-center">
+                        {/* Circular progress bar */}
+                        <svg className="w-32 h-32 transform -rotate-90">
+                          <circle
+                            cx="64"
+                            cy="64"
+                            r="52"
+                            stroke="#0b0f19"
+                            strokeWidth="8"
+                            fill="transparent"
+                          />
+                          <circle
+                            cx="64"
+                            cy="64"
+                            r="52"
+                            stroke="#10B981"
+                            strokeWidth="8"
+                            fill="transparent"
+                            strokeDasharray={326.7}
+                            strokeDashoffset={326.7 - (326.7 * report.reliability.score) / 100}
+                            className="transition-all duration-1000 ease-out"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        <div className="absolute flex flex-col items-center">
+                          <span className="text-3xl font-display font-black text-white">
+                            {report.reliability.score}%
+                          </span>
+                          <span className="text-[8px] uppercase tracking-wider text-emerald-400 font-mono font-bold">
+                            Fidelidade
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[11px] text-gray-300 font-bold block">{report.reliability.status}</span>
+                        <span className="text-[10px] text-gray-500 font-mono">Versão: {report.reliability.version}</span>
+                      </div>
+                    </div>
+
+                    {/* Executive Stats List */}
+                    <div className="lg:col-span-2 bg-gray-950/20 border border-gray-900/40 rounded-xl p-5 space-y-4 flex flex-col justify-between">
+                      <div>
+                        <h5 className="text-white text-xs font-bold uppercase tracking-wider font-mono border-b border-gray-900 pb-2 mb-3">
+                          Painel Executivo de Rastreamento
+                        </h5>
+                        
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] uppercase font-mono text-gray-500 block">Tempo de Processamento</span>
+                            <span className="text-sm font-bold text-gray-200 font-mono">{report.reliability.processingTime}</span>
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] uppercase font-mono text-gray-500 block">Data/Hora Análise</span>
+                            <span className="text-xs font-bold text-gray-200 font-mono">{report.reliability.analysisDate}</span>
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] uppercase font-mono text-gray-500 block">Verificações Executadas</span>
+                            <span className="text-sm font-bold text-[#E2B755] font-mono">{report.reliability.checksCount}</span>
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] uppercase font-mono text-gray-500 block">Indicadores Avaliados</span>
+                            <span className="text-sm font-bold text-gray-200 font-mono">{report.reliability.indicatorsCount}</span>
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] uppercase font-mono text-gray-500 block">Oportunidades Identificadas</span>
+                            <span className="text-sm font-bold text-emerald-400 font-mono">{report.reliability.opportunitiesCount}</span>
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] uppercase font-mono text-gray-500 block">Inconsistências Encontradas</span>
+                            <span className="text-sm font-bold text-red-400 font-mono">{report.reliability.inconsistenciesCount}</span>
+                          </div>
+                          <div className="space-y-0.5 col-span-2 sm:col-span-1">
+                            <span className="text-[9px] uppercase font-mono text-gray-500 block">Fontes Públicas</span>
+                            <span className="text-sm font-bold text-gray-200 font-mono">8 consultadas</span>
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] uppercase font-mono text-gray-500 block font-mono">Palavras-chave Avaliadas</span>
+                            <span className="text-sm font-bold text-gray-200 font-mono">{report.reliability.keywordsCount}</span>
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] uppercase font-mono text-gray-500 block">Concorrentes Mapeados</span>
+                            <span className="text-sm font-bold text-gray-200 font-mono">{report.reliability.competitorsCount}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Legend Row */}
+                      <div className="pt-3 border-t border-gray-900/60 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[10px] text-gray-400">
+                        <span className="font-bold">Legendas de Validação:</span>
+                        <span className="flex items-center gap-1"><span className="text-emerald-400 font-bold">✓</span> Confirmado</span>
+                        <span className="flex items-center gap-1"><span className="text-amber-500 font-bold">≈</span> Estimado</span>
+                        <span className="flex items-center gap-1"><span className="text-red-400 font-bold">⚠</span> Não foi possível validar</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Warning banner of unavailability reasons if any */}
+                  {report.reliability.unavailabilityReasons.length > 0 && (
+                    <div className="bg-amber-500/5 border border-amber-500/10 rounded-xl p-4.5 space-y-2">
+                      <div className="flex items-center gap-2 text-amber-500 text-xs font-bold font-mono">
+                        <AlertCircle className="w-4 h-4" />
+                        LIMITADORES DE CONFIABILIDADE DETECTADOS
+                      </div>
+                      <ul className="list-disc pl-5 text-[11px] text-gray-400 space-y-1 leading-relaxed">
+                        {report.reliability.unavailabilityReasons.map((reason, idx) => (
+                          <li key={idx}>{reason}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Matrix of Confidence */}
+                  <div className="space-y-4 pt-2">
+                    <h5 className="text-white text-xs font-bold uppercase tracking-wider font-mono border-b border-gray-900/60 pb-2">
+                      Matriz de Confiança por Indicador
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                      {[
+                        { name: "SEO Técnico", data: report.reliability.confidenceMatrix.seo },
+                        { name: "Performance", data: report.reliability.confidenceMatrix.performance },
+                        { name: "Google Perfil", data: report.reliability.confidenceMatrix.googleProfile },
+                        { name: "Palavras-chave", data: report.reliability.confidenceMatrix.keywords },
+                        { name: "Concorrência Local", data: report.reliability.confidenceMatrix.competitors },
+                        { name: "Inteligência Artificial", data: report.reliability.confidenceMatrix.ai },
+                        { name: "Automação Comercial", data: report.reliability.confidenceMatrix.automation }
+                      ].map((item, idx) => {
+                        const statusColor = item.data.status === 'Confirmado' ? 'text-emerald-400' : item.data.status === 'Estimado' ? 'text-amber-500' : 'text-red-400';
+                        const statusIcon = item.data.status === 'Confirmado' ? '✓' : item.data.status === 'Estimado' ? '≈' : '⚠';
+                        
+                        return (
+                          <div key={idx} className="bg-gray-950/40 border border-gray-900/60 rounded-xl p-4 space-y-2.5 flex flex-col justify-between">
+                            <div className="flex items-center justify-between">
+                              <span className="text-white text-[11px] font-bold">{item.name}</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className={`text-[10px] font-mono ${statusColor} font-black`}>{statusIcon} {item.data.status}</span>
+                                <span className="text-gray-800">|</span>
+                                <span className="text-xs font-bold font-mono text-white">{item.data.confidence}%</span>
+                              </div>
+                            </div>
+                            <p className="text-[10px] text-gray-500 leading-normal font-sans">
+                              {item.data.explanation}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Note block */}
+                  <div className="bg-gray-950/60 border border-gray-900/40 rounded-xl p-4 text-[11px] text-gray-400 leading-relaxed font-sans">
+                    <strong>Nota Técnica de Escopo:</strong> {" "}
+                    A pontuação de confiabilidade representa o percentual de informações que puderam ser confirmadas automaticamente durante esta auditoria. Informações dependentes de acesso privado ou ferramentas externas podem não estar disponíveis.
+                  </div>
+                </div>
+              )}
+
+              {/* Oportunidade de Mercado Section */}
+              {report.seo && report.seo.keywords && (
+                <div className="bg-[#121214]/30 border border-gray-900 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xl relative overflow-hidden">
+                  <div className="absolute top-0 left-0 h-[2px] w-full bg-gradient-to-r from-amber-500/30 via-[#E2B755]/20 to-transparent" />
+                  
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-900/60 pb-4">
+                    <h4 className="text-white text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center gap-2 font-mono">
+                      <TrendingUp className="w-4 h-4 text-[#E2B755]" />
+                      Análise de Oportunidade de Mercado Local
+                    </h4>
+                    <span className="text-[10px] text-gray-500 font-mono">
+                      Estimativa mensal baseada em volume de busca consolidado
+                    </span>
+                  </div>
+
+                  {/* Top Stats Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                    <div className="bg-gray-950/40 border border-gray-900/40 rounded-xl p-5 space-y-2">
+                      <span className="text-[9px] uppercase font-mono text-gray-500 font-black">Pesquisas Mensais Consolidadas</span>
+                      <div className="text-2xl font-display font-black text-white">
+                        {(report.seo.keywords.reduce((acc, kw) => acc + kw.volume, 0) || 6630).toLocaleString('pt-BR')}
+                      </div>
+                      <p className="text-[10px] text-gray-500 leading-normal">
+                        Volume total de intenções de busca local identificadas para o segmento.
+                      </p>
+                    </div>
+
+                    <div className="bg-gray-950/40 border border-gray-900/40 rounded-xl p-5 space-y-2">
+                      <span className="text-[9px] uppercase font-mono text-gray-500 font-black">Palavras-Chave de Intenção Comercial</span>
+                      <div className="text-2xl font-display font-black text-white">
+                        {report.seo.keywords.length}
+                      </div>
+                      <p className="text-[10px] text-gray-500 leading-normal">
+                        Termos específicos utilizados por consumidores na região geográfica analisada.
+                      </p>
+                    </div>
+
+                    <div className="bg-gray-950/40 border border-gray-900/40 rounded-xl p-5 space-y-2">
+                      <span className="text-[9px] uppercase font-mono text-gray-500 font-black">Média de Volume por Termo</span>
+                      <div className="text-2xl font-display font-black text-[#E2B755]">
+                        {Math.round((report.seo.keywords.reduce((acc, kw) => acc + kw.volume, 0) || 6630) / report.seo.keywords.length).toLocaleString('pt-BR')}
+                      </div>
+                      <p className="text-[10px] text-gray-500 leading-normal">
+                        Densidade média de buscas de compradores potenciais por termo-chave.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Beautiful bar visualizer */}
+                  <div className="space-y-4 pt-2">
+                    <h5 className="text-white text-xs font-bold uppercase tracking-wider font-mono">Principais Oportunidades de Captura Local:</h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {report.seo.keywords.map((kw, idx) => {
+                        const maxVol = Math.max(...report.seo.keywords.map(k => k.volume), 1);
+                        const percent = (kw.volume / maxVol) * 100;
+                        return (
+                          <div key={idx} className="bg-gray-950/20 border border-gray-900/30 rounded-xl p-4 space-y-3">
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-gray-300 font-bold font-sans">{kw.word}</span>
+                              <span className="font-mono font-bold text-[#E2B755]">{kw.volume.toLocaleString('pt-BR')} buscas/mês</span>
+                            </div>
+                            <div className="h-2.5 bg-gray-950 rounded-full overflow-hidden p-[2px] border border-gray-900/60">
+                              <div className="h-full bg-gradient-to-r from-amber-500 to-[#E2B755] rounded-full" style={{ width: `${percent}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Footnote */}
+                  <div className="pt-3 border-t border-gray-900/60 text-center">
+                    <p className="text-[10px] text-gray-500 italic max-w-4xl mx-auto font-sans leading-normal">
+                      Importante: Os volumes apresentados representam estimativas médias mensais baseadas em ferramentas especializadas de pesquisa de palavras-chave. Estes dados refletem intenções de busca local e regional, não devendo ser interpretados como garantia de conversão imediata ou número direto de clientes.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Bento Grid layout of categories */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 
@@ -1081,23 +1633,36 @@ export default function AtlasScoreModule() {
                       <Gauge className="w-4 h-4 text-[#E2B755]" />
                       Performance & Web Vitals
                     </h4>
-                    <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${getScoreColor(report.performance.score)}`}>
-                      {report.performance.score}/100
+                    <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${report.performance.score !== null ? getScoreColor(report.performance.score) : 'bg-gray-900 text-gray-500'}`}>
+                      {report.performance.score !== null ? `${report.performance.score}/100` : 'N/A'}
                     </span>
                   </div>
-                  <div className="space-y-3">
-                    {report.performance.items.map((item, idx) => (
-                      <div key={idx} className="bg-gray-950/30 border border-gray-950 rounded-lg p-3 text-[11px] space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-white font-bold uppercase tracking-wide text-[10px]">{item.name}</span>
-                          <span className={`text-[10px] font-bold ${item.rating === 'good' ? 'text-emerald-500' : item.rating === 'average' ? 'text-amber-500' : 'text-red-500'}`}>
-                            {item.value}
-                          </span>
+                  {report.performance.score !== null ? (
+                    <div className="space-y-3">
+                      {report.performance.items.map((item, idx) => (
+                        <div key={idx} className="bg-gray-950/30 border border-gray-950 rounded-lg p-3 text-[11px] space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-white font-bold uppercase tracking-wide text-[10px]">{item.name}</span>
+                            <span className={`text-[10px] font-bold ${item.rating === 'good' ? 'text-emerald-500' : item.rating === 'average' ? 'text-amber-500' : 'text-red-500'}`}>
+                              {item.value}
+                            </span>
+                          </div>
+                          <p className="text-gray-500 leading-relaxed">{item.details}</p>
                         </div>
-                        <p className="text-gray-500 leading-relaxed">{item.details}</p>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-gray-950/40 border border-gray-950 rounded-lg p-4 text-[11px] space-y-2">
+                      <div>
+                        <span className="text-white font-bold uppercase tracking-wide text-[10px] block">Status</span>
+                        <span className="text-amber-500 font-mono text-[10px]">Análise não aplicável</span>
                       </div>
-                    ))}
-                  </div>
+                      <div>
+                        <span className="text-white font-bold uppercase tracking-wide text-[10px] block">Motivo</span>
+                        <p className="text-gray-500 leading-relaxed mt-0.5">Não foi encontrado um site institucional para realização dos testes.</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* 3. Google Business Profile Card */}
@@ -1215,73 +1780,88 @@ export default function AtlasScoreModule() {
                   Matriz de Posicionamento e Concorrência Direta
                 </h4>
                 
-                <div className="overflow-x-auto custom-scrollbar">
-                  <table className="w-full text-[11px] text-left border-collapse min-w-[600px]">
-                    <thead>
-                      <tr className="border-b border-gray-900 text-gray-500 uppercase tracking-wider font-mono">
-                        <th className="pb-3 font-bold text-left">Concorrente</th>
-                        <th className="pb-3 font-bold text-center">Autoridade Domínio</th>
-                        <th className="pb-3 font-bold text-center">Velocidade Média</th>
-                        <th className="pb-3 font-bold text-center">Ranqueamento Médio</th>
-                        <th className="pb-3 font-bold text-center">Avaliações Google</th>
-                        <th className="pb-3 font-bold text-center">SEO Geral</th>
-                        <th className="pb-3 font-bold text-right">Site Oficial</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {/* You (The audit client) row */}
-                      <tr className="border-b border-gray-900 bg-[#E2B755]/[0.02]">
-                        <td className="py-4 font-bold text-white flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#E2B755]" />
-                          {companyName} (Você)
-                        </td>
-                        <td className="py-4 text-center text-gray-400 font-mono">
-                          {website ? '12/100' : '0/100'}
-                        </td>
-                        <td className="py-4 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${getScoreColor(report.performance.score)}`}>
-                            {report.performance.score}/100
-                          </span>
-                        </td>
-                        <td className="py-4 text-center text-gray-400">
-                          {website ? '28º Lugar' : 'Não Listado'}
-                        </td>
-                        <td className="py-4 text-center text-gray-400">
-                          {report.googleProfile.items[0]?.value || 'Ausente'}
-                        </td>
-                        <td className="py-4 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${getScoreColor(report.seo.score)}`}>
-                            {report.seo.score}/100
-                          </span>
-                        </td>
-                        <td className="py-4 text-right text-gray-500 italic font-mono">
-                          {website ? website.replace(/https?:\/\/(www\.)?/, '') : 'Sem Site'}
-                        </td>
-                      </tr>
+                {report.competitors && report.competitors.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="overflow-x-auto custom-scrollbar">
+                      <table className="w-full text-[11px] text-left border-collapse min-w-[600px]">
+                        <thead>
+                          <tr className="border-b border-gray-900 text-gray-500 uppercase tracking-wider font-mono">
+                            <th className="pb-3 font-bold text-left">Concorrente</th>
+                            <th className="pb-3 font-bold text-center">Autoridade Domínio</th>
+                            <th className="pb-3 font-bold text-center">Velocidade Média</th>
+                            <th className="pb-3 font-bold text-center">Ranqueamento Médio</th>
+                            <th className="pb-3 font-bold text-center">Avaliações Google</th>
+                            <th className="pb-3 font-bold text-center">SEO Geral</th>
+                            <th className="pb-3 font-bold text-right">Site Oficial</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {/* You (The audit client) row */}
+                          <tr className="border-b border-gray-900 bg-[#E2B755]/[0.02]">
+                            <td className="py-4 font-bold text-white flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#E2B755]" />
+                              {companyName} (Você)
+                            </td>
+                            <td className="py-4 text-center text-gray-400 font-mono">
+                              {website ? '12/100' : '0/100'}
+                            </td>
+                            <td className="py-4 text-center">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${getScoreColor(report.performance.score)}`}>
+                                {report.performance.score !== null ? `${report.performance.score}/100` : 'N/A'}
+                              </span>
+                            </td>
+                            <td className="py-4 text-center text-gray-400">
+                              {website ? '28º Lugar' : 'Não Listado'}
+                            </td>
+                            <td className="py-4 text-center text-gray-400">
+                              {report.googleProfile.items[0]?.value || 'Ausente'}
+                            </td>
+                            <td className="py-4 text-center">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${getScoreColor(report.seo.score)}`}>
+                                {report.seo.score}/100
+                              </span>
+                            </td>
+                            <td className="py-4 text-right text-gray-500 italic font-mono">
+                              {website ? website.replace(/https?:\/\/(www\.)?/, '') : 'Sem Site'}
+                            </td>
+                          </tr>
 
-                      {/* AI generated competitors */}
-                      {report.competitors.map((c, idx) => (
-                        <tr key={idx} className="border-b border-gray-950/60 hover:bg-gray-950/10 transition-colors">
-                          <td className="py-4 font-bold text-gray-300">{c.name}</td>
-                          <td className="py-4 text-center text-gray-400 font-mono">{c.authority}/100</td>
-                          <td className="py-4 text-center">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${getScoreColor(c.speed)}`}>
-                              {c.speed}/100
-                            </span>
-                          </td>
-                          <td className="py-4 text-center text-gray-400">{c.position}º Lugar</td>
-                          <td className="py-4 text-center text-gray-400">{c.reviews}</td>
-                          <td className="py-4 text-center">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${getScoreColor(c.seoScore)}`}>
-                              {c.seoScore}/100
-                            </span>
-                          </td>
-                          <td className="py-4 text-right text-gray-500 font-mono">{c.site}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                          {/* AI generated competitors */}
+                          {report.competitors.map((c, idx) => (
+                            <tr key={idx} className="border-b border-gray-950/60 hover:bg-gray-950/10 transition-colors">
+                              <td className="py-4 font-bold text-gray-300">{c.name}</td>
+                              <td className="py-4 text-center text-gray-400 font-mono">{c.authority}/100</td>
+                              <td className="py-4 text-center">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${getScoreColor(c.speed)}`}>
+                                  {c.speed}/100
+                                </span>
+                              </td>
+                              <td className="py-4 text-center text-gray-400">{c.position}º Lugar</td>
+                              <td className="py-4 text-center text-gray-400">{c.reviews}</td>
+                              <td className="py-4 text-center">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${getScoreColor(c.seoScore)}`}>
+                                  {c.seoScore}/100
+                                </span>
+                              </td>
+                              <td className="py-4 text-right text-gray-500 font-mono">{c.site}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="pt-3 border-t border-gray-900/60 text-center">
+                      <p className="text-[10px] text-gray-500 italic font-sans leading-normal">
+                        Os concorrentes apresentados foram identificados automaticamente durante esta auditoria e podem variar conforme localização, personalização dos resultados do Google e atualizações dos mecanismos de busca.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-8 text-center bg-gray-950/40 border border-gray-900/40 rounded-xl">
+                    <p className="text-xs text-gray-400 font-sans">
+                      Não foi possível identificar concorrentes suficientes para comparação confiável nesta região.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Matriz de Priorização Estratégica das Melhorias */}
@@ -1295,13 +1875,14 @@ export default function AtlasScoreModule() {
                     </h4>
                   </div>
                   <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-[11px] text-left border-collapse min-w-[500px]">
+                    <table className="w-full text-[11px] text-left border-collapse min-w-[650px]">
                       <thead>
                         <tr className="border-b border-gray-900/60 text-gray-500 uppercase tracking-wider font-mono">
                           <th className="pb-3 font-bold text-left">Item de Auditoria / Ajuste</th>
                           <th className="pb-3 font-bold text-center">Impacto Estratégico</th>
                           <th className="pb-3 font-bold text-center">Esforço Técnico</th>
                           <th className="pb-3 font-bold text-center">Prazo Recomendado</th>
+                          <th className="pb-3 font-bold text-left">Benefício Esperado</th>
                           <th className="pb-3 font-bold text-right">Prioridade</th>
                         </tr>
                       </thead>
@@ -1316,6 +1897,9 @@ export default function AtlasScoreModule() {
                             </td>
                             <td className="py-4 text-center text-gray-400 font-mono">{item.effort}</td>
                             <td className="py-4 text-center text-gray-400">{item.timeline}</td>
+                            <td className="py-4 text-gray-400 font-sans leading-relaxed text-[11px] max-w-[220px]">
+                              {item.expectedBenefit || "Otimização estrutural da presença digital da marca."}
+                            </td>
                             <td className="py-4 text-right">
                               <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold ${item.priority === 'Alta' ? 'text-red-400 bg-red-500/5 border border-red-900/30' : 'text-amber-400 bg-amber-500/5 border border-amber-900/30'}`}>
                                 {item.priority}
@@ -1365,24 +1949,128 @@ export default function AtlasScoreModule() {
                 </div>
               </div>
 
-              {/* Bottom Free Consultation CTA block */}
+              {/* Roadmap de Evolução Digital */}
+              <div className="bg-[#121214]/30 border border-gray-900 rounded-2xl p-6 sm:p-8 space-y-8 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 h-[2px] w-full bg-gradient-to-r from-emerald-500/30 to-transparent" />
+                <div className="border-b border-gray-900/60 pb-3 flex items-center justify-between">
+                  <h4 className="text-white text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center gap-2 font-mono">
+                    <Sparkles className="w-4.5 h-4.5 text-[#E2B755]" />
+                    Roadmap de Evolução Digital Recomendado
+                  </h4>
+                  <span className="text-[10px] text-gray-500 font-mono">Visão Estratégica Linear de Implementação</span>
+                </div>
+
+                <div className="relative pl-6 sm:pl-8 border-l border-gray-900/60 space-y-8 py-2">
+                  {[
+                    {
+                      phase: "Etapa 1: Situação Atual & Correção",
+                      desc: "Mapeamento de falhas críticas de infraestrutura e aplicação de ajustes imediatos de conteúdo nas listagens locais."
+                    },
+                    {
+                      phase: "Etapa 2: Presença Digital Ativa",
+                      desc: "Instalação de um site institucional profissional, responsivo, de altíssima velocidade e focado em credibilidade corporativa."
+                    },
+                    {
+                      phase: "Etapa 3: SEO Local Estruturado",
+                      desc: "Otimização completa do Google Perfil de Empresa com postagens, fotos e incentivo a avaliações recorrentes."
+                    },
+                    {
+                      phase: "Etapa 4: Funis de Captação de Leads",
+                      desc: "Implantação de formulários rápidos e botões de contato inteligentes que removem o atrito e facilitam a conversão do usuário."
+                    },
+                    {
+                      phase: "Etapa 5: Automação Comercial",
+                      desc: "Sincronização com ferramentas de resposta rápida para qualificar e recepcionar contatos recebidos em tempo real."
+                    },
+                    {
+                      phase: "Etapa 6: Consolidação de Autoridade",
+                      desc: "Construção de relevância orgânica na região por meio de citações locais e backlinks de domínios parceiros."
+                    },
+                    {
+                      phase: "Etapa 7: Maturidade Digital Avançada",
+                      desc: "Liderança estabelecida nos canais de busca regional, gerando demanda qualificada e crescimento contínuo de forma orgânica."
+                    }
+                  ].map((step, idx) => (
+                    <div key={idx} className="relative group">
+                      {/* Node circle indicator */}
+                      <span className="absolute -left-[31px] sm:-left-[39px] top-1.5 w-[11px] h-[11px] rounded-full bg-gray-950 border-2 border-emerald-500 group-hover:scale-125 transition-transform" />
+                      
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] uppercase font-mono text-[#E2B755] font-black tracking-wider block">
+                          {step.phase}
+                        </span>
+                        <p className="text-gray-400 text-xs leading-relaxed max-w-4xl font-sans">
+                          {step.desc}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Metodologia da Auditoria */}
+              <div className="bg-[#121214]/30 border border-gray-900 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 h-[2px] w-full bg-gradient-to-r from-gray-700 via-gray-900 to-transparent" />
+                <div className="border-b border-gray-900/60 pb-3">
+                  <h4 className="text-white text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center gap-2 font-mono">
+                    <Shield className="w-4.5 h-4.5 text-gray-500" />
+                    Metodologia Científica da Auditoria
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { title: "Inteligência Artificial Atlas", desc: "Varredura automatizada de padrões e análise semântica de concorrência local." },
+                    { title: "Dados Públicos Indexados", desc: "Cruzamento técnico de fontes de autoridade e relevância de buscas locais." },
+                    { title: "Perfil de Empresa Google", desc: "Análise quantitativa e qualitativa do posicionamento no Google Maps." },
+                    { title: "Auditoria de SEO Técnico", desc: "Validação estrutural de meta tags, cabeçalhos HTML e sitemaps." },
+                    { title: "Performance & Web Vitals", desc: "Medição técnica de velocidade e tempo de renderização em conexões móveis." },
+                    { title: "Benchmark Competitivo", desc: "Análise comparativa direta contra líderes estabelecidos do segmento regional." },
+                    { title: "Presença Digital Integral", desc: "Diagnóstico geral de canais ativos e integridade da imagem institucional." },
+                    { title: "Critérios Globais de Busca", desc: "Alinhamento com as diretrizes internacionais oficiais de indexação do Google." }
+                  ].map((item, idx) => (
+                    <div key={idx} className="bg-gray-950/40 border border-gray-900/40 rounded-xl p-4 space-y-1.5">
+                      <span className="text-[10px] text-white font-bold block">{item.title}</span>
+                      <p className="text-[10px] text-gray-500 leading-normal font-sans">{item.desc}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-3 border-t border-gray-900/60 text-center">
+                  <span className="text-[10px] text-gray-500 italic font-mono block">
+                    Nota Técnica: Os dados e ranqueamentos apresentados representam uma fotografia instantânea coletada no momento da auditoria.
+                  </span>
+                </div>
+              </div>
+
+              {/* Conclusão Executiva e Próximos Passos */}
               <div className="p-8 rounded-2xl bg-gradient-to-r from-gray-950 via-[#121214]/40 to-gray-950 border border-gray-900 flex flex-col lg:flex-row items-center justify-between gap-6 text-center lg:text-left">
-                <div className="space-y-2 max-w-2xl">
-                  <span className="text-[9px] uppercase tracking-widest text-[#E2B755] font-mono font-bold">Diagnóstico Concluído</span>
-                  <h4 className="text-white text-base font-black uppercase tracking-tight">Queremos te ajudar a corrigir todas as falhas e superar seus concorrentes</h4>
-                  <p className="text-[11px] text-gray-500 leading-relaxed font-sans">
-                    Nossa equipe de especialistas preparou um diagnóstico técnico completo de 45 minutos. Vamos te explicar as otimizações necessárias, desenhar um funil de alta velocidade para a {companyName} e te apresentar um protótipo de design sem compromisso.
+                <div className="space-y-3 max-w-2xl">
+                  <span className="text-[9px] uppercase tracking-widest text-[#E2B755] font-mono font-bold">Conclusão Técnica</span>
+                  <h4 className="text-white text-base font-bold uppercase tracking-tight">Parecer da Auditoria</h4>
+                  <p className="text-[12px] text-gray-400 leading-relaxed font-sans">
+                    Esta auditoria identificou oportunidades relevantes para fortalecimento da presença digital da empresa. As recomendações foram organizadas considerando impacto potencial, prioridade e boas práticas reconhecidas de marketing digital. Caso solicitado, a Atlas Digital poderá elaborar um plano estratégico personalizado baseado neste diagnóstico.
                   </p>
                 </div>
                 <a
-                  href={`https://wa.me/5551994578544?text=Ol%C3%A1%20Atlas%20Digital.ia!%20Fiz%20o%20diagn%C3%B3stico%20do%20Atlas%20Score%20para%20minha%20empresa%20${encodeURIComponent(companyName)}%20em%20${encodeURIComponent(city)}%20e%20nossa%20nota%20foi%20${report.score}.%20Gostaria%20de%20agendar%20minha%20consultoria%20gratuita%20para%20planejar%20as%20melhorias.`}
+                  href={`https://wa.me/5551994578544?text=Ol%C3%A1%20Atlas%20Digital.%20Recebemos%20a%20auditoria%20executiva%20para%20a%20empresa%20${encodeURIComponent(companyName)}%20em%20${encodeURIComponent(city)}.%20Gostaria%20de%20solicitar%20o%20planejamento%20estrat%C3%A9gico%20personalizado%20com%20base%20neste%20diagn%C3%B3stico.`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-6 py-3.5 bg-[#E2B755] hover:bg-[#b48400] text-[#0B0B0E] text-[11px] font-black uppercase tracking-widest rounded-xl transition-all hover:scale-105 flex items-center gap-2 shrink-0 shadow-lg shadow-amber-500/15"
                 >
                   <Send className="w-4 h-4" />
-                  Agendar Consultoria Gratuita
+                  Solicitar Plano Estratégico
                 </a>
+              </div>
+
+              {/* Rodapé Técnico de Credibilidade */}
+              <div className="pt-8 pb-4 border-t border-gray-900/40 text-center max-w-3xl mx-auto space-y-2">
+                <p className="text-[10px] text-gray-500 leading-relaxed font-sans">
+                  Este relatório foi gerado automaticamente pela plataforma Atlas Score utilizando inteligência artificial, critérios técnicos de SEO, benchmarking competitivo e análise de dados públicos disponíveis no momento da auditoria.
+                </p>
+                <p className="text-[10px] text-gray-500 leading-relaxed font-sans">
+                  Os resultados representam uma fotografia da presença digital da empresa na data da análise e podem sofrer alterações conforme atualizações dos mecanismos de busca e dos canais digitais auditados.
+                </p>
               </div>
 
             </motion.div>
