@@ -410,6 +410,26 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Meta Webhook Verification (GET)
+  app.get("/api/webhook", (req, res) => {
+    const mode = req.query["hub.mode"];
+    const token = req.query["hub.verify_token"];
+    const challenge = req.query["hub.challenge"];
+
+    if (mode === "subscribe" && token === "atlasdigital") {
+      res.setHeader("Content-Type", "text/plain");
+      return res.status(200).send(challenge);
+    } else {
+      return res.sendStatus(403);
+    }
+  });
+
+  // Meta Webhook Event Handling (POST)
+  app.post("/api/webhook", (req, res) => {
+    console.log("Webhook Event received:", JSON.stringify(req.body, null, 2));
+    return res.status(200).json({ status: "success" });
+  });
+
   // Diagnosis API Route using Google Gen AI with Smart Fallback
   app.post("/api/atlas-score", async (req, res) => {
     const { companyName, city, segment, website, googleMapsUrl } = req.body;
