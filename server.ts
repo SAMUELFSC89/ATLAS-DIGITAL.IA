@@ -4,6 +4,9 @@ import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
+import metaHandler from "./api/meta.ts";
+import metaCallbackHandler from "./api/meta-callback.ts";
+import { handleIncomingWebhookMessage } from "./api/whatsapp-service.ts";
 
 dotenv.config();
 
@@ -410,6 +413,17 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Meta Integration Routes
+  app.get("/api/meta", (req, res) => {
+    metaHandler(req, res);
+  });
+  app.post("/api/meta", (req, res) => {
+    metaHandler(req, res);
+  });
+  app.get("/api/meta-callback", (req, res) => {
+    metaCallbackHandler(req, res);
+  });
+
   // Meta Webhook Verification (GET)
   app.get("/api/webhook", (req, res) => {
     const mode = req.query["hub.mode"];
@@ -425,9 +439,10 @@ async function startServer() {
   });
 
   // Meta Webhook Event Handling (POST)
-  app.post("/api/webhook", (req, res) => {
+  app.post("/api/webhook", async (req, res) => {
     console.log("Webhook Event received:", JSON.stringify(req.body, null, 2));
-    return res.status(200).json({ status: "success" });
+    const result = await handleIncomingWebhookMessage(req.body);
+    return res.status(200).json({ status: "success", ...result });
   });
 
   // Diagnosis API Route using Google Gen AI with Smart Fallback

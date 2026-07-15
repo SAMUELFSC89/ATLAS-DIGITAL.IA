@@ -1,4 +1,5 @@
 import { IncomingMessage, ServerResponse } from "http";
+import { handleIncomingWebhookMessage } from "./whatsapp-service.ts";
 
 export default async function handler(req: any, res: any) {
   // Configure basic CORS headers
@@ -15,9 +16,9 @@ export default async function handler(req: any, res: any) {
   }
 
   if (req.method === "GET") {
-    const mode = req.query["hub.mode"];
-    const token = req.query["hub.verify_token"];
-    const challenge = req.query["hub.challenge"];
+    const mode = req.query["hub.mode"] || req.query["hub.mode"];
+    const token = req.query["hub.verify_token"] || req.query["hub.verify_token"];
+    const challenge = req.query["hub.challenge"] || req.query["hub.challenge"];
 
     if (mode === "subscribe" && token === "atlasdigital") {
       res.setHeader("Content-Type", "text/plain");
@@ -29,7 +30,8 @@ export default async function handler(req: any, res: any) {
 
   if (req.method === "POST") {
     console.log("Webhook Event received:", JSON.stringify(req.body, null, 2));
-    return res.status(200).json({ status: "success" });
+    const result = await handleIncomingWebhookMessage(req.body);
+    return res.status(200).json({ status: "success", ...result });
   }
 
   return res.status(405).end();

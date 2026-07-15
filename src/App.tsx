@@ -413,6 +413,7 @@ export default function App() {
                   <Automacoes 
                     integrations={integrations} 
                     onIntegrate={handleUpdateIntegration} 
+                    currentUser={currentUser}
                   />
                 )}
 
