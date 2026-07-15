@@ -199,3 +199,79 @@ export interface AtlasScoreReport {
   prioritizedActionPlan: AtlasScoreActionItem[];
 }
 
+export type LeadStatus = 'Novo' | 'Contato' | 'Resposta' | 'Reunião' | 'Proposta' | 'Negociação' | 'Fechado' | 'Pós-venda';
+
+export interface Lead {
+  id: string;
+  companyName: string;
+  responsible: string;
+  phone: string;
+  whatsapp: string;
+  email: string;
+  city: string;
+  state: string;
+  website: string;
+  instagram: string;
+  facebook: string;
+  linkedin: string;
+  googleProfile: string;
+  atlasScore: number | null;
+  status: LeadStatus;
+  lastContact: string;
+  nextAction: string;
+  closeProbability: number; // percentage (0-100)
+  notes: string;
+  segment: string;
+  createdAt: string;
+}
+
+export interface BlogArticle {
+  id: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  category: 'SEO' | 'Google' | 'Marketing' | 'IA' | 'Vendas' | 'CRM' | 'Automação' | 'WhatsApp' | 'Captação de Clientes';
+  readTime: string;
+  date: string;
+  image: string;
+  slug: string;
+  tags: string[];
+}
+
+export interface IntegrationConfig {
+  id: string;
+  name: string;
+  status: 'connected' | 'disconnected' | 'configuring';
+  category: 'Google' | 'Messaging' | 'Database' | 'Payment' | 'SEO/AI';
+  icon: string;
+  description: string;
+  requiresOAuth: boolean;
+}
+
+export interface EmailMessage {
+  id: string;
+  from: string;
+  fromEmail: string;
+  subject: string;
+  date: string;
+  body: string;
+  read: boolean;
+  replied: boolean;
+}
+
+export interface WhatsAppChat {
+  id: string;
+  contactName: string;
+  phone: string;
+  lastMessage: string;
+  lastMessageTime: string;
+  messages: {
+    id: string;
+    sender: 'user' | 'client' | 'copilot-suggestion';
+    text: string;
+    timestamp: string;
+    approved?: boolean;
+  }[];
+}
+
+

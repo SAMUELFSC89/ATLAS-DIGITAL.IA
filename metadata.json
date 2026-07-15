@@ -1,6 +1,6 @@
 {
-  "name": "Atlas Digital",
-  "description": "Landing page de alta conversão e ultra premium para a Atlas Digital, agência especializada em sites para o setor de construção e acabamento.",
+  "name": "Atlas Intelligence",
+  "description": "Inteligência Comercial com IA para encontrar clientes, gerar auditorias profissionais e fechar mais negócios.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -41,7 +41,11 @@ import {
   ExternalLink,
   Play,
   Check,
-  Building2
+  Building2,
+  LogOut,
+  Bot,
+  Settings,
+  Layers
 } from 'lucide-react';
 
 import { PROBLEMS, SOLUTIONS, PORTFOLIO, STEPS, DIFFERENTIALS, TESTIMONIALS, TARGET_SEGMENTS } from './data';
@@ -53,6 +57,18 @@ import AtlasLogo from './components/AtlasLogo';
 import FAQSection from './components/FAQSection';
 import LegalModals, { LegalDocType } from './components/LegalModals';
 import AtlasScoreModule from './components/AtlasScoreModule';
+import ExecutiveDashboard from './components/ExecutiveDashboard';
+import RadarDeMercado from './components/RadarDeMercado';
+import CrmInteligente from './components/CrmInteligente';
+import AtlasCopilot from './components/AtlasCopilot';
+import Automacoes from './components/Automacoes';
+import SaaSBlog from './components/SaaSBlog';
+import SaaSDocs from './components/SaaSDocs';
+import PrecosPlanos from './components/PrecosPlanos';
+import SegmentPages from './components/SegmentPages';
+import AuthPage from './components/AuthPage';
+import DemonstracaoGratuita from './components/DemonstracaoGratuita';
+import { Lead, LeadStatus, IntegrationConfig } from './types';
 
 export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -61,6 +77,128 @@ export default function App() {
   const [activeShowcaseSegment, setActiveShowcaseSegment] = useState<string>('Marmorarias');
   const [scrolled, setScrolled] = useState(false);
   const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocType>(null);
+
+  // Portal / SaaS States
+  const [isPortalActive, setIsPortalActive] = useState(false);
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [activePortalTab, setActivePortalTab] = useState<string>('dashboard');
+  const [selectedLeadForCopilot, setSelectedLeadForCopilot] = useState<Lead | null>(null);
+
+  const [integrations, setIntegrations] = useState<IntegrationConfig[]>([
+    { id: 'gmail', name: 'Google Gmail API', status: 'connected', category: 'Google', icon: 'Mail', description: 'Permite gerenciar a caixa de entrada comercial de seus clientes com rascunhos de e-mails inteligentes sugeridos pela IA.', requiresOAuth: true },
+    { id: 'google-maps', name: 'Google Places API', status: 'connected', category: 'Google', icon: 'MapPin', description: 'Varre e extrai endereços, avaliações e dados de contato das empresas locais nas buscas geolocalizadas.', requiresOAuth: false },
+    { id: 'whatsapp-biz', name: 'WhatsApp Business Platform', status: 'disconnected', category: 'Messaging', icon: 'MessageCircle', description: 'Conecta o número oficial do seu cliente para enviar notificações, modelos de proposta e conversar com IA recomendatória.', requiresOAuth: true },
+    { id: 'pagespeed', name: 'Google PageSpeed Insights', status: 'connected', category: 'SEO/AI', icon: 'Activity', description: 'Calcula os tempos exatos de Core Web Vitals (LCP, CLS, FID) em celulares simulados na região do cliente.', requiresOAuth: false },
+    { id: 'semrush', name: 'SEMrush Analytics API', status: 'disconnected', category: 'SEO/AI', icon: 'Search', description: 'Extrai estatísticas de volumes de palavras-chave locais e monitora concorrência orgânica.', requiresOAuth: false },
+    { id: 'stripe', name: 'Stripe Payment Gateway', status: 'disconnected', category: 'Payment', icon: 'CreditCard', description: 'Gerencia o faturamento e renovação de mensalidades e planos SaaS de seus clientes.', requiresOAuth: false }
+  ]);
+
+  const [crmLeads, setCrmLeads] = useState<Lead[]>([
+    {
+      id: 'l-1',
+      companyName: 'Marmoraria Imperial Ltda',
+      responsible: 'Carlos Alberto',
+      phone: '(11) 98765-4321',
+      whatsapp: '(11) 98765-4321',
+      email: 'carlos@marmorariaimperial.com.br',
+      city: 'São Paulo',
+      state: 'SP',
+      website: '',
+      instagram: 'instagram.com/marmorariaimperial',
+      facebook: '',
+      linkedin: '',
+      googleProfile: 'https://maps.google.com/?cid=123',
+      atlasScore: 32,
+      status: 'Novo',
+      lastContact: 'Não efetuado',
+      nextAction: 'Enviar Primeira Auditoria',
+      closeProbability: 65,
+      notes: 'Empresa sem site mapeada pelo radar de São Paulo. Tem grande presença local de mercado no Google Maps com 180 avaliações 5 estrelas.',
+      segment: 'Marmoraria',
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'l-2',
+      companyName: 'Solaris Eco Energia',
+      responsible: 'Renata Souza',
+      phone: '(11) 97777-8888',
+      whatsapp: '(11) 97777-8888',
+      email: 'renata@solariseconet.com.br',
+      city: 'Campinas',
+      state: 'SP',
+      website: 'www.solariseconet.com.br',
+      instagram: 'instagram.com/solariseconet',
+      facebook: '',
+      linkedin: '',
+      googleProfile: 'https://maps.google.com/?cid=456',
+      atlasScore: 48,
+      status: 'Contato',
+      lastContact: 'Ontem, 14:00',
+      nextAction: 'Reunião Técnica de Payback',
+      closeProbability: 40,
+      notes: 'Site atual é extremamente lento no celular (LCP de 5.2s). Demonstraram grande interesse na reestruturação e no sitemap acelerado.',
+      segment: 'Energia Solar',
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'l-3',
+      companyName: 'Vidraçaria Cristal Glass',
+      responsible: 'Samuel Ferreira',
+      phone: '(21) 96543-2109',
+      whatsapp: '(21) 96543-2109',
+      email: 'samuel@vidros-cristal.com.br',
+      city: 'Rio de Janeiro',
+      state: 'RJ',
+      website: '',
+      instagram: 'instagram.com/vidroscristal',
+      facebook: '',
+      linkedin: '',
+      googleProfile: 'https://maps.google.com/?cid=789',
+      atlasScore: 28,
+      status: 'Resposta',
+      lastContact: 'Hoje, 10:15',
+      nextAction: 'Desenvolver Esboço de Proposta',
+      closeProbability: 80,
+      notes: 'Sem site ativo. Samuel busca uma Landing Page para promover fechamentos de coberturas de vidro e esquadrias de alumínio em condomínios.',
+      segment: 'Vidraçaria',
+      createdAt: new Date().toISOString()
+    }
+  ]);
+
+  const handleAddLeadToCrm = (newLead: Omit<Lead, 'id' | 'createdAt'>) => {
+    const leadWithId: Lead = {
+      ...newLead,
+      id: `lead-added-${Date.now()}`,
+      createdAt: new Date().toISOString()
+    };
+    setCrmLeads((prev) => [leadWithId, ...prev]);
+  };
+
+  const handleUpdateLeadStatus = (leadId: string, newStatus: LeadStatus) => {
+    setCrmLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, status: newStatus } : l));
+  };
+
+  const handleUpdateLead = (updatedLead: Lead) => {
+    setCrmLeads((prev) => prev.map((l) => l.id === updatedLead.id ? updatedLead : l));
+  };
+
+  const handleDeleteLead = (leadId: string) => {
+    setCrmLeads((prev) => prev.filter((l) => l.id !== leadId));
+  };
+
+  const handleUpdateIntegration = (id: string, state: 'connected' | 'disconnected') => {
+    setIntegrations((prev) => prev.map((item) => item.id === id ? { ...item, status: state } : item));
+  };
+
+  const handleSelectLeadForCopilot = (lead: Lead) => {
+    setSelectedLeadForCopilot(lead);
+    setActivePortalTab('copilot');
+  };
+
+  const handleTriggerAuditForLead = (lead: Lead) => {
+    alert(`Iniciando Auditoria Atlas Score Completa para "${lead.companyName}"...\nO relatório executivo detalhado em PDF será gerado com o mecanismo técnico proprietário.`);
+  };
+
 
   // Track header background on scroll
   useEffect(() => {
@@ -126,6 +264,183 @@ export default function App() {
     }
   }
 
+  if (isPortalActive) {
+    return (
+      <div className="min-h-screen bg-[#060608] text-[#F3F4F6] font-sans antialiased flex selection:bg-[#E2B755]/20 selection:text-white">
+        
+        {/* Left Sidebar Navigation */}
+        <aside className="w-64 bg-[#09090b] border-r border-zinc-900 flex flex-col justify-between shrink-0 hidden md:flex">
+          
+          <div className="p-6 space-y-6">
+            {/* Header / Logo */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-black border border-zinc-800 flex items-center justify-center text-emerald-400">
+                <Bot className="w-4.5 h-4.5" />
+              </div>
+              <div>
+                <span className="text-white text-xs font-black font-display block tracking-tight">ATLAS INTELLIGENCE</span>
+                <span className="text-[8px] font-mono font-bold text-zinc-500 uppercase tracking-widest block">SAAS PLATFORM</span>
+              </div>
+            </div>
+
+            {/* Sidebar Tab Selectors */}
+            <nav className="space-y-1 text-left">
+              {[
+                { id: 'dashboard', label: 'Painel Executivo', icon: Layout },
+                { id: 'radar', label: 'Radar de Mercado', icon: Compass },
+                { id: 'crm', label: 'CRM Inteligente', icon: ClipboardList },
+                { id: 'copilot', label: 'Atlas Copilot IA', icon: Bot },
+                { id: 'automacoes', label: 'APIs & Conexões', icon: Settings },
+                { id: 'segments', label: 'Foco por Nicho', icon: Layers },
+                { id: 'blog', label: 'Editorial & Blog', icon: FileText },
+                { id: 'docs', label: 'Blueprint Técnico', icon: Server },
+                { id: 'planos', label: 'Planos & Licenças', icon: Coins }
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const isSelected = activePortalTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActivePortalTab(tab.id)}
+                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all flex items-center gap-2.5 ${
+                      isSelected 
+                        ? 'bg-zinc-900 text-[#E2B755] font-semibold border-l-2 border-[#E2B755]' 
+                        : 'text-zinc-400 hover:text-white hover:bg-zinc-950'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 ${isSelected ? 'text-[#E2B755]' : 'text-zinc-500'}`} />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* User profile / Logout bar */}
+          <div className="p-4 border-t border-zinc-900 bg-black/40 space-y-3 text-left">
+            <div className="flex items-center gap-2.5 px-2">
+              <div className="w-7.5 h-7.5 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-white uppercase font-mono">
+                {currentUser ? currentUser.substring(0, 2) : "C"}
+              </div>
+              <div className="overflow-hidden">
+                <span className="text-white text-[10px] font-bold block truncate">{currentUser || "Consultor Sênior"}</span>
+                <span className="text-zinc-500 text-[8px] font-mono block truncate">Acesso Administrativo</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                setIsPortalActive(false);
+                setCurrentUser(null);
+              }}
+              className="w-full py-2 bg-zinc-950 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 border border-zinc-900 hover:border-red-900/40 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Sair do Portal
+            </button>
+          </div>
+
+        </aside>
+
+        {/* Mobile top workspace bar */}
+        <div className="flex-1 flex flex-col min-w-0 bg-[#060608]">
+          
+          <header className="h-16 border-b border-zinc-900 bg-[#09090b]/80 backdrop-blur px-6 flex items-center justify-between z-10">
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => {
+                  setIsPortalActive(false);
+                  setCurrentUser(null);
+                }} 
+                className="text-zinc-400 hover:text-white text-xs font-mono font-bold flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-900"
+              >
+                &larr; Voltar para o Site
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest hidden sm:inline">Status do Cluster: <strong className="text-emerald-400 font-bold">ONLINE</strong></span>
+              <div className="h-4 w-px bg-zinc-900 hidden sm:inline" />
+              <div className="text-right">
+                <span className="text-white text-[11px] font-semibold block">{currentUser || "Acesso de Teste"}</span>
+                <span className="text-[#E2B755] text-[9px] font-mono block uppercase tracking-wider">Atlas Intelligence SaaS</span>
+              </div>
+            </div>
+          </header>
+
+          {/* Main workspace scrollable container */}
+          <main className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8">
+            
+            {!currentUser ? (
+              <AuthPage onLoginSuccess={(email) => setCurrentUser(email)} />
+            ) : (
+              <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
+                {activePortalTab === 'dashboard' && (
+                  <ExecutiveDashboard 
+                    leads={crmLeads} 
+                    onNavigateToTab={(tab) => setActivePortalTab(tab)} 
+                  />
+                )}
+
+                {activePortalTab === 'radar' && (
+                  <RadarDeMercado 
+                    onAddLeadToCrm={handleAddLeadToCrm} 
+                    crmLeads={crmLeads}
+                  />
+                )}
+
+                {activePortalTab === 'crm' && (
+                  <CrmInteligente 
+                    leads={crmLeads} 
+                    onUpdateLeadStatus={handleUpdateLeadStatus} 
+                    onUpdateLead={handleUpdateLead} 
+                    onDeleteLead={handleDeleteLead} 
+                    onAddLead={handleAddLeadToCrm}
+                    onSelectLeadForCopilot={handleSelectLeadForCopilot}
+                    onTriggerAuditForLead={handleTriggerAuditForLead}
+                  />
+                )}
+
+                {activePortalTab === 'copilot' && (
+                  <AtlasCopilot 
+                    leads={crmLeads}
+                    selectedLead={selectedLeadForCopilot}
+                    onSelectLead={(lead) => setSelectedLeadForCopilot(lead)}
+                  />
+                )}
+
+                {activePortalTab === 'automacoes' && (
+                  <Automacoes 
+                    integrations={integrations} 
+                    onIntegrate={handleUpdateIntegration} 
+                  />
+                )}
+
+                {activePortalTab === 'segments' && (
+                  <SegmentPages />
+                )}
+
+                {activePortalTab === 'blog' && (
+                  <SaaSBlog />
+                )}
+
+                {activePortalTab === 'docs' && (
+                  <SaaSDocs />
+                )}
+
+                {activePortalTab === 'planos' && (
+                  <PrecosPlanos />
+                )}
+              </div>
+            )}
+
+          </main>
+        </div>
+
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0B0B0E] text-[#F3F4F6] font-sans antialiased overflow-x-hidden selection:bg-[#E2B755]/20 selection:text-white">
       
@@ -159,7 +474,16 @@ export default function App() {
           </nav>
 
           {/* Desktop Call to Action */}
-          <div className="hidden lg:block">
+          <div className="hidden lg:flex items-center gap-4">
+            <button
+              onClick={() => {
+                setIsPortalActive(true);
+                setActivePortalTab('dashboard');
+              }}
+              className="text-[#E2B755] hover:text-white font-bold text-xs uppercase tracking-wider py-2.5 px-5 rounded-full border border-[#E2B755]/20 hover:border-[#E2B755] bg-yellow-500/[0.02] hover:bg-yellow-500/10 transition-all duration-300"
+            >
+              Acessar Portal SaaS
+            </button>
             <button
               onClick={() => openContactWithPrefill('Diagnóstico Gratuito de Presença Digital')}
               className="bg-white hover:bg-zinc-200 text-black font-semibold text-xs py-2.5 px-6 rounded-full transition-all duration-300 hover:scale-[1.02]"
@@ -198,6 +522,17 @@ export default function App() {
             <button onClick={() => { setIsMenuOpen(false); scrollToSection('diagnostico'); }} className="text-left py-2 text-[#E2B755] font-bold flex items-center gap-1.5">
               <Award className="w-4 h-4" />
               Diagnóstico Atlas Score
+            </button>
+            <button 
+              onClick={() => { 
+                setIsMenuOpen(false); 
+                setIsPortalActive(true); 
+                setActivePortalTab('dashboard');
+              }} 
+              className="text-left py-2 text-[#E2B755] font-bold flex items-center gap-1.5"
+            >
+              <Compass className="w-4 h-4 text-[#E2B755]" />
+              Acessar Portal SaaS
             </button>
             <button onClick={() => scrollToSection('processo')} className="text-left py-2 hover:text-[#E2B755]">Como Funciona</button>
             <button onClick={() => scrollToSection('diferenciais')} className="text-left py-2 hover:text-[#E2B755]">Diferenciais</button>
@@ -482,7 +817,19 @@ export default function App() {
       </section>
 
       {/* ATLAS DIGITAL SCORE PREMIUM DIAGNOSTIC MODULE */}
-      <AtlasScoreModule />
+      <div id="diagnostico" className="scroll-mt-24 space-y-16 py-32 bg-zinc-950/20 border-y border-zinc-900/60">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <DemonstracaoGratuita 
+            onUnlockPremium={() => {
+              setIsPortalActive(true);
+              setActivePortalTab('dashboard');
+              scrollToSection('home');
+            }} 
+          />
+        </div>
+        
+        <AtlasScoreModule />
+      </div>
 
       {/* COMO FUNCIONA (TIMELINE) */}
       <section id="processo" className="py-32 bg-black border-y border-zinc-900/40 relative">
