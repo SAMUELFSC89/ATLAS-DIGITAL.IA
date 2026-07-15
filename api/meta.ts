@@ -40,9 +40,15 @@ export default async function handler(req: any, res: any) {
       }
 
       if (action === "config") {
-        const protocol = req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http");
-        const host = req.headers.host;
-        const redirectUri = `${protocol}://${host}/api/meta-callback`;
+        let baseUrl = "";
+        if (process.env.APP_URL && process.env.APP_URL !== "MY_APP_URL" && process.env.APP_URL.trim() !== "") {
+          baseUrl = process.env.APP_URL.replace(/\/$/, "");
+        } else {
+          const protocol = req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http");
+          const host = req.headers.host;
+          baseUrl = `${protocol}://${host}`;
+        }
+        const redirectUri = `${baseUrl}/api/meta-callback`;
         return res.status(200).json({
           appId: process.env.META_APP_ID || "123456789",
           redirectUri

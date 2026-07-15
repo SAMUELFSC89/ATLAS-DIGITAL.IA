@@ -409,6 +409,7 @@ function generateFallbackReport(companyName: string, city: string, segment: stri
 
 async function startServer() {
   const app = express();
+  app.set("trust proxy", true);
   const PORT = 3000;
 
   app.use(express.json());
