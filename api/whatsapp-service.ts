@@ -28,7 +28,7 @@ function getAiClient(): GoogleGenAI | null {
 export async function sendWhatsAppMessage(empresaId: string, telefoneDestino: string, mensagem: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
   console.log(`[WhatsApp Service] Iniciando envio para ${telefoneDestino} representando a empresa: ${empresaId}`);
 
-  const db = readDb();
+  const db = await readDb();
   const company = db[empresaId];
 
   if (!company || company.status !== "connected") {
@@ -52,7 +52,7 @@ export async function sendWhatsAppMessage(empresaId: string, telefoneDestino: st
       company.openConversations = 1;
     }
     db[empresaId] = company;
-    writeDb(db);
+    await writeDb(db);
 
     return { success: true, messageId: `wmid.Simulated_${Math.floor(Math.random() * 1000000)}` };
   }
@@ -88,7 +88,7 @@ export async function sendWhatsAppMessage(empresaId: string, telefoneDestino: st
     // Atualiza estatísticas da empresa
     company.messagesToday = (company.messagesToday || 0) + 1;
     db[empresaId] = company;
-    writeDb(db);
+    await writeDb(db);
 
     return { success: true, messageId: data.messages?.[0]?.id };
   } catch (err: any) {
@@ -119,7 +119,7 @@ export async function handleIncomingWebhookMessage(body: any): Promise<{ process
     }
 
     // Busca qual empresa possui esse phoneNumberId em suas configurações
-    const db = readDb();
+    const db = await readDb();
     let targetEmpresaId: string | null = null;
     let targetCompany: any = null;
 
@@ -150,7 +150,7 @@ export async function handleIncomingWebhookMessage(body: any): Promise<{ process
     // Atualiza número de conversas abertas
     targetCompany.openConversations = Math.max(targetCompany.openConversations || 1, Math.floor(1 + Math.random() * 5));
     db[targetEmpresaId] = targetCompany;
-    writeDb(db);
+    await writeDb(db);
 
     // Formula a resposta utilizando Inteligência Artificial (Gemini) de acordo com o contexto do nicho/empresa
     let aiResponse = "";

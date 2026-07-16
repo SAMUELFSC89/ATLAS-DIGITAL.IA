@@ -29,7 +29,7 @@ export default async function handler(req: any, res: any) {
     }
 
     const action = req.query?.action || "status";
-    const db = readDb();
+    const db = await readDb();
     const companyRecord = db[companyId] || {
       empresaId: companyId,
       status: "disconnected"
@@ -106,7 +106,7 @@ export default async function handler(req: any, res: any) {
         }
 
         db[companyId] = record;
-        writeDb(db);
+        await writeDb(db);
 
         const responsePayload = { ...record };
         delete responsePayload.accessToken;
@@ -145,7 +145,7 @@ export default async function handler(req: any, res: any) {
           };
 
           db[companyId] = updatedRecord;
-          writeDb(db);
+          await writeDb(db);
 
           const responsePayload = { ...updatedRecord };
           delete responsePayload.accessToken;
@@ -172,7 +172,7 @@ export default async function handler(req: any, res: any) {
           };
 
           db[companyId] = updatedRecord;
-          writeDb(db);
+          await writeDb(db);
 
           const responsePayload = { ...updatedRecord };
           delete responsePayload.accessToken;
@@ -186,7 +186,7 @@ export default async function handler(req: any, res: any) {
           status: "disconnected",
           updatedAt: new Date().toISOString()
         };
-        writeDb(db);
+        await writeDb(db);
         return res.status(200).json({ success: true, message: "WhatsApp Business desconectado com sucesso." });
       }
 
@@ -225,7 +225,7 @@ export default async function handler(req: any, res: any) {
 
         companyRecord.updatedAt = new Date().toISOString();
         db[companyId] = companyRecord;
-        writeDb(db);
+        await writeDb(db);
 
         const responsePayload = { ...companyRecord };
         delete responsePayload.accessToken;

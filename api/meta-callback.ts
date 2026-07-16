@@ -447,7 +447,7 @@ export default async function callbackHandler(req: any, res: any) {
 
     // 5. Encrypt access token and save database record securely
     const encryptedToken = encrypt(accessToken);
-    const db = readDb();
+    const db = await readDb();
     
     db[companyId] = {
       empresaId: companyId,
@@ -468,7 +468,7 @@ export default async function callbackHandler(req: any, res: any) {
       fallbackWarning: fallbackWarning
     };
 
-    writeDb(db);
+    await writeDb(db);
 
     return res.status(200).send(renderHTML(true, undefined, isManualFallbackNeeded ? fallbackWarning : undefined));
   } catch (error: any) {

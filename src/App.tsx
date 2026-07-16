@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { db } from './lib/firebase';
+import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import {
   ZapOff,
   SearchCode,
@@ -93,7 +95,7 @@ export default function App() {
     { id: 'stripe', name: 'Stripe Payment Gateway', status: 'disconnected', category: 'Payment', icon: 'CreditCard', description: 'Gerencia o faturamento e renovação de mensalidades e planos SaaS de seus clientes.', requiresOAuth: false }
   ]);
 
-  const [crmLeads, setCrmLeads] = useState<Lead[]>([
+  const DEFAULT_MOCK_LEADS: Lead[] = [
     {
       id: 'l-1',
       companyName: 'Marmoraria Imperial Ltda',
@@ -163,27 +165,107 @@ export default function App() {
       segment: 'Vidraçaria',
       createdAt: new Date().toISOString()
     }
-  ]);
+  ];
 
-  const handleAddLeadToCrm = (newLead: Omit<Lead, 'id' | 'createdAt'>) => {
+  const [crmLeads, setCrmLeads] = useState<Lead[]>([]);
+
+  // Load CRM Leads from Firebase Firestore on Mount/Login
+  useEffect(() => {
+    if (!isPortalActive) return;
+
+    const fetchLeads = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'leads'));
+        if (querySnapshot.empty) {
+          // Seed the 3 default mock leads to Firestore
+          const batch = writeBatch(db);
+          DEFAULT_MOCK_LEADS.forEach((lead) => {
+            const leadRef = doc(db, 'leads', lead.id);
+            batch.set(leadRef, lead);
+          });
+          await batch.commit();
+          setCrmLeads(DEFAULT_MOCK_LEADS);
+          console.log('[Firebase Seed] Successfully seeded CRM leads to Firestore');
+        } else {
+          const loadedLeads: Lead[] = [];
+          querySnapshot.forEach((doc) => {
+            loadedLeads.push(doc.data() as Lead);
+          });
+          setCrmLeads(loadedLeads);
+          console.log('[Firebase Sync] Loaded CRM leads from Firestore');
+        }
+      } catch (err) {
+        console.error('Failed to load leads from Firestore, using mock fallback:', err);
+        setCrmLeads(DEFAULT_MOCK_LEADS);
+      }
+    };
+
+    fetchLeads();
+  }, [isPortalActive]);
+
+  const handleAddLeadToCrm = async (newLead: Omit<Lead, 'id' | 'createdAt'>) => {
+    const leadId = `lead-added-${Date.now()}`;
     const leadWithId: Lead = {
       ...newLead,
-      id: `lead-added-${Date.now()}`,
+      id: leadId,
       createdAt: new Date().toISOString()
     };
+    
+    // Save to local React State
     setCrmLeads((prev) => [leadWithId, ...prev]);
+
+    // Save to Firestore asynchronously
+    try {
+      await setDoc(doc(db, 'leads', leadId), leadWithId);
+      console.log('[Firebase Store] Added lead successfully:', leadId);
+    } catch (err) {
+      console.error('[Firebase Store] Failed to save added lead:', err);
+    }
   };
 
-  const handleUpdateLeadStatus = (leadId: string, newStatus: LeadStatus) => {
-    setCrmLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, status: newStatus } : l));
+  const handleUpdateLeadStatus = async (leadId: string, newStatus: LeadStatus) => {
+    // Find matching lead to update
+    const currentLead = crmLeads.find((l) => l.id === leadId);
+    if (!currentLead) return;
+
+    const updatedLead: Lead = { ...currentLead, status: newStatus };
+
+    // Save to local React State
+    setCrmLeads((prev) => prev.map((l) => l.id === leadId ? updatedLead : l));
+
+    // Save to Firestore asynchronously
+    try {
+      await setDoc(doc(db, 'leads', leadId), updatedLead);
+      console.log('[Firebase Store] Updated lead status successfully:', leadId);
+    } catch (err) {
+      console.error('[Firebase Store] Failed to update lead status:', err);
+    }
   };
 
-  const handleUpdateLead = (updatedLead: Lead) => {
+  const handleUpdateLead = async (updatedLead: Lead) => {
+    // Save to local React State
     setCrmLeads((prev) => prev.map((l) => l.id === updatedLead.id ? updatedLead : l));
+
+    // Save to Firestore asynchronously
+    try {
+      await setDoc(doc(db, 'leads', updatedLead.id), updatedLead);
+      console.log('[Firebase Store] Updated lead successfully:', updatedLead.id);
+    } catch (err) {
+      console.error('[Firebase Store] Failed to update lead:', err);
+    }
   };
 
-  const handleDeleteLead = (leadId: string) => {
+  const handleDeleteLead = async (leadId: string) => {
+    // Save to local React State
     setCrmLeads((prev) => prev.filter((l) => l.id !== leadId));
+
+    // Save to Firestore asynchronously
+    try {
+      await deleteDoc(doc(db, 'leads', leadId));
+      console.log('[Firebase Store] Deleted lead successfully:', leadId);
+    } catch (err) {
+      console.error('[Firebase Store] Failed to delete lead:', err);
+    }
   };
 
   const handleUpdateIntegration = (id: string, state: 'connected' | 'disconnected') => {

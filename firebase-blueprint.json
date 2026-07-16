@@ -1,0 +1,163 @@
+{
+  "entities": {
+    "Company": {
+      "title": "Company",
+      "description": "WhatsApp Cloud API Configuration and metrics for a tenant company.",
+      "type": "object",
+      "properties": {
+        "empresaId": {
+          "type": "string",
+          "description": "Unique identifier of the company/tenant."
+        },
+        "verifiedName": {
+          "type": "string",
+          "description": "Verified display name of the WhatsApp account."
+        },
+        "displayPhoneNumber": {
+          "type": "string",
+          "description": "Formatted telephone number with country code."
+        },
+        "phoneNumberId": {
+          "type": "string",
+          "description": "The Meta Phone Number ID."
+        },
+        "whatsappBusinessAccountId": {
+          "type": "string",
+          "description": "The Meta WhatsApp Business Account ID (WABA ID)."
+        },
+        "facebookBusinessId": {
+          "type": "string",
+          "description": "The Meta Facebook Business Account ID."
+        },
+        "accessToken": {
+          "type": "string",
+          "description": "AES-256 encrypted access token from Meta."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["connected", "disconnected"],
+          "description": "Connection status."
+        },
+        "messagesToday": {
+          "type": "integer",
+          "description": "Count of messages processed today."
+        },
+        "openConversations": {
+          "type": "integer",
+          "description": "Count of open conversations."
+        },
+        "connectedAt": {
+          "type": "string",
+          "description": "ISO timestamp of the connection."
+        },
+        "hasGraphErrors": {
+          "type": "boolean",
+          "description": "Whether the automated Meta fetch failed."
+        }
+      },
+      "required": ["empresaId", "status"]
+    },
+    "Lead": {
+      "title": "Lead",
+      "description": "CRM Lead record for Atlas Digital.IA CRM Module.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the lead."
+        },
+        "companyName": {
+          "type": "string",
+          "description": "Name of the lead company."
+        },
+        "responsible": {
+          "type": "string",
+          "description": "Name of the person responsible."
+        },
+        "phone": {
+          "type": "string",
+          "description": "Phone number."
+        },
+        "whatsapp": {
+          "type": "string",
+          "description": "WhatsApp contact."
+        },
+        "email": {
+          "type": "string",
+          "description": "Corporate email address."
+        },
+        "city": {
+          "type": "string",
+          "description": "City of operation."
+        },
+        "state": {
+          "type": "string",
+          "description": "State code."
+        },
+        "website": {
+          "type": "string",
+          "description": "Official company website."
+        },
+        "instagram": {
+          "type": "string",
+          "description": "Instagram profile."
+        },
+        "facebook": {
+          "type": "string",
+          "description": "Facebook page."
+        },
+        "linkedin": {
+          "type": "string",
+          "description": "LinkedIn profile."
+        },
+        "googleProfile": {
+          "type": "string",
+          "description": "Google Maps profile link."
+        },
+        "atlasScore": {
+          "type": "integer",
+          "description": "The evaluated Atlas Score (0-100)."
+        },
+        "status": {
+          "type": "string",
+          "description": "CRM pipeline stage (e.g. Novo, Contato, Proposta, Negociando, Fechado)."
+        },
+        "lastContact": {
+          "type": "string",
+          "description": "Readable date of last contact."
+        },
+        "nextAction": {
+          "type": "string",
+          "description": "The next scheduled action."
+        },
+        "closeProbability": {
+          "type": "integer",
+          "description": "Close probability percentage (0-100)."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Internal notes and comments."
+        },
+        "segment": {
+          "type": "string",
+          "description": "The business niche/segment."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation ISO timestamp."
+        }
+      },
+      "required": ["id", "companyName", "status", "segment"]
+    }
+  },
+  "firestore": {
+    "/companies/{empresaId}": {
+      "schema": "Company",
+      "description": "SaaS tenant company WhatsApp configuration."
+    },
+    "/leads/{leadId}": {
+      "schema": "Lead",
+      "description": "CRM leads managed by consultants."
+    }
+  }
+}

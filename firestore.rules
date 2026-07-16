@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Catch-all safety gate
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Companies Collection (Multi-tenant config)
+    match /companies/{empresaId} {
+      allow get: if true; // Any verified client can check status
+      allow list: if true;
+      allow create, update: if true; // Allowed for demo, backend runs as admin
+      allow delete: if false; // Deletions not allowed client-side
+    }
+
+    // 3. Leads Collection (CRM Leads)
+    match /leads/{leadId} {
+      allow read, write: if true; // Anyone can manage leads in this dashboard demo
+    }
+  }
+}
