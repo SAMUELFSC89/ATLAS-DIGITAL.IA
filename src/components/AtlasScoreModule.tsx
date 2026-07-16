@@ -215,7 +215,7 @@ export default function AtlasScoreModule() {
     doc.setTextColor(245, 179, 1);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("ATLAS DIGITAL.IA — AUDITORIA ESTRATÉGICA DE PRESENÇA DIGITAL", 15, 14);
+    doc.text("ATLAS DIGITAL.IA - AUDITORIA ESTRATÉGICA DE PRESENÇA DIGITAL", 15, 14);
 
     // Executive Summary
     doc.setTextColor(9, 13, 22);
@@ -310,7 +310,7 @@ export default function AtlasScoreModule() {
     doc.setTextColor(245, 179, 1);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("ATLAS DIGITAL.IA — CONFIABILIDADE DA AUDITORIA", 15, 14);
+    doc.text("ATLAS DIGITAL.IA - CONFIABILIDADE DA AUDITORIA", 15, 14);
 
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
@@ -413,10 +413,15 @@ export default function AtlasScoreModule() {
       doc.text(`${item.confidence}%`, 65, mY);
       
       const stColor = item.status === 'Confirmado' ? [16, 185, 129] : item.status === 'Estimado' ? [245, 158, 11] : [239, 68, 68];
-      const stSymbol = item.status === 'Confirmado' ? '✓' : item.status === 'Estimado' ? '≈' : '⚠';
+      
+      // Draw small elegant status dot matching the validation state
+      doc.setFillColor(stColor[0], stColor[1], stColor[2]);
+      doc.circle(96.5, mY - 1, 1, 'F');
+      
+      // Print the status name next to the dot without any high-Unicode emojis
       doc.setTextColor(stColor[0], stColor[1], stColor[2]);
       doc.setFont("helvetica", "bold");
-      doc.text(`${stSymbol} ${item.status}`, 95, mY);
+      doc.text(item.status, 99.5, mY);
       
       doc.setFont("helvetica", "normal");
       doc.setTextColor(75, 85, 99);
@@ -453,7 +458,29 @@ export default function AtlasScoreModule() {
     doc.setTextColor(107, 114, 128);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
-    doc.text("Legenda de Validação: ✓ Confirmado | ≈ Estimado | ⚠ Não foi possível validar", 15, mY + 4);
+    doc.text("Legenda de Validação:", 15, mY + 4);
+    
+    let legendX = 15 + doc.getTextWidth("Legenda de Validação: ");
+    
+    // Confirmado dot
+    doc.setFillColor(16, 185, 129);
+    doc.circle(legendX + 1.5, mY + 3, 0.8, 'F');
+    doc.setTextColor(55, 65, 81);
+    doc.text("Confirmado", legendX + 3.5, mY + 4);
+    legendX += doc.getTextWidth("Confirmado") + 8;
+    
+    // Estimado dot
+    doc.setFillColor(245, 158, 11);
+    doc.circle(legendX + 1.5, mY + 3, 0.8, 'F');
+    doc.setTextColor(55, 65, 81);
+    doc.text("Estimado", legendX + 3.5, mY + 4);
+    legendX += doc.getTextWidth("Estimado") + 8;
+    
+    // Não Validado dot
+    doc.setFillColor(239, 68, 68);
+    doc.circle(legendX + 1.5, mY + 3, 0.8, 'F');
+    doc.setTextColor(55, 65, 81);
+    doc.text("Não Validado", legendX + 3.5, mY + 4);
 
     const splitDisclaimer = doc.splitTextToSize(
       "A pontuação de confiabilidade representa o percentual de informações que puderam ser confirmadas automaticamente durante esta auditoria. Informações dependentes de acesso privado ou ferramentas externas podem não estar disponíveis.",
@@ -472,13 +499,13 @@ export default function AtlasScoreModule() {
     doc.setTextColor(245, 179, 1);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("ATLAS DIGITAL.IA — ANÁLISE ESTRATÉGICA EM 5 PILARES", 15, 14);
+    doc.text("ATLAS DIGITAL.IA - ANÁLISE ESTRATÉGICA EM 5 PILARES", 15, 14);
 
     if (report.executiveSummaryFiveTopics) {
       doc.setTextColor(9, 13, 22);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(14);
-      doc.text("3. Diagnóstico de Maturidade — 5 Pilares de Negócio", 15, 35);
+      doc.text("3. Diagnóstico de Maturidade - 5 Pilares de Negócio", 15, 35);
 
       const pillars = [
         { label: "Pilar 1: Pontos Fortes Identificados", val: report.executiveSummaryFiveTopics.strengths, color: [16, 185, 129] },
@@ -523,7 +550,7 @@ export default function AtlasScoreModule() {
     doc.setTextColor(245, 179, 1);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("ATLAS DIGITAL.IA — RELATÓRIO TÉCNICO SEO E GOOGLE PERFIL", 15, 14);
+    doc.text("ATLAS DIGITAL.IA - RELATÓRIO TÉCNICO SEO E GOOGLE PERFIL", 15, 14);
 
     // SEO Title
     doc.setTextColor(9, 13, 22);
@@ -594,7 +621,7 @@ export default function AtlasScoreModule() {
     doc.setTextColor(245, 179, 1);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("ATLAS DIGITAL.IA — CONCORRÊNCIA E MATRIZ DE PRIORIZAÇÃO", 15, 14);
+    doc.text("ATLAS DIGITAL.IA - CONCORRÊNCIA E MATRIZ DE PRIORIZAÇÃO", 15, 14);
 
     // Performance Items & Competitors
     doc.setTextColor(9, 13, 22);
@@ -667,7 +694,7 @@ export default function AtlasScoreModule() {
     doc.setTextColor(245, 179, 1);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("ATLAS DIGITAL.IA — MATRIZ DE PRIORIZAÇÃO", 15, 14);
+    doc.text("ATLAS DIGITAL.IA - MATRIZ DE PRIORIZAÇÃO", 15, 14);
 
     if (report.prioritizationMatrix) {
       doc.setTextColor(9, 13, 22);
@@ -734,7 +761,7 @@ export default function AtlasScoreModule() {
     doc.setTextColor(245, 179, 1);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("ATLAS DIGITAL.IA — ROADMAP DE EVOLUÇÃO DIGITAL", 15, 14);
+    doc.text("ATLAS DIGITAL.IA - ROADMAP DE EVOLUÇÃO DIGITAL", 15, 14);
 
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
@@ -790,7 +817,7 @@ export default function AtlasScoreModule() {
     doc.setTextColor(245, 179, 1);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("ATLAS DIGITAL.IA — PARECER DA AUDITORIA", 15, 14);
+    doc.text("ATLAS DIGITAL.IA - PARECER DA AUDITORIA", 15, 14);
 
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
