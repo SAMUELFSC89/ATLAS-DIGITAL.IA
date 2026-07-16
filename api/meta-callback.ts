@@ -15,7 +15,7 @@ export default async function callbackHandler(req: any, res: any) {
   }
   const redirectUri = `${baseUrl}/api/meta-callback`;
 
-  const renderHTML = (success: boolean, error?: string) => {
+  const renderHTML = (success: boolean, error?: string, warningMsg?: string) => {
     let extraErrorInfo = "";
     if (error && (error.includes("whatsapp_business_accounts") || error.includes("nonexisting field") || error.includes("#100"))) {
       extraErrorInfo = `
@@ -88,9 +88,28 @@ export default async function callbackHandler(req: any, res: any) {
             color: #10b981;
             margin-bottom: 24px;
           }
+          .warning-icon {
+            font-size: 40px;
+            color: #fbbf24;
+            margin-bottom: 24px;
+          }
           @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+          }
+          .btn-close {
+            background: #fbbf24;
+            color: #000;
+            font-weight: bold;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: opacity 0.2s;
+          }
+          .btn-close:hover {
+            opacity: 0.9;
           }
         </style>
       </head>
@@ -98,7 +117,19 @@ export default async function callbackHandler(req: any, res: any) {
         <div class="card">
           ${
             success
-              ? `
+              ? warningMsg
+                ? `
+            <div class="warning-icon">⚠</div>
+            <h2>Conectado com Ajuste Pendente</h2>
+            <p style="font-size: 13px; color: #fbbf24; margin-bottom: 16px; background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.2); padding: 12px; border-radius: 12px; text-align: left;">
+              ${warningMsg}
+            </p>
+            <p style="margin-bottom: 24px;">
+              Sua conta Meta foi autenticada, mas devido ao tipo do seu aplicativo na Meta, não conseguimos buscar as contas automaticamente. Nós criamos uma conexão temporária. <strong>Você poderá ajustar seus IDs reais de telefone e WABA manualmente nas configurações avançadas no painel.</strong>
+            </p>
+            <button class="btn-close" onclick="window.close()">Ir para o Painel</button>
+                `
+                : `
             <div class="success-icon">✓</div>
             <h2>WhatsApp Conectado!</h2>
             <p>Sua conta oficial da Meta foi vinculada com sucesso à Atlas Digital. Esta janela será fechada automaticamente em instantes.</p>
@@ -116,10 +147,11 @@ export default async function callbackHandler(req: any, res: any) {
             window.opener.postMessage({
               type: 'META_CONNECTED',
               success: ${success},
-              error: ${error ? JSON.stringify(error) : "null"}
+              error: ${error ? JSON.stringify(error) : "null"},
+              warning: ${warningMsg ? JSON.stringify(warningMsg) : "null"}
             }, '*');
           }
-          if (${success}) {
+          if (${success} && !${warningMsg ? "true" : "false"}) {
             setTimeout(function() {
               window.close();
             }, 2500);
@@ -315,14 +347,18 @@ export default async function callbackHandler(req: any, res: any) {
       }
     }
 
-    // If still empty or failed, output error
+    // If still empty or failed, output warning fallback instead of error!
+    let isManualFallbackNeeded = false;
+    let fallbackWarning = "";
+
     if (wabaList.length === 0) {
-      return res.status(200).send(
-        renderHTML(
-          false,
-          directError || "Nenhuma conta do WhatsApp Business Account (WABA) foi encontrada ou autorizada para esta conta do Facebook."
-        )
-      );
+      isManualFallbackNeeded = true;
+      fallbackWarning = "Não foi possível recuperar suas contas do WhatsApp Business (WABA) automaticamente da Meta. Pode ser que o seu aplicativo de desenvolvedor da Meta esteja no modo de teste ou sem permissão whatsapp_business_management.";
+      wabaList.push({
+        id: "waba_pendente_" + Math.floor(1000000 + Math.random() * 9000000),
+        name: "WABA Automático (Pendente de Configuração)",
+        owner_business_info: null
+      });
     }
 
     // Select first WABA found
@@ -334,21 +370,23 @@ export default async function callbackHandler(req: any, res: any) {
 
     // 3. Fetch phone numbers under that WABA
     let phoneList: any[] = [];
-    try {
-      const phoneUrl = `https://graph.facebook.com/v18.0/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name,quality_rating,messaging_limit_tier`;
-      const phoneRes = await fetchWithLogs(phoneUrl, {
-        headers: { "Authorization": `Bearer ${accessToken}` }
-      });
+    if (!isManualFallbackNeeded) {
+      try {
+        const phoneUrl = `https://graph.facebook.com/v18.0/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name,quality_rating,messaging_limit_tier`;
+        const phoneRes = await fetchWithLogs(phoneUrl, {
+          headers: { "Authorization": `Bearer ${accessToken}` }
+        });
 
-      if (phoneRes.ok) {
-        const phoneData = await phoneRes.json();
-        phoneList = phoneData.data || [];
-      } else {
-        const errData = await phoneRes.json();
-        console.warn(`[Meta API] Failed to fetch phone numbers for WABA ${wabaId}: ${errData.error?.message || phoneRes.statusText}`);
+        if (phoneRes.ok) {
+          const phoneData = await phoneRes.json();
+          phoneList = phoneData.data || [];
+        } else {
+          const errData = await phoneRes.json();
+          console.warn(`[Meta API] Failed to fetch phone numbers for WABA ${wabaId}: ${errData.error?.message || phoneRes.statusText}`);
+        }
+      } catch (err: any) {
+        console.error(`[Meta API] Exception fetching phone numbers for WABA ${wabaId}:`, err.message, err.stack);
       }
-    } catch (err: any) {
-      console.error(`[Meta API] Exception fetching phone numbers for WABA ${wabaId}:`, err.message, err.stack);
     }
 
     // Fallback System 3: If no phone numbers listed directly, construct from debugPhoneIds
@@ -388,7 +426,17 @@ export default async function callbackHandler(req: any, res: any) {
     }
 
     if (!phone) {
-      return res.status(200).send(renderHTML(false, `Sua conta do WhatsApp Business (ID: ${wabaId}) não possui nenhum número cadastrado ou ativo.`));
+      isManualFallbackNeeded = true;
+      if (!fallbackWarning) {
+        fallbackWarning = "Não foi possível carregar os números de telefone atrelados à conta do WhatsApp Business da Meta de forma automática.";
+      }
+      phone = {
+        id: "phone_pendente_" + Math.floor(1000000 + Math.random() * 9000000),
+        display_phone_number: "Número (Pendente de Configuração)",
+        verified_name: "WhatsApp Business Oficial",
+        quality_rating: "GREEN",
+        messaging_limit_tier: "TIER_250"
+      };
     }
 
     const phoneNumberId = phone.id;
@@ -415,12 +463,14 @@ export default async function callbackHandler(req: any, res: any) {
       qualityRating,
       messagingLimit,
       messagesToday: 0,
-      openConversations: 0
+      openConversations: 0,
+      hasGraphErrors: isManualFallbackNeeded,
+      fallbackWarning: fallbackWarning
     };
 
     writeDb(db);
 
-    return res.status(200).send(renderHTML(true));
+    return res.status(200).send(renderHTML(true, undefined, isManualFallbackNeeded ? fallbackWarning : undefined));
   } catch (error: any) {
     console.error("Meta callback processing failure:", error);
     return res.status(200).send(renderHTML(false, `Exceção capturada no processamento: ${error.message || error}`));

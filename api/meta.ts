@@ -80,6 +80,39 @@ export default async function handler(req: any, res: any) {
     }
 
     if (req.method === "POST") {
+      if (action === "update_config") {
+        const { facebookBusinessId, whatsappBusinessAccountId, phoneNumberId, displayPhoneNumber, verifiedName, accessToken } = req.body || {};
+
+        let record = db[companyId] || {
+          empresaId: companyId,
+          status: "connected",
+          connectedAt: new Date().toISOString(),
+          messagesToday: 0,
+          openConversations: 0,
+          qualityRating: "GREEN",
+          messagingLimit: "TIER_250"
+        };
+
+        record.facebookBusinessId = facebookBusinessId || record.facebookBusinessId || "";
+        record.whatsappBusinessAccountId = whatsappBusinessAccountId || record.whatsappBusinessAccountId || "";
+        record.phoneNumberId = phoneNumberId || record.phoneNumberId || "";
+        record.displayPhoneNumber = displayPhoneNumber || record.displayPhoneNumber || "";
+        record.verifiedName = verifiedName || record.verifiedName || companyId;
+        record.status = "connected";
+        record.updatedAt = new Date().toISOString();
+
+        if (accessToken) {
+          record.accessToken = encrypt(accessToken);
+        }
+
+        db[companyId] = record;
+        writeDb(db);
+
+        const responsePayload = { ...record };
+        delete responsePayload.accessToken;
+        return res.status(200).json({ success: true, record: responsePayload });
+      }
+
       if (action === "connect") {
         const { code, facebookBusinessId, whatsappBusinessAccountId, phoneNumberId, accessToken, displayPhoneNumber, verifiedName } = req.body || {};
 

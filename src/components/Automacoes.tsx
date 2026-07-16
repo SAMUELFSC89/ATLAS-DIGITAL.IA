@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   Settings, Zap, Check, Shield, AlertCircle, Play, 
   HelpCircle, MessageCircle, Mail, Calendar, FolderOpen, CreditCard, 
-  Search, ExternalLink, RefreshCw, Send, ArrowRight, Bot, Compass, Plus, Loader2 
+  Search, ExternalLink, RefreshCw, Send, ArrowRight, Bot, Compass, Plus, Loader2, AlertTriangle 
 } from 'lucide-react';
 import { IntegrationConfig, EmailMessage, WhatsAppChat } from '../types';
 
@@ -32,6 +32,16 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
   const [waActionLoading, setWaActionLoading] = useState<boolean>(false);
   const [metaApproved, setMetaApproved] = useState<boolean>(false);
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState<boolean>(false);
+
+  // Manual / Advanced WhatsApp Configuration Edit States
+  const [isEditingConfig, setIsEditingConfig] = useState<boolean>(false);
+  const [isManualMode, setIsManualMode] = useState<boolean>(false);
+  const [formPhoneId, setFormPhoneId] = useState<string>('');
+  const [formWabaId, setFormWabaId] = useState<string>('');
+  const [formBizId, setFormBizId] = useState<string>('');
+  const [formPhoneNum, setFormPhoneNum] = useState<string>('');
+  const [formName, setFormName] = useState<string>('');
+  const [formToken, setFormToken] = useState<string>('');
 
   // Meta Embedded Signup OAuth configuration state
 
@@ -86,6 +96,12 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
       if (data && data.status === 'connected') {
         setWhatsappMetaConfig(data);
         setMetaApproved(true);
+        // Pre-populate manual form fields
+        setFormPhoneId(data.phoneNumberId || '');
+        setFormWabaId(data.whatsappBusinessAccountId || '');
+        setFormBizId(data.facebookBusinessId || '');
+        setFormPhoneNum(data.displayPhoneNumber || '');
+        setFormName(data.verifiedName || '');
       } else {
         setWhatsappMetaConfig(null);
         setMetaApproved(false);
@@ -105,7 +121,11 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
         if (event.data.success) {
           fetchWhatsAppStatus();
           onIntegrate('whatsapp-biz', 'connected');
-          alert("Parabéns! WhatsApp Business conectado via API oficial Meta Cloud!");
+          if (event.data.warning) {
+            alert("Sua conta foi vinculada à Meta!\n\nNo entanto, devido a restrições no seu aplicativo Meta de desenvolvedor, não conseguimos buscar as contas automaticamente. Criamos canais temporários; por favor, use as 'Configurações Avançadas' que agora estão liberadas abaixo no painel para inserir seus IDs reais de telefone e WABA.");
+          } else {
+            alert("Parabéns! WhatsApp Business conectado via API oficial Meta Cloud!");
+          }
         } else {
           alert("Erro na conexão oficial da Meta: " + (event.data.error || "Desconhecido"));
         }
@@ -198,6 +218,45 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
       }
     } catch (err: any) {
       console.error("Erro ao sincronizar dados da Meta:", err);
+    } finally {
+      setWaActionLoading(false);
+    }
+  };
+
+  // Save manual / advanced config updates
+  const handleSaveAdvancedConfig = async () => {
+    setWaActionLoading(true);
+    try {
+      const response = await fetch(`/api/meta?action=update_config`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-company-id': currentUser || 'demo@empresa.com'
+        },
+        body: JSON.stringify({
+          facebookBusinessId: formBizId,
+          whatsappBusinessAccountId: formWabaId,
+          phoneNumberId: formPhoneId,
+          displayPhoneNumber: formPhoneNum,
+          verifiedName: formName,
+          accessToken: formToken || undefined
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setWhatsappMetaConfig(data.record);
+        setMetaApproved(true);
+        setIsEditingConfig(false);
+        setIsManualMode(false);
+        setFormToken(''); // Clear sensitive token state
+        alert("Configuração do WhatsApp atualizada com sucesso!");
+        fetchWhatsAppStatus();
+      } else {
+        alert("Erro ao salvar configuração: " + (data.error || "Desconhecido"));
+      }
+    } catch (err: any) {
+      alert("Erro ao salvar configuração: " + err.message);
     } finally {
       setWaActionLoading(false);
     }
@@ -666,69 +725,314 @@ Equipe Atlas Intelligence`;
               </div>
 
               {/* Promo Banner and Explanation */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-                <div className="lg:col-span-7 space-y-5">
-                  <span className="text-[#E2B755] font-mono text-[9px] font-bold uppercase tracking-widest block">
-                    [ FLUXO EMBEDDED SIGNUP MULTI-TENANT ]
-                  </span>
-                  
-                  <h4 className="text-white text-lg sm:text-xl font-display font-black tracking-tight leading-tight">
-                    Conecte o WhatsApp oficial de cada cliente sem configurações manuais complexas.
-                  </h4>
+              {isManualMode ? (
+                /* MANUAL CONFIGURATION FORM */
+                <div className="bg-zinc-950/40 border border-zinc-900 rounded-2xl p-6 space-y-5 text-left">
+                  <div className="border-b border-zinc-900 pb-3 flex justify-between items-center">
+                    <div>
+                      <h4 className="text-[#E2B755] font-mono text-xs font-bold uppercase tracking-wider">
+                        Configuração Manual de IDs (Modo de Compatibilidade)
+                      </h4>
+                      <p className="text-[11px] text-zinc-500 font-light mt-0.5">
+                        Insira os dados do seu aplicativo de testes ou IDs do painel Meta Developers manualmente.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setIsManualMode(false)}
+                      className="px-3 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-xs text-zinc-400"
+                    >
+                      Voltar ao Login Oficial
+                    </button>
+                  </div>
 
-                  <p className="text-xs text-zinc-400 leading-relaxed font-light">
-                    Como nossa plataforma funciona no modelo <strong className="text-zinc-200">SaaS Multi-tenant</strong>, cada empresa conecta sua própria conta do WhatsApp Business através do login seguro da Meta. 
-                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">Nome do Canal / Nome Verificado</label>
+                      <input 
+                        type="text"
+                        value={formName}
+                        onChange={(e) => setFormName(e.target.value)}
+                        placeholder="Ex: WhatsApp Oficial"
+                        className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
+                      />
+                    </div>
 
-                  <div className="space-y-3.5 pt-2">
-                    {[
-                      "Sem números fixos compartilhados: isolamento absoluto de dados.",
-                      "Sem digitação manual: tokens e IDs de telefone são capturados automaticamente.",
-                      "Integração instantânea do Webhook para resposta automática imediata por IA.",
-                      "Armazenamento altamente seguro com criptografia de ponta a ponta dos tokens de acesso."
-                    ].map((text, i) => (
-                      <div key={i} className="flex items-start gap-2 text-xs text-zinc-400 font-light">
-                        <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                        <span>{text}</span>
-                      </div>
-                    ))}
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">Número do Telefone com DDI</label>
+                      <input 
+                        type="text"
+                        value={formPhoneNum}
+                        onChange={(e) => setFormPhoneNum(e.target.value)}
+                        placeholder="Ex: +55 11 99999-9999"
+                        className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">Phone Number ID (ID do Número na Meta)</label>
+                      <input 
+                        type="text"
+                        value={formPhoneId}
+                        onChange={(e) => setFormPhoneId(e.target.value)}
+                        placeholder="Ex: 106547896584"
+                        className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">WABA ID (ID da WhatsApp Business Account)</label>
+                      <input 
+                        type="text"
+                        value={formWabaId}
+                        onChange={(e) => setFormWabaId(e.target.value)}
+                        placeholder="Ex: 204859684715"
+                        className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">Facebook Business ID (ID da Empresa)</label>
+                      <input 
+                        type="text"
+                        value={formBizId}
+                        onChange={(e) => setFormBizId(e.target.value)}
+                        placeholder="Ex: 105847259684"
+                        className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">Access Token (Token Permanente ou Temporário)</label>
+                      <input 
+                        type="password"
+                        value={formToken}
+                        onChange={(e) => setFormToken(e.target.value)}
+                        placeholder="Cole seu token de acesso da Meta"
+                        className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-3">
+                    <button 
+                      onClick={() => setIsManualMode(false)}
+                      className="px-4 py-2 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-400 rounded-lg text-xs"
+                    >
+                      Cancelar
+                    </button>
+                    <button 
+                      onClick={handleSaveAdvancedConfig}
+                      disabled={waActionLoading}
+                      className="px-5 py-2.5 bg-[#E2B755] hover:bg-[#d4a33b] text-black font-bold rounded-lg text-xs disabled:opacity-50 flex items-center gap-1.5"
+                    >
+                      {waActionLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                      {waActionLoading ? "Salvando..." : "Salvar Configuração"}
+                    </button>
                   </div>
                 </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                  <div className="lg:col-span-7 space-y-5">
+                    <span className="text-[#E2B755] font-mono text-[9px] font-bold uppercase tracking-widest block">
+                      [ FLUXO EMBEDDED SIGNUP MULTI-TENANT ]
+                    </span>
+                    
+                    <h4 className="text-white text-lg sm:text-xl font-display font-black tracking-tight leading-tight">
+                      Conecte o WhatsApp oficial de cada cliente sem configurações manuais complexas.
+                    </h4>
 
-                {/* Simulated Meta Button Trigger */}
-                <div className="lg:col-span-5 bg-zinc-950 border border-zinc-900 rounded-3xl p-6 flex flex-col justify-between items-center text-center space-y-6">
-                  <div className="space-y-2">
-                    <Shield className="w-10 h-10 text-emerald-400 mx-auto" />
-                    <h5 className="text-white text-xs font-bold font-mono uppercase tracking-wider">
-                      Integração Homologada Meta
-                    </h5>
-                    <p className="text-[11px] text-zinc-500 max-w-xs font-light leading-relaxed">
-                      Ao clicar no botão abaixo, a janela oficial de login e Embedded Signup da Meta será iniciada para autorizar o escopo da sua empresa.
+                    <p className="text-xs text-zinc-400 leading-relaxed font-light">
+                      Como nossa plataforma funciona no modelo <strong className="text-zinc-200">SaaS Multi-tenant</strong>, cada empresa conecta sua própria conta do WhatsApp Business através do login seguro da Meta. 
                     </p>
+
+                    <div className="space-y-3.5 pt-2">
+                      {[
+                        "Sem números fixos compartilhados: isolamento absoluto de dados.",
+                        "Sem digitação manual: tokens e IDs de telefone são capturados automaticamente.",
+                        "Integração instantânea do Webhook para resposta automática imediata por IA.",
+                        "Armazenamento altamente seguro com criptografia de ponta a ponta dos tokens de acesso."
+                      ].map((text, i) => (
+                        <div key={i} className="flex items-start gap-2 text-xs text-zinc-400 font-light">
+                          <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                          <span>{text}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
-                  <button
-                    onClick={handleConnectWhatsApp}
-                    className="w-full py-3 px-5 bg-[#1877F2] hover:bg-[#166FE5] text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg flex items-center justify-center gap-2.5 hover:scale-[1.01]"
-                  >
-                    {/* Official Facebook Icon */}
-                    <svg className="w-4 h-4 fill-white" viewBox="0 0 24 24">
-                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                    </svg>
-                    Conectar WhatsApp Oficial
-                  </button>
+                  {/* Simulated Meta Button Trigger */}
+                  <div className="lg:col-span-5 bg-zinc-950 border border-zinc-900 rounded-3xl p-6 flex flex-col justify-between items-center text-center space-y-6">
+                    <div className="space-y-2">
+                      <Shield className="w-10 h-10 text-emerald-400 mx-auto" />
+                      <h5 className="text-white text-xs font-bold font-mono uppercase tracking-wider">
+                        Integração Homologada Meta
+                      </h5>
+                      <p className="text-[11px] text-zinc-500 max-w-xs font-light leading-relaxed">
+                        Ao clicar no botão abaixo, a janela oficial de login e Embedded Signup da Meta será iniciada para autorizar o escopo da sua empresa.
+                      </p>
+                    </div>
 
-                  <div className="text-[10px] text-zinc-600 font-mono">
-                    Meta Business Platform v18.0 Verified
+                    <button
+                      onClick={handleConnectWhatsApp}
+                      className="w-full py-3 px-5 bg-[#1877F2] hover:bg-[#166FE5] text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg flex items-center justify-center gap-2.5 hover:scale-[1.01]"
+                    >
+                      {/* Official Facebook Icon */}
+                      <svg className="w-4 h-4 fill-white" viewBox="0 0 24 24">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                      </svg>
+                      Conectar WhatsApp Oficial
+                    </button>
+
+                    <div className="space-y-2">
+                      <div className="text-[10px] text-zinc-600 font-mono">
+                        Meta Business Platform v18.0 Verified
+                      </div>
+                      <div className="pt-2 border-t border-zinc-900 w-full">
+                        <button
+                          onClick={() => {
+                            setIsManualMode(true);
+                            setFormPhoneId(formPhoneId || "1065" + Math.floor(1000000 + Math.random() * 9000000));
+                            setFormWabaId(formWabaId || "2048" + Math.floor(1000000 + Math.random() * 9000000));
+                            setFormBizId(formBizId || "1058" + Math.floor(1000000 + Math.random() * 9000000));
+                            setFormPhoneNum(formPhoneNum || "+55 11 99999-9999");
+                            setFormName(formName || "WhatsApp Business " + (currentUser || 'Empresa'));
+                          }}
+                          className="text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors underline"
+                        >
+                          Configuração Manual de IDs (Aplicativos Sandbox)
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           ) : (
             /* ACTIVE WHATSAPP DASHBOARD MODULE FOR APPROVED USERS */
             <div className="space-y-6">
               {/* Active Connection metrics header */}
               <div className="bg-[#121214]/30 border border-gray-900 rounded-2xl p-6 space-y-6">
+                {whatsappMetaConfig?.hasGraphErrors && (
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex gap-3 text-left">
+                    <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <h5 className="text-amber-500 text-xs font-bold font-sans">Aviso: Ajuste de IDs Requerido</h5>
+                      <p className="text-[11px] text-zinc-400 leading-relaxed font-light">
+                        A autorização com a Meta foi realizada, mas a busca automática falhou devido a restrições de permissões do seu aplicativo de desenvolvedor.
+                        <strong> Os IDs de telefone e WABA abaixo foram criados de forma temporária. </strong>
+                        Por favor, clique em <strong>"Configurar IDs"</strong> abaixo para substituir pelos seus dados reais obtidos no painel da Meta.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {isEditingConfig && (
+                  <div className="bg-zinc-950/60 border border-zinc-900 rounded-2xl p-6 space-y-5 text-left">
+                    <div className="border-b border-zinc-900 pb-3 flex justify-between items-center">
+                      <div>
+                        <h4 className="text-[#E2B755] font-mono text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                          <Settings className="w-4 h-4" />
+                          Editar Configurações de IDs de WhatsApp
+                        </h4>
+                        <p className="text-[11px] text-zinc-500 font-light mt-0.5">
+                          Altere os IDs abaixo se a busca automática do Embedded Signup tiver retornado campos simulados ou incompletos.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setIsEditingConfig(false)}
+                        className="px-3 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-xs text-zinc-400"
+                      >
+                        Voltar ao Painel
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">Nome do Canal / Nome Verificado</label>
+                        <input 
+                          type="text"
+                          value={formName}
+                          onChange={(e) => setFormName(e.target.value)}
+                          placeholder="Ex: WhatsApp Oficial"
+                          className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">Número do Telefone com DDI</label>
+                        <input 
+                          type="text"
+                          value={formPhoneNum}
+                          onChange={(e) => setFormPhoneNum(e.target.value)}
+                          placeholder="Ex: +55 11 99999-9999"
+                          className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">Phone Number ID (ID do Número na Meta)</label>
+                        <input 
+                          type="text"
+                          value={formPhoneId}
+                          onChange={(e) => setFormPhoneId(e.target.value)}
+                          placeholder="Ex: 106547896584"
+                          className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">WABA ID (ID da WhatsApp Business Account)</label>
+                        <input 
+                          type="text"
+                          value={formWabaId}
+                          onChange={(e) => setFormWabaId(e.target.value)}
+                          placeholder="Ex: 204859684715"
+                          className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">Facebook Business ID (ID da Empresa)</label>
+                        <input 
+                          type="text"
+                          value={formBizId}
+                          onChange={(e) => setFormBizId(e.target.value)}
+                          placeholder="Ex: 105847259684"
+                          className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">Access Token (Deixe em branco para manter o atual)</label>
+                        <input 
+                          type="password"
+                          value={formToken}
+                          onChange={(e) => setFormToken(e.target.value)}
+                          placeholder="Cole novo token apenas se desejar substituí-lo"
+                          className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-3">
+                      <button 
+                        onClick={() => setIsEditingConfig(false)}
+                        className="px-4 py-2 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-400 rounded-lg text-xs"
+                      >
+                        Cancelar
+                      </button>
+                      <button 
+                        onClick={handleSaveAdvancedConfig}
+                        disabled={waActionLoading}
+                        className="px-5 py-2.5 bg-[#E2B755] hover:bg-[#d4a33b] text-black font-bold rounded-lg text-xs disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        {waActionLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                        {waActionLoading ? "Salvando..." : "Salvar Configuração"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-900/60 pb-5">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
@@ -746,6 +1050,26 @@ Equipe Atlas Intelligence`;
                   </div>
 
                   <div className="flex items-center gap-3 self-end sm:self-auto">
+                    <button
+                      onClick={() => {
+                        setIsEditingConfig(!isEditingConfig);
+                        setFormPhoneId(whatsappMetaConfig?.phoneNumberId || '');
+                        setFormWabaId(whatsappMetaConfig?.whatsappBusinessAccountId || '');
+                        setFormBizId(whatsappMetaConfig?.facebookBusinessId || '');
+                        setFormPhoneNum(whatsappMetaConfig?.displayPhoneNumber || '');
+                        setFormName(whatsappMetaConfig?.verifiedName || '');
+                      }}
+                      disabled={waActionLoading || showDisconnectConfirm}
+                      className={`p-2.5 border rounded-xl transition-all font-mono text-xs flex items-center gap-2 ${
+                        isEditingConfig 
+                          ? 'bg-[#E2B755] border-[#E2B755] text-black font-bold' 
+                          : 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                      Configurar IDs
+                    </button>
+
                     <button
                       onClick={handleRefreshWhatsApp}
                       disabled={waActionLoading || showDisconnectConfirm}
