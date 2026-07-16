@@ -16,21 +16,25 @@ export default async function handler(req: any, res: any) {
     return res.status(200).end();
   }
 
-  // Identify tenant from request header
-  const companyId = req.headers["x-company-id"] || req.query.companyId;
-
-  if (!companyId) {
-    return res.status(401).json({ error: "Empresa não autenticada. Cabeçalho 'X-Company-Id' ausente." });
-  }
-
-  const action = req.query.action || "status";
-  const db = readDb();
-  const companyRecord = db[companyId] || {
-    empresaId: companyId,
-    status: "disconnected"
-  };
-
   try {
+    // Safe parsing and fallback logging
+    console.log(`[Meta API] [${req.method}] Action: ${req.query?.action || "status"}, Company: ${req.headers?.["x-company-id"] || req.query?.companyId}`);
+    
+    // Identify tenant from request header
+    const companyId = req.headers?.["x-company-id"] || req.query?.companyId;
+
+    if (!companyId) {
+      console.warn("[Meta API] Blocked request: missing companyId");
+      return res.status(401).json({ error: "Empresa não autenticada. Cabeçalho 'X-Company-Id' ausente ou vazio." });
+    }
+
+    const action = req.query?.action || "status";
+    const db = readDb();
+    const companyRecord = db[companyId] || {
+      empresaId: companyId,
+      status: "disconnected"
+    };
+
     if (req.method === "GET") {
       if (action === "status") {
         // Return status without sensitive access token
@@ -77,7 +81,7 @@ export default async function handler(req: any, res: any) {
 
     if (req.method === "POST") {
       if (action === "connect") {
-        const { code, facebookBusinessId, whatsappBusinessAccountId, phoneNumberId, accessToken, displayPhoneNumber, verifiedName } = req.body;
+        const { code, facebookBusinessId, whatsappBusinessAccountId, phoneNumberId, accessToken, displayPhoneNumber, verifiedName } = req.body || {};
 
         // If it is simulated signup or code is mock
         if (code === "simulated_code" || !accessToken) {

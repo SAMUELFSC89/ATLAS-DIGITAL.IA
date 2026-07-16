@@ -132,7 +132,7 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
       }
 
       const state = currentUser || 'demo@empresa.com';
-      const scope = 'whatsapp_business_management,whatsapp_business_messaging';
+      const scope = 'whatsapp_business_management,whatsapp_business_messaging,business_management';
       const extras = JSON.stringify({
         setup: {
           type: 'whatsapp_embedded_signup'

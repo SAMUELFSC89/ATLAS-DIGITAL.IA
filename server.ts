@@ -10,6 +10,33 @@ import { handleIncomingWebhookMessage } from "./api/whatsapp-service.ts";
 
 dotenv.config();
 
+// Check Meta developers environment variables
+const REQUIRED_META_VARS = [
+  "META_APP_ID",
+  "META_CLIENT_SECRET",
+  "META_APP_SECRET",
+  "META_VERIFY_TOKEN",
+  "META_REDIRECT_URI",
+  "META_CONFIG_ID",
+  "META_BUSINESS_ID",
+  "META_SYSTEM_USER_TOKEN"
+];
+
+console.log("=== CHECKING META DEVELOPERS ENVIRONMENT VARIABLES ===");
+REQUIRED_META_VARS.forEach(v => {
+  const value = process.env[v];
+  if (value && value.trim() !== "") {
+    let masked = value;
+    if (value.length > 6) {
+      masked = value.substring(0, 3) + "..." + value.substring(value.length - 3);
+    }
+    console.log(`[ENV CHECK] ${v}: Present (${masked})`);
+  } else {
+    console.warn(`[ENV CHECK] ${v}: MISSING!`);
+  }
+});
+console.log("=====================================================");
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -415,14 +442,38 @@ async function startServer() {
   app.use(express.json());
 
   // Meta Integration Routes
-  app.get("/api/meta", (req, res) => {
-    metaHandler(req, res);
+  app.get("/api/meta", async (req, res) => {
+    try {
+      await metaHandler(req, res);
+    } catch (err: any) {
+      console.error("[GET /api/meta] Unhandled Exception:", err);
+      return res.status(500).json({ error: "Erro interno no servidor Meta API.", details: err.message || String(err) });
+    }
   });
-  app.post("/api/meta", (req, res) => {
-    metaHandler(req, res);
+  app.post("/api/meta", async (req, res) => {
+    try {
+      await metaHandler(req, res);
+    } catch (err: any) {
+      console.error("[POST /api/meta] Unhandled Exception:", err);
+      return res.status(500).json({ error: "Erro interno no servidor Meta API.", details: err.message || String(err) });
+    }
   });
-  app.get("/api/meta-callback", (req, res) => {
-    metaCallbackHandler(req, res);
+  app.get("/api/meta-callback", async (req, res) => {
+    try {
+      await metaCallbackHandler(req, res);
+    } catch (err: any) {
+      console.error("[GET /api/meta-callback] Unhandled Exception:", err);
+      return res.status(500).send(`
+        <!DOCTYPE html>
+        <html>
+        <head><title>Erro Interno</title></head>
+        <body style="font-family: sans-serif; background: #0b0c0e; color: white; text-align: center; padding: 50px;">
+          <h2>Erro de Processamento da Meta</h2>
+          <p>${err.message || String(err)}</p>
+        </body>
+        </html>
+      `);
+    }
   });
 
   // Meta Webhook Verification (GET)
