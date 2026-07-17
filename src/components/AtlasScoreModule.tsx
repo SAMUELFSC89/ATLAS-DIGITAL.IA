@@ -130,6 +130,12 @@ export default function AtlasScoreModule() {
       format: 'a4'
     });
 
+    const safeText = (txt: string | undefined | null): string => {
+      if (!txt) return "";
+      let safeStr = txt.replace(/º/g, ".").replace(/ª/g, ".");
+      return safeStr.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    };
+
     const primaryGold = '#E2B755';
     const darkBg = '#090D16';
     const secondaryGray = '#9CA3AF';
@@ -204,7 +210,7 @@ export default function AtlasScoreModule() {
     doc.text("Este documento foi gerado automaticamente pela Inteligência Artificial Atlas Digital.ia", 105, 275, { align: 'center' });
     doc.text("Atlas Digital.ia - CNPJ: 66.204.635/0001-19 | Porto Alegre - RS", 105, 281, { align: 'center' });
 
-    // PAGE 2: EXECUTIVE SUMMARY & MATURITY INDICES
+    // PAGE 2: EXECUTIVE SUMMARY
     doc.addPage();
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, 210, 297, 'F');
@@ -215,47 +221,58 @@ export default function AtlasScoreModule() {
     doc.setTextColor(245, 179, 1);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("ATLAS DIGITAL.IA - AUDITORIA ESTRATÉGICA DE PRESENÇA DIGITAL", 15, 14);
+    doc.text(safeText("ATLAS DIGITAL.IA - AUDITORIA ESTRATEGICA DE PRESENCA DIGITAL"), 15, 14);
 
     // Executive Summary
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
-    doc.text("1. Resumo Executivo da Auditoria", 15, 35);
+    doc.text(safeText("1. Resumo Executivo da Auditoria"), 15, 35);
     
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(55, 65, 81);
-    const splitSummary = doc.splitTextToSize(report.executiveSummary, 180);
+    const splitSummary = doc.splitTextToSize(safeText(report.executiveSummary), 180);
     doc.text(splitSummary, 15, 41);
 
-    const summaryHeight = 41 + (splitSummary.length * 4.2) + 10;
+    // PAGE 3: MATURITY INDICES & BENCHMARK
+    doc.addPage();
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, 210, 297, 'F');
+
+    // Mini Band Header for Page 3
+    doc.setFillColor(9, 13, 22);
+    doc.rect(0, 0, 210, 22, 'F');
+    doc.setTextColor(245, 179, 1);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text(safeText("ATLAS DIGITAL.IA - INDICES DE MATURIDADE DIGITAL"), 15, 14);
 
     // IMD (Índice de Maturidade Digital)
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text("Índice de Maturidade Digital (IMD)", 15, summaryHeight);
+    doc.text(safeText("Indice de Maturidade Digital (IMD)"), 15, 35);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(100, 100, 100);
-    doc.text("Mapeamento técnico de prontidão digital (Escala de 0 a 100):", 15, summaryHeight + 5);
+    doc.text(safeText("Mapeamento tecnico de prontidao digital (Escala de 0 a 100):"), 15, 40);
 
-    // Render IMD Items
+    // Render IMD Items on Page 3
     if (report.maturityIndex) {
       const items = [
-        { name: "Presença Web", val: report.maturityIndex.presence },
-        { name: "SEO Técnico", val: report.maturityIndex.seo },
+        { name: "Presenca Web", val: report.maturityIndex.presence },
+        { name: "SEO Tecnico", val: report.maturityIndex.seo },
         { name: "Performance", val: report.maturityIndex.performance ?? "N/A" },
-        { name: "Captação Leads", val: report.maturityIndex.conversion },
+        { name: "Captacao Leads", val: report.maturityIndex.conversion },
         { name: "Google Maps", val: report.maturityIndex.google },
         { name: "Mobile Core", val: report.maturityIndex.mobile ?? "N/A" },
         { name: "Autoridade", val: report.maturityIndex.authority },
-        { name: "Automação IA", val: report.maturityIndex.automation }
+        { name: "Automacao IA", val: report.maturityIndex.automation }
       ];
 
-      let imdY = summaryHeight + 14;
+      let imdY = 50;
       items.forEach((item, idx) => {
         const col = idx % 2 === 0 ? 15 : 110;
         const row = imdY + Math.floor(idx / 2) * 11;
@@ -263,11 +280,11 @@ export default function AtlasScoreModule() {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(8.5);
         doc.setTextColor(55, 65, 81);
-        doc.text(`${item.name}:`, col, row);
+        doc.text(safeText(`${item.name}:`), col, row);
         
         doc.setFont("helvetica", "bold");
         doc.setTextColor(226, 183, 85);
-        doc.text(`${item.val}`, col + 38, row);
+        doc.text(safeText(`${item.val}`), col + 38, row);
         
         // simple thin gauge bar
         doc.setFillColor(243, 244, 246);
@@ -279,20 +296,20 @@ export default function AtlasScoreModule() {
       });
     }
 
-    // Benchmark do Mercado
+    // Benchmark do Mercado on Page 3
     if (report.benchmark) {
-      const benchY = summaryHeight + 64;
+      const benchY = 105;
       doc.setTextColor(9, 13, 22);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
-      doc.text("Benchmark Comparativo Local", 15, benchY);
+      doc.text(safeText("Benchmark Comparativo Local"), 15, benchY);
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8.5);
       doc.setTextColor(55, 65, 81);
-      doc.text(`Sua Empresa (Auditada): ${report.benchmark.audited}/100`, 15, benchY + 6);
-      doc.text(`Média Regional dos Concorrentes: ${report.benchmark.marketAverage}/100`, 15, benchY + 11);
-      doc.text(`Líder Estabelecido do Segmento: ${report.benchmark.marketLeader}/100`, 15, benchY + 16);
+      doc.text(safeText(`Sua Empresa (Auditada): ${report.benchmark.audited}/100`), 15, benchY + 6);
+      doc.text(safeText(`Media Regional dos Concorrentes: ${report.benchmark.marketAverage}/100`), 15, benchY + 11);
+      doc.text(safeText(`Lider Estabelecido do Segmento: ${report.benchmark.marketLeader}/100`), 15, benchY + 16);
 
       doc.setDrawColor(229, 231, 235);
       doc.setLineWidth(0.2);
@@ -310,17 +327,17 @@ export default function AtlasScoreModule() {
     doc.setTextColor(245, 179, 1);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("ATLAS DIGITAL.IA - CONFIABILIDADE DA AUDITORIA", 15, 14);
+    doc.text(safeText("ATLAS DIGITAL.IA - CONFIABILIDADE DA AUDITORIA"), 15, 14);
 
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
-    doc.text("Confiabilidade da Auditoria & Robustez de Dados", 15, 33);
+    doc.text(safeText("Confiabilidade da Auditoria & Robustez de Dados"), 15, 33);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(55, 65, 81);
-    doc.text("Análise de consistência e robustez metodológica dos dados levantados automaticamente:", 15, 39);
+    doc.text(safeText("Analise de consistencia e robustez metodologica dos dados levantados automaticamente:"), 15, 39);
 
     // Score Panel
     doc.setFillColor(243, 244, 246);
@@ -329,7 +346,7 @@ export default function AtlasScoreModule() {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(9, 13, 22);
-    doc.text("Confiabilidade Geral da Auditoria:", 20, 51);
+    doc.text(safeText("Confiabilidade Geral da Auditoria:"), 20, 51);
     doc.setFontSize(14);
     doc.setTextColor(16, 185, 129); // green
     doc.text(`${report.reliability?.score ?? 94}%`, 20, 59);
@@ -337,24 +354,24 @@ export default function AtlasScoreModule() {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(100, 100, 100);
-    doc.text(`Status: ${report.reliability?.status ?? "Auditoria concluída com sucesso."}`, 90, 51);
-    doc.text(`Mecanismo: ${report.reliability?.version ?? "Atlas Score Engine v2.4"}`, 90, 58);
+    doc.text(safeText(`Status: ${report.reliability?.status ?? "Auditoria concluida com sucesso."}`), 90, 51);
+    doc.text(safeText(`Mecanismo: ${report.reliability?.version ?? "Atlas Score Engine v2.4"}`), 90, 58);
 
     // Stats Table
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
     doc.setTextColor(9, 13, 22);
-    doc.text("Indicadores Executivos de Coleta", 15, 71);
+    doc.text(safeText("Indicadores Executivos de Coleta"), 15, 71);
 
     // Draw bulleted parameters
     const params = [
-      { label: "Tempo total de processamento", value: report.reliability?.processingTime ?? "4,2 segundos" },
-      { label: "Data e hora da análise", value: report.reliability?.analysisDate ?? new Date().toLocaleDateString('pt-BR') },
-      { label: "Quantidade de verificações", value: `${report.reliability?.checksCount ?? 127} executadas` },
-      { label: "Número de indicadores analisados", value: `${report.reliability?.indicatorsCount ?? 86} indicadores` },
-      { label: "Número de oportunidades identificadas", value: `${report.reliability?.opportunitiesCount ?? 18} oportunidades` },
-      { label: "Inconsistências encontradas", value: `${report.reliability?.inconsistenciesCount ?? 4} identificadas` },
-      { label: "Fontes públicas consultadas", value: "8 fontes oficiais" },
+      { label: "Tempo total de processamento", value: report.reliability?.processingTime ?? "4.2 segundos" },
+      { label: "Data e hora da analise", value: report.reliability?.analysisDate ?? new Date().toLocaleDateString('pt-BR') },
+      { label: "Quantidade de verificacoes", value: `${report.reliability?.checksCount ?? 127} executadas` },
+      { label: "Numero de indicadores analisados", value: `${report.reliability?.indicatorsCount ?? 86}  indicadores` },
+      { label: "Numero de oportunidades identificadas", value: `${report.reliability?.opportunitiesCount ?? 18} oportunidades` },
+      { label: "Inconsistencias encontradas", value: `${report.reliability?.inconsistenciesCount ?? 4} identificadas` },
+      { label: "Fontes publicas consultadas", value: "8 fontes oficiais" },
       { label: "Palavras-chave avaliadas", value: `${report.reliability?.keywordsCount ?? 27} termos` },
       { label: "Concorrentes mapeados", value: `${report.reliability?.competitorsCount ?? 5} identificados` }
     ];
@@ -366,10 +383,11 @@ export default function AtlasScoreModule() {
       const col = idx % 2 === 0 ? 15 : 110;
       const row = paramY + Math.floor(idx / 2) * 5.5;
       doc.setTextColor(55, 65, 81);
-      doc.text(`• ${p.label}:`, col, row);
+      const labelText = `- ${p.label}:`;
+      doc.text(safeText(labelText), col, row);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(17, 24, 39);
-      doc.text(` ${p.value}`, col + doc.getTextWidth(`• ${p.label}:`) + 1, row);
+      doc.text(` ${safeText(p.value)}`, col + doc.getTextWidth(safeText(labelText)) + 1, row);
       doc.setFont("helvetica", "normal");
     });
 
@@ -379,40 +397,41 @@ export default function AtlasScoreModule() {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
     doc.setTextColor(9, 13, 22);
-    doc.text("Matriz de Confiança dos Indicadores", 15, matrixStartY);
+    doc.text(safeText("Matriz de Confianca dos Indicadores"), 15, matrixStartY);
 
     doc.setFillColor(243, 244, 246);
     doc.rect(15, matrixStartY + 3, 180, 6, 'F');
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7.5);
     doc.setTextColor(55, 65, 81);
-    doc.text("Indicador", 18, matrixStartY + 7);
-    doc.text("Confiança", 65, matrixStartY + 7);
-    doc.text("Validação", 95, matrixStartY + 7);
-    doc.text("Justificativa / Parecer Metodológico", 125, matrixStartY + 7);
+    doc.text(safeText("Indicador"), 18, matrixStartY + 7);
+    doc.text(safeText("Confianca"), 65, matrixStartY + 7);
+    doc.text(safeText("Validacao"), 95, matrixStartY + 7);
+    doc.text(safeText("Justificativa / Parecer Metodologico"), 125, matrixStartY + 7);
 
     let mY = matrixStartY + 13;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
 
     const mRows = [
-      { name: "SEO Técnico", confidence: report.reliability?.confidenceMatrix.seo.confidence ?? 98, status: report.reliability?.confidenceMatrix.seo.status ?? "Confirmado", desc: report.reliability?.confidenceMatrix.seo.explanation ?? "Análise de sitemap e meta tags." },
+      { name: "SEO Tecnico", confidence: report.reliability?.confidenceMatrix.seo.confidence ?? 98, status: report.reliability?.confidenceMatrix.seo.status ?? "Confirmado", desc: report.reliability?.confidenceMatrix.seo.explanation ?? "Analise de sitemap e meta tags." },
       { name: "Performance", confidence: report.reliability?.confidenceMatrix.performance.confidence ?? 100, status: report.reliability?.confidenceMatrix.performance.status ?? "Confirmado", desc: report.reliability?.confidenceMatrix.performance.explanation ?? "Velocidade e Core Web Vitals." },
-      { name: "Google Perfil", confidence: report.reliability?.confidenceMatrix.googleProfile.confidence ?? 95, status: report.reliability?.confidenceMatrix.googleProfile.status ?? "Confirmado", desc: report.reliability?.confidenceMatrix.googleProfile.explanation ?? "Avaliações e geolocalização." },
-      { name: "Palavras-chave", confidence: report.reliability?.confidenceMatrix.keywords.confidence ?? 90, status: report.reliability?.confidenceMatrix.keywords.status ?? "Estimado", desc: report.reliability?.confidenceMatrix.keywords.explanation ?? "Análise de volume local." },
-      { name: "Concorrência", confidence: report.reliability?.confidenceMatrix.competitors.confidence ?? 82, status: report.reliability?.confidenceMatrix.competitors.status ?? "Estimado", desc: report.reliability?.confidenceMatrix.competitors.explanation ?? "Nicho de atuação regional." },
-      { name: "IA", confidence: report.reliability?.confidenceMatrix.ai.confidence ?? 65, status: report.reliability?.confidenceMatrix.ai.status ?? "Estimado", desc: report.reliability?.confidenceMatrix.ai.explanation ?? "Integrações inteligentes." },
-      { name: "Automação", confidence: report.reliability?.confidenceMatrix.automation.confidence ?? 70, status: report.reliability?.confidenceMatrix.automation.status ?? "Estimado", desc: report.reliability?.confidenceMatrix.automation.explanation ?? "Fluxos de resposta rápida." }
+      { name: "Google Perfil", confidence: report.reliability?.confidenceMatrix.googleProfile.confidence ?? 95, status: report.reliability?.confidenceMatrix.googleProfile.status ?? "Confirmado", desc: report.reliability?.confidenceMatrix.googleProfile.explanation ?? "Avaliacoes e geolocalizacao." },
+      { name: "Palavras-chave", confidence: report.reliability?.confidenceMatrix.keywords.confidence ?? 90, status: report.reliability?.confidenceMatrix.keywords.status ?? "Estimado", desc: report.reliability?.confidenceMatrix.keywords.explanation ?? "Analise de volume local." },
+      { name: "Concorrencia", confidence: report.reliability?.confidenceMatrix.competitors.confidence ?? 82, status: report.reliability?.confidenceMatrix.competitors.status ?? "Estimado", desc: report.reliability?.confidenceMatrix.competitors.explanation ?? "Nicho de atuacao regional." },
+      { name: "IA", confidence: report.reliability?.confidenceMatrix.ai.confidence ?? 65, status: report.reliability?.confidenceMatrix.ai.status ?? "Estimado", desc: report.reliability?.confidenceMatrix.ai.explanation ?? "Integracoes inteligentes." },
+      { name: "Automacao", confidence: report.reliability?.confidenceMatrix.automation.confidence ?? 70, status: report.reliability?.confidenceMatrix.automation.status ?? "Estimado", desc: report.reliability?.confidenceMatrix.automation.explanation ?? "Fluxos de resposta rapida." }
     ];
 
     mRows.forEach((item) => {
       doc.setTextColor(17, 24, 39);
       doc.setFont("helvetica", "bold");
-      doc.text(item.name, 18, mY);
+      doc.text(safeText(item.name), 18, mY);
       doc.setFont("helvetica", "normal");
       doc.text(`${item.confidence}%`, 65, mY);
       
-      const stColor = item.status === 'Confirmado' ? [16, 185, 129] : item.status === 'Estimado' ? [245, 158, 11] : [239, 68, 68];
+      const displayStatus = safeText((item.status === 'Não foi possível validar' || item.status === 'Não Validado' || (item.status && item.status.length > 15)) ? 'Não Validado' : item.status);
+      const stColor = displayStatus === 'Confirmado' ? [16, 185, 129] : displayStatus === 'Estimado' ? [245, 158, 11] : [239, 68, 68];
       
       // Draw small elegant status dot matching the validation state
       doc.setFillColor(stColor[0], stColor[1], stColor[2]);
@@ -421,11 +440,11 @@ export default function AtlasScoreModule() {
       // Print the status name next to the dot without any high-Unicode emojis
       doc.setTextColor(stColor[0], stColor[1], stColor[2]);
       doc.setFont("helvetica", "bold");
-      doc.text(item.status, 99.5, mY);
+      doc.text(displayStatus, 99.5, mY);
       
       doc.setFont("helvetica", "normal");
       doc.setTextColor(75, 85, 99);
-      const splitDesc = doc.splitTextToSize(item.desc, 65);
+      const splitDesc = doc.splitTextToSize(safeText(item.desc), 65);
       doc.text(splitDesc, 125, mY);
 
       doc.setDrawColor(229, 231, 235);
@@ -447,7 +466,7 @@ export default function AtlasScoreModule() {
       doc.setFontSize(6.5);
       let rTextY = mY + 11;
       report.reliability.unavailabilityReasons.forEach((r) => {
-        const splitR = doc.splitTextToSize(`• ${r}`, 174);
+        const splitR = doc.splitTextToSize(`- ${r}`, 174);
         doc.text(splitR, 18, rTextY);
         rTextY += 3.5;
       });
@@ -486,7 +505,7 @@ export default function AtlasScoreModule() {
       "A pontuação de confiabilidade representa o percentual de informações que puderam ser confirmadas automaticamente durante esta auditoria. Informações dependentes de acesso privado ou ferramentas externas podem não estar disponíveis.",
       180
     );
-    doc.text(splitDisclaimer, 15, mY + 8);
+    doc.text(splitDisclaimer, 15, mY + 12);
 
     // PAGE 4: ANÁLISE ESTRATÉGICA EM 5 PILARES
     doc.addPage();
@@ -550,17 +569,17 @@ export default function AtlasScoreModule() {
     doc.setTextColor(245, 179, 1);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("ATLAS DIGITAL.IA - RELATÓRIO TÉCNICO SEO E GOOGLE PERFIL", 15, 14);
+    doc.text(safeText("ATLAS DIGITAL.IA - RELATORIO TECNICO SEO E GOOGLE PERFIL"), 15, 14);
 
     // SEO Title
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
-    doc.text(`4. Auditoria Técnica de SEO (Nota: ${report.seo.score}/100)`, 15, 33);
+    doc.text(safeText(`4. Auditoria Tecnica de SEO (Nota: ${report.seo.score}/100)`), 15, 33);
 
     // Keywords Table
     doc.setFontSize(9.5);
-    doc.text("Palavras-chave Relevantes no Google local:", 15, 39);
+    doc.text(safeText("Palavras-chave Relevantes no Google local:"), 15, 39);
     
     // Headers
     doc.setFillColor(243, 244, 246);
@@ -568,22 +587,22 @@ export default function AtlasScoreModule() {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     doc.setTextColor(55, 65, 81);
-    doc.text("Termo de Busca", 18, 46.5);
-    doc.text("Vol. Mensal", 80, 46.5);
-    doc.text("Ranque Estimado", 110, 46.5);
-    doc.text("CPC Médio", 145, 46.5);
-    doc.text("Dificuldade", 172, 46.5);
+    doc.text(safeText("Termo de Busca"), 18, 46.5);
+    doc.text(safeText("Vol. Mensal"), 80, 46.5);
+    doc.text(safeText("Ranque Estimado"), 110, 46.5);
+    doc.text(safeText("CPC Medio"), 145, 46.5);
+    doc.text(safeText("Dificuldade"), 172, 46.5);
 
     // Rows
     let rowY = 52;
     doc.setFont("helvetica", "normal");
     report.seo.keywords.forEach((kw) => {
       doc.setTextColor(17, 24, 39);
-      doc.text(kw.word, 18, rowY);
-      doc.text(`${kw.volume}`, 80, rowY);
-      doc.text(kw.position > 90 ? 'Não Ranqueado' : `${kw.position}º Lugar`, 110, rowY);
-      doc.text(kw.cpc, 145, rowY);
-      doc.text(kw.difficulty, 172, rowY);
+      doc.text(safeText(kw.word), 18, rowY);
+      doc.text(safeText(`${kw.volume}`), 80, rowY);
+      doc.text(safeText(kw.position > 90 ? 'Nao Ranqueado' : `${kw.position}. Lugar`), 110, rowY);
+      doc.text(safeText(kw.cpc), 145, rowY);
+      doc.text(safeText(kw.difficulty), 172, rowY);
       
       doc.setDrawColor(229, 231, 235);
       doc.setLineWidth(0.1);
@@ -595,7 +614,7 @@ export default function AtlasScoreModule() {
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
-    doc.text(`5. Google Perfil de Empresa (Nota: ${report.googleProfile.score}/100)`, 15, rowY + 6);
+    doc.text(safeText(`5. Google Perfil de Empresa (Nota: ${report.googleProfile.score}/100)`), 15, rowY + 6);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
@@ -603,14 +622,14 @@ export default function AtlasScoreModule() {
     let gY = rowY + 12;
     report.googleProfile.items.forEach((item) => {
       doc.setFont("helvetica", "bold");
-      doc.text(`• ${item.name}: ${item.value}`, 15, gY);
+      doc.text(safeText(`- ${item.name}: ${item.value}`), 15, gY);
       doc.setFont("helvetica", "normal");
-      const splitDetails = doc.splitTextToSize(item.details, 175);
+      const splitDetails = doc.splitTextToSize(safeText(item.details), 175);
       doc.text(splitDetails, 20, gY + 3.5);
       gY += (splitDetails.length * 3.8) + 5.5;
     });
 
-    // PAGE 5: PERFORMANCE, CONCORRÊNCIA E MATRIZ DE PRIORIZAÇÃO
+    // PAGE 5: PERFORMANCE, CONCORRENCIA LOCAL
     doc.addPage();
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, 210, 297, 'F');
@@ -621,13 +640,13 @@ export default function AtlasScoreModule() {
     doc.setTextColor(245, 179, 1);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("ATLAS DIGITAL.IA - CONCORRÊNCIA E MATRIZ DE PRIORIZAÇÃO", 15, 14);
+    doc.text(safeText("ATLAS DIGITAL.IA - VELOCIDADE E CONCORRENCIA LOCAL"), 15, 14);
 
     // Performance Items & Competitors
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text(`6. Velocidade & Performance (Nota: ${report.performance.score !== null ? `${report.performance.score}/100` : 'N/A'})`, 15, 33);
+    doc.text(safeText(`6. Velocidade & Performance (Nota: ${report.performance.score !== null ? `${report.performance.score}/100` : 'N/A'})`), 15, 33);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
@@ -635,17 +654,17 @@ export default function AtlasScoreModule() {
     if (report.performance.score !== null) {
       report.performance.items.forEach((item) => {
         doc.setFont("helvetica", "bold");
-        doc.text(`• ${item.name}: ${item.value}`, 15, perfY);
+        doc.text(safeText(`- ${item.name}: ${item.value}`), 15, perfY);
         doc.setFont("helvetica", "normal");
-        const splitDetails = doc.splitTextToSize(item.details, 175);
+        const splitDetails = doc.splitTextToSize(safeText(item.details), 175);
         doc.text(splitDetails, 20, perfY + 3.5);
         perfY += (splitDetails.length * 3.8) + 5;
       });
     } else {
       doc.setFont("helvetica", "bold");
-      doc.text("• Status: Análise não aplicável", 15, perfY);
+      doc.text(safeText("- Status: Analise nao aplicavel"), 15, perfY);
       doc.setFont("helvetica", "normal");
-      doc.text("Motivo: Não foi encontrado um site institucional para realização dos testes de performance.", 15, perfY + 5);
+      doc.text(safeText("Motivo: Nao foi encontrado um site institucional para realizacao dos testes de performance."), 15, perfY + 5);
       perfY += 15;
     }
 
@@ -653,30 +672,30 @@ export default function AtlasScoreModule() {
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text("7. Análise de Concorrência Local", 15, perfY + 4);
+    doc.text(safeText("7. Analise de Concorrencia Local"), 15, perfY + 4);
 
     doc.setFillColor(243, 244, 246);
     doc.rect(15, perfY + 7, 180, 6, 'F');
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7.5);
     doc.setTextColor(55, 65, 81);
-    doc.text("Concorrente", 18, perfY + 11.5);
-    doc.text("Aut. Domínio", 65, perfY + 11.5);
-    doc.text("Velocidade", 90, perfY + 11.5);
-    doc.text("Rank Médio", 115, perfY + 11.5);
-    doc.text("Avaliações GMB", 140, perfY + 11.5);
-    doc.text("SEO", 175, perfY + 11.5);
+    doc.text(safeText("Concorrente"), 18, perfY + 11.5);
+    doc.text(safeText("Aut. Dominio"), 65, perfY + 11.5);
+    doc.text(safeText("Velocidade"), 90, perfY + 11.5);
+    doc.text(safeText("Rank Medio"), 115, perfY + 11.5);
+    doc.text(safeText("Avaliacoes GMB"), 140, perfY + 11.5);
+    doc.text(safeText("SEO"), 175, perfY + 11.5);
 
     let compY = perfY + 16;
     doc.setFont("helvetica", "normal");
     report.competitors.forEach((c) => {
       doc.setTextColor(17, 24, 39);
-      doc.text(c.name, 18, compY);
-      doc.text(`${c.authority}/100`, 65, compY);
-      doc.text(`${c.speed}/100`, 90, compY);
-      doc.text(`${c.position}º lugar`, 115, compY);
-      doc.text(c.reviews, 140, compY);
-      doc.text(`${c.seoScore}/100`, 175, compY);
+      doc.text(safeText(c.name), 18, compY);
+      doc.text(safeText(`${c.authority}/100`), 65, compY);
+      doc.text(safeText(`${c.speed}/100`), 90, compY);
+      doc.text(safeText(`${c.position}. lugar`), 115, compY);
+      doc.text(safeText(c.reviews), 140, compY);
+      doc.text(safeText(`${c.seoScore}/100`), 175, compY);
       
       doc.setDrawColor(229, 231, 235);
       doc.line(15, compY + 1.5, 195, compY + 1.5);
@@ -725,12 +744,15 @@ export default function AtlasScoreModule() {
       report.prioritizationMatrix.forEach((item) => {
         doc.setTextColor(17, 24, 39);
         doc.setFontSize(7);
-        doc.text(item.item, 18, pmY);
-        doc.text(item.impact, 85, pmY);
-        doc.text(item.effort, 102, pmY);
-        doc.text(item.timeline, 118, pmY);
         
-        const splitBenefit = doc.splitTextToSize(item.expectedBenefit || "Otimização estrutural da presença digital.", 42);
+        const splitItem = doc.splitTextToSize(safeText(item.item), 62);
+        doc.text(splitItem, 18, pmY);
+        
+        doc.text(safeText(item.impact), 85, pmY);
+        doc.text(safeText(item.effort), 102, pmY);
+        doc.text(safeText(item.timeline), 118, pmY);
+        
+        const splitBenefit = doc.splitTextToSize(safeText(item.expectedBenefit || "Otimizacao estrutural da presenca digital."), 42);
         doc.text(splitBenefit, 136, pmY);
         
         doc.setFont("helvetica", "bold");
@@ -739,18 +761,18 @@ export default function AtlasScoreModule() {
         } else {
           doc.setTextColor(245, 158, 11);
         }
-        doc.text(item.priority, 182, pmY);
+        doc.text(safeText(item.priority), 182, pmY);
         doc.setFont("helvetica", "normal");
 
         doc.setDrawColor(229, 231, 235);
-        // calculate height based on lines in benefit text
-        const rowHeight = Math.max(splitBenefit.length * 3.5, 6);
+        // calculate height based on lines in both item text and benefit text
+        const rowHeight = Math.max(splitItem.length * 3.5, splitBenefit.length * 3.5, 6);
         doc.line(15, pmY + rowHeight - 1, 195, pmY + rowHeight - 1);
         pmY += rowHeight + 2;
       });
     }
 
-    // PAGE 7: ROADMAP DE EVOLUÇÃO DIGITAL
+    // PAGE 7: ROADMAP DE EVOLUCAO DIGITAL
     doc.addPage();
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, 210, 297, 'F');
@@ -761,26 +783,26 @@ export default function AtlasScoreModule() {
     doc.setTextColor(245, 179, 1);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("ATLAS DIGITAL.IA - ROADMAP DE EVOLUÇÃO DIGITAL", 15, 14);
+    doc.text(safeText("ATLAS DIGITAL.IA - ROADMAP DE EVOLUCAO DIGITAL"), 15, 14);
 
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
-    doc.text("9. Roadmap de Evolução Digital Recomendado", 15, 33);
+    doc.text(safeText("9. Roadmap de Evolucao Digital Recomendado"), 15, 33);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(55, 65, 81);
-    doc.text("Planejamento sequencial estruturado para elevação do Índice de Maturidade Digital (IMD):", 15, 39);
+    doc.text(safeText("Planejamento sequencial estruturado para elevacao do Indice de Maturidade Digital (IMD):"), 15, 39);
 
     const roadmapSteps = [
-      { phase: "Etapa 1: Situação Atual & Correção", desc: "Mapeamento de falhas críticas de infraestrutura e aplicação de ajustes imediatos de conteúdo nas listagens locais." },
-      { phase: "Etapa 2: Presença Digital Ativa", desc: "Instalação de um site institucional profissional, responsivo, de altíssima velocidade e focado em credibilidade corporativa." },
-      { phase: "Etapa 3: SEO Local Estruturado", desc: "Otimização completa do Google Perfil de Empresa com postagens, fotos e incentivo a avaliações recorrentes." },
-      { phase: "Etapa 4: Funis de Captação de Leads", desc: "Implantação de formulários rápidos e botões de contato inteligentes que removem o atrito e facilitam a conversão do usuário." },
-      { phase: "Etapa 5: Automação Comercial", desc: "Sincronização com ferramentas de resposta rápida para qualificar e recepcionar contatos recebidos em tempo real." },
-      { phase: "Etapa 6: Consolidação de Autoridade", desc: "Construção de relevância orgânica na região por meio de citações locais e backlinks de domínios parceiros." },
-      { phase: "Etapa 7: Maturidade Digital Avançada", desc: "Liderança estabelecida nos canais de busca regional, gerando demanda qualificada e crescimento contínuo de forma orgânica." }
+      { phase: "Etapa 1: Situacao Atual & Correcao", desc: "Mapeamento de falhas criticas de infraestrutura e aplicacao de ajustes imediatos de conteudo nas listagens locais." },
+      { phase: "Etapa 2: Presenca Digital Ativa", desc: "Instalacao de um site institucional profissional, responsivo, de altissima velocidade e focado em credibilidade corporativa." },
+      { phase: "Etapa 3: SEO Local Estruturado", desc: "Otimizacao completa do Google Perfil de Empresa com postagens, fotos e incentivo a avaliacoes recorrentes." },
+      { phase: "Etapa 4: Funis de Captacao de Leads", desc: "Implantacao de formularios rapidos e botoes de contato inteligentes que removem o atrito e facilitam a conversao do usuario." },
+      { phase: "Etapa 5: Automacao Comercial", desc: "Sincronizacao com ferramentas de resposta rapida para qualificar e recepcionar contatos recebidos em tempo real." },
+      { phase: "Etapa 6: Consolidacao de Autoridade", desc: "Construcao de relevancia organica na regiao por meio de citacoes locais e backlinks de dominios parceiros." },
+      { phase: "Etapa 7: Maturidade Digital Avancada", desc: "Lideranca estabelecida nos canais de busca regional, gerando demanda qualificada e crescimento continuo de forma organica." }
     ];
 
     let roadY = 48;
@@ -795,18 +817,18 @@ export default function AtlasScoreModule() {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8.5);
       doc.setTextColor(226, 183, 85);
-      doc.text(step.phase, 20, roadY + 5.5);
+      doc.text(safeText(step.phase), 20, roadY + 5.5);
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
       doc.setTextColor(75, 85, 99);
-      const splitDesc = doc.splitTextToSize(step.desc, 170);
+      const splitDesc = doc.splitTextToSize(safeText(step.desc), 170);
       doc.text(splitDesc, 20, roadY + 10.5);
 
       roadY += 22;
     });
 
-    // PAGE 8: PARECER TÉCNICO DE CONCLUSÃO
+    // PAGE 8: PARECER TECNICO DE CONCLUSAO
     doc.addPage();
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, 210, 297, 'F');
@@ -817,18 +839,18 @@ export default function AtlasScoreModule() {
     doc.setTextColor(245, 179, 1);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("ATLAS DIGITAL.IA - PARECER DA AUDITORIA", 15, 14);
+    doc.text(safeText("ATLAS DIGITAL.IA - PARECER DA AUDITORIA"), 15, 14);
 
     doc.setTextColor(9, 13, 22);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
-    doc.text("Parecer Técnico de Conclusão", 15, 35);
+    doc.text(safeText("Parecer Tecnico de Conclusao"), 15, 35);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9.5);
     doc.setTextColor(55, 65, 81);
     const splitConclusionText = doc.splitTextToSize(
-      "Esta auditoria identificou oportunidades relevantes para fortalecimento da presença digital da empresa. As recomendações foram organizadas considerando impacto potencial, prioridade e boas práticas reconhecidas de marketing digital. Caso solicitado, a Atlas Digital poderá elaborar um plano estratégico personalizado baseado neste diagnóstico.",
+      safeText("Esta auditoria identificou oportunidades relevantes para fortalecimento da presenca digital da empresa. As recomendacoes foram organizadas considerando impacto potencial, prioridade e boas praticas reconhecidas de marketing digital. Caso solicitado, a Atlas Digital podera elaborar um plano estrategico personalizado baseado neste diagnostico."),
       180
     );
     doc.text(splitConclusionText, 15, 45);
@@ -838,11 +860,11 @@ export default function AtlasScoreModule() {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     const splitFooterText1 = doc.splitTextToSize(
-      "Este relatório foi gerado automaticamente pela plataforma Atlas Score utilizando inteligência artificial, critérios técnicos de SEO, benchmarking competitivo e análise de dados públicos disponíveis no momento da auditoria.",
+      safeText("Este relatorio foi gerado automaticamente pela plataforma Atlas Score utilizando inteligencia artificial, criterios tecnicos de SEO, benchmarking competitivo e analise de dados publicos disponiveis no momento da auditoria."),
       180
     );
     const splitFooterText2 = doc.splitTextToSize(
-      "Os resultados representam uma fotografia da presença digital da empresa na data da análise e podem sofrer alterações conforme atualizações dos mecanismos de busca e dos canais digitais auditados.",
+      safeText("Os resultados representam uma fotografia da presenca digital da empresa na data da analise e podem sofrer alteracoes conforme atualizacoes dos mecanismos de busca e dos canais digitais auditados."),
       180
     );
     doc.text(splitFooterText1, 15, 75);
@@ -854,11 +876,11 @@ export default function AtlasScoreModule() {
     doc.setTextColor(245, 179, 1);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
-    doc.text("AUDITORIA ESTRATÉGICA DE PRESENÇA DIGITAL", 105, 250, { align: 'center' });
+    doc.text(safeText("AUDITORIA ESTRATEGICA DE PRESENCA DIGITAL"), 105, 250, { align: 'center' });
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(8);
-    doc.text("Este relatório técnico identificou oportunidades estratégicas de otimização da empresa.", 105, 256, { align: 'center' });
-    doc.text("Atlas Digital.ia | Porto Alegre - RS", 105, 261, { align: 'center' });
+    doc.text(safeText("Este relatorio tecnico identificou oportunidades estrategicas de otimizacao da empresa."), 105, 256, { align: 'center' });
+    doc.text(safeText("Atlas Digital.ia | Porto Alegre - RS"), 105, 261, { align: 'center' });
 
     // Save
     doc.save(`Atlas_Score_Diagnostico_${companyName.toLowerCase().replace(/\s+/g, '_')}.pdf`);
