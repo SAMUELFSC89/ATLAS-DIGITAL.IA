@@ -1,74 +1,82 @@
 import React, { useState } from 'react';
-import { Bot, Sparkles, Loader2, ArrowRight, ShieldCheck, Mail, Lock, CheckCircle } from 'lucide-react';
+import { Bot, Loader2, ArrowRight, ShieldCheck, Mail, Lock } from 'lucide-react';
 import { auth } from '../lib/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 
-interface AuthPageProps {
-  onLoginSuccess: (userEmail: string) => void;
+const authMessages: Record<string, string> = {
+  'auth/invalid-credential': 'E-mail ou senha incorretos.',
+  'auth/user-not-found': 'E-mail ou senha incorretos.',
+  'auth/wrong-password': 'E-mail ou senha incorretos.',
+  'auth/user-disabled': 'Esta conta foi desativada.',
+  'auth/email-already-in-use': 'Já existe uma conta com este e-mail. Entre ou recupere a senha.',
+  'auth/weak-password': 'Escolha uma senha que atenda aos requisitos do Firebase.',
+  'auth/invalid-email': 'Informe um e-mail válido.',
+  'auth/network-request-failed': 'Falha de conexão. Confira sua internet e tente novamente.',
+  'auth/too-many-requests': 'Muitas tentativas. Aguarde alguns minutos e tente novamente.',
+};
+
+function getAuthMessage(error: unknown, fallback: string): string {
+  const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
+  return authMessages[code] || fallback;
 }
 
-export default function AuthPage({ onLoginSuccess }: AuthPageProps) {
+export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [notice, setNotice] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim()) {
-      alert("Por favor, preencha todos os campos!");
+    if (loading) return;
+    setNotice('');
+    setErrorMessage('');
+    const address = email.trim();
+    if (!address || !password) {
+      setErrorMessage('Informe seu e-mail e sua senha.');
       return;
     }
 
     setLoading(true);
     try {
       if (isLogin) {
-        try {
-          // Try standard sign in first
-          const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password.trim());
-          setLoading(false);
-          onLoginSuccess(userCredential.user.email || email);
-        } catch (signInError: any) {
-          console.warn("Sign in failed, attempting auto-registration fallback:", signInError);
-          // If the account does not exist, or has invalid credentials (which often happens if not registered yet in this environment)
-          if (
-            signInError.code === "auth/user-not-found" || 
-            signInError.code === "auth/invalid-credential" || 
-            signInError.code === "auth/wrong-password"
-          ) {
-            try {
-              // Try to automatically register this email/password so the user can log in seamlessly
-              const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password.trim());
-              setLoading(false);
-              onLoginSuccess(userCredential.user.email || email);
-            } catch (signUpError: any) {
-              // If signup fails because the email is already registered but with a different password, 
-              // or any other reason, throw the original sign-in error or handle it gracefully
-              if (signUpError.code === "auth/email-already-in-use") {
-                throw signInError; // This is a real wrong-password issue for an existing account
-              } else {
-                throw signUpError;
-              }
-            }
-          } else {
-            throw signInError;
-          }
-        }
+        await signInWithEmailAndPassword(auth, address, password);
       } else {
-        // Real Firebase Sign Up
-        const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password.trim());
-        setLoading(false);
-        alert("Conta criada com sucesso!");
-        onLoginSuccess(userCredential.user.email || email);
+        await createUserWithEmailAndPassword(auth, address, password);
       }
-    } catch (error: any) {
-      console.error("Firebase Authentication Error, activating robust demo fallback:", error);
-      
-      // Since this is a sandboxed demonstration/preview environment, we want to maximize user access and prevent blocks.
-      // If sign-in/registration fails, we bypass the restriction and let the user in seamlessly.
+    } catch (error) {
+      setErrorMessage(getAuthMessage(error, 'Não foi possível autenticar. Tente novamente.'));
+    } finally {
       setLoading(false);
-      onLoginSuccess(email.trim() || "samuelfsc89@gmail.com");
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    const address = email.trim();
+    if (loading) return;
+    setNotice('');
+    setErrorMessage('');
+    if (!address) {
+      setErrorMessage('Informe seu e-mail para recuperar a senha.');
+      return;
+    }
+
+    setLoading(true);
+    const confirmation = 'Se houver uma conta com esse e-mail, você receberá um link para redefinir a senha.';
+    try {
+      await sendPasswordResetEmail(auth, address);
+      setNotice(confirmation);
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'auth/user-not-found') {
+        setNotice(confirmation);
+      } else {
+        setErrorMessage(getAuthMessage(error, 'Não foi possível solicitar a recuperação. Tente novamente.'));
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -107,11 +115,13 @@ export default function AuthPage({ onLoginSuccess }: AuthPageProps) {
           )}
 
           <div className="space-y-1.5">
-            <label className="block text-[10px] uppercase font-mono font-bold text-gray-500">E-mail Corporativo</label>
+            <label htmlFor="portal-email" className="block text-[10px] uppercase font-mono font-bold text-gray-500">E-mail Corporativo</label>
             <div className="relative">
               <Mail className="absolute left-3.5 top-3.5 w-4 h-4 text-gray-500" />
               <input
                 type="email"
+                id="portal-email"
+                autoComplete="email"
                 required
                 placeholder="Ex: consultor@atlasdigital.com.br"
                 value={email}
@@ -123,11 +133,12 @@ export default function AuthPage({ onLoginSuccess }: AuthPageProps) {
 
           <div className="space-y-1.5">
             <div className="flex justify-between items-center">
-              <label className="block text-[10px] uppercase font-mono font-bold text-gray-500">Senha</label>
+              <label htmlFor="portal-password" className="block text-[10px] uppercase font-mono font-bold text-gray-500">Senha</label>
               {isLogin && (
                 <button 
                   type="button" 
-                  onClick={() => alert("Link de recuperação enviado para o seu e-mail!")}
+                  onClick={handlePasswordReset}
+                  disabled={loading}
                   className="text-[9px] font-mono text-gray-500 hover:text-white"
                 >
                   Esqueceu?
@@ -138,6 +149,8 @@ export default function AuthPage({ onLoginSuccess }: AuthPageProps) {
               <Lock className="absolute left-3.5 top-3.5 w-4 h-4 text-gray-500" />
               <input
                 type="password"
+                id="portal-password"
+                autoComplete={isLogin ? 'current-password' : 'new-password'}
                 required
                 placeholder="••••••••"
                 value={password}
@@ -146,6 +159,9 @@ export default function AuthPage({ onLoginSuccess }: AuthPageProps) {
               />
             </div>
           </div>
+
+          {errorMessage && <p role="alert" className="text-xs text-red-400">{errorMessage}</p>}
+          {notice && <p role="status" className="text-xs text-emerald-400">{notice}</p>}
 
           <button
             type="submit"
@@ -161,27 +177,18 @@ export default function AuthPage({ onLoginSuccess }: AuthPageProps) {
               </>
             )}
           </button>
-          
-          {isLogin && (
-            <button
-              type="button"
-              onClick={() => {
-                const targetEmail = email.trim() || "samuelfsc89@gmail.com";
-                onLoginSuccess(targetEmail);
-              }}
-              className="w-full py-2.5 bg-gray-950 hover:bg-gray-900 border border-gray-800 text-gray-350 hover:text-white font-medium text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 mt-1"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Acessar como Convidado (Bypass)</span>
-            </button>
-          )}
         </form>
 
         <div className="pt-4 border-t border-gray-900/60 text-center text-xs text-gray-500">
           <span>{isLogin ? "Não possui uma licença?" : "Já possui cadastro?"}</span>{' '}
           <button
             type="button"
-            onClick={() => setIsLogin(!isLogin)}
+            disabled={loading}
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setErrorMessage('');
+              setNotice('');
+            }}
             className="text-white hover:text-[#E2B755] font-semibold"
           >
             {isLogin ? "Cadastre-se Grátis" : "Acessar Portal"}
