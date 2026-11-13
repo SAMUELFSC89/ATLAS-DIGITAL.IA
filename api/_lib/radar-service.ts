@@ -59,9 +59,16 @@ export interface RadarSearchResult {
   enrichedSites: number;
 }
 
+// Sem "parameter properties": o servidor executa o TypeScript direto pelo Node,
+// que só aceita sintaxe de tipos que possa ser apagada.
 export class RadarError extends Error {
-  constructor(public code: "missing_key" | "google_error" | "bad_request", message: string, public status = 400) {
+  code: "missing_key" | "google_error" | "bad_request";
+  status: number;
+
+  constructor(code: "missing_key" | "google_error" | "bad_request", message: string, status = 400) {
     super(message);
+    this.code = code;
+    this.status = status;
   }
 }
 
