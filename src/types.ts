@@ -275,3 +275,32 @@ export interface WhatsAppChat {
 }
 
 
+
+export type WhatsAppConfidence = 'confirmado' | 'provavel' | 'incerto' | '';
+
+/** Empresa real encontrada pelo Radar de Mercado (Google Places + leitura do site). */
+export interface RadarLead {
+  id: string;
+  companyName: string;
+  segment: string;
+  address: string;
+  city: string;
+  state: string;
+  phone: string;
+  /** Somente dígitos, com DDI 55. */
+  whatsapp: string;
+  whatsappConfidence: WhatsAppConfidence;
+  whatsappLink: string;
+  email: string;
+  website: string;
+  instagram: string;
+  facebook: string;
+  linkedin: string;
+  googleProfile: string;
+  rating: number | null;
+  reviewsCount: number;
+  distanceKm: number | null;
+  atlasScore: number;
+  closeProbability: number;
+  notes: string;
+}

@@ -190,3 +190,125 @@ export async function handleIncomingWebhookMessage(body: any): Promise<{ process
     return { processed: false, error: err.message || "Erro desconhecido processando webhook" };
   }
 }
+
+export interface WhatsAppTemplateSummary {
+  name: string;
+  language: string;
+  category: string;
+  body: string;
+  variableCount: number;
+}
+
+export interface WhatsAppConnectionInfo {
+  connected: boolean;
+  simulated: boolean;
+  displayPhoneNumber: string;
+  verifiedName: string;
+  templates: WhatsAppTemplateSummary[];
+  templatesError?: string;
+}
+
+function isSimulatedToken(token: string): boolean {
+  return token.startsWith("EAAG") && token.endsWith("EAAG");
+}
+
+/**
+ * Situação da conexão do WhatsApp da empresa e os modelos de mensagem
+ * aprovados pela Meta, que são o único formato aceito para iniciar conversas.
+ */
+export async function getWhatsAppConnectionInfo(empresaId: string): Promise<WhatsAppConnectionInfo> {
+  const db = await readDb();
+  const company = db[empresaId];
+  const info: WhatsAppConnectionInfo = {
+    connected: false,
+    simulated: false,
+    displayPhoneNumber: company?.displayPhoneNumber || "",
+    verifiedName: company?.verifiedName || "",
+    templates: [],
+  };
+  if (!company || company.status !== "connected" || !company.accessToken || !company.phoneNumberId) {
+    return info;
+  }
+  info.connected = true;
+
+  const token = decrypt(company.accessToken);
+  if (isSimulatedToken(token)) {
+    info.simulated = true;
+    return info;
+  }
+  if (!company.whatsappBusinessAccountId) {
+    info.templatesError = "O ID da conta do WhatsApp Business (WABA ID) não está preenchido em Automações.";
+    return info;
+  }
+
+  try {
+    const url = `https://graph.facebook.com/v18.0/${company.whatsappBusinessAccountId}/message_templates?fields=name,status,language,category,components&limit=100`;
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const data: any = await response.json();
+    if (!response.ok) {
+      info.templatesError = data?.error?.message || "A Meta não devolveu a lista de modelos.";
+      return info;
+    }
+    info.templates = (data.data || [])
+      .filter((tpl: any) => tpl.status === "APPROVED")
+      .map((tpl: any) => {
+        const body: string = (tpl.components || []).find((c: any) => c.type === "BODY")?.text || "";
+        const variables = new Set((body.match(/\{\{\d+\}\}/g) || []));
+        return { name: tpl.name, language: tpl.language, category: tpl.category, body, variableCount: variables.size };
+      });
+  } catch (err: any) {
+    info.templatesError = err.message || "Erro de rede ao consultar a Meta.";
+  }
+  return info;
+}
+
+/**
+ * Envia um modelo de mensagem aprovado pela Meta. É o formato exigido para
+ * falar com quem ainda não escreveu para a empresa nas últimas 24 horas.
+ */
+export async function sendWhatsAppTemplate(
+  empresaId: string,
+  telefoneDestino: string,
+  templateName: string,
+  languageCode: string,
+  bodyParams: string[]
+): Promise<{ success: boolean; simulated?: boolean; messageId?: string; error?: string }> {
+  const db = await readDb();
+  const company = db[empresaId];
+  if (!company || company.status !== "connected" || !company.phoneNumberId || !company.accessToken) {
+    return { success: false, error: "O WhatsApp da empresa não está conectado. Conecte em Automações." };
+  }
+
+  const token = decrypt(company.accessToken);
+  if (isSimulatedToken(token)) {
+    return { success: true, simulated: true, messageId: `wmid.Simulated_${Date.now()}` };
+  }
+
+  const template: any = { name: templateName, language: { code: languageCode } };
+  if (bodyParams.length > 0) {
+    template.components = [
+      { type: "body", parameters: bodyParams.map((text) => ({ type: "text", text })) },
+    ];
+  }
+
+  try {
+    const response = await fetch(`https://graph.facebook.com/v18.0/${company.phoneNumberId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: telefoneDestino,
+        type: "template",
+        template,
+      }),
+    });
+    const data: any = await response.json();
+    if (!response.ok) {
+      return { success: false, error: data?.error?.message || "A Meta recusou o envio." };
+    }
+    return { success: true, messageId: data.messages?.[0]?.id };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Erro de rede ao conectar com a Meta." };
+  }
+}

@@ -7,6 +7,8 @@ import dotenv from "dotenv";
 import metaHandler from "./api/meta.ts";
 import metaCallbackHandler from "./api/meta-callback.ts";
 import { handleIncomingWebhookMessage } from "./api/whatsapp-service.ts";
+import radarHandler from "./api/radar.ts";
+import whatsappSendHandler from "./api/whatsapp-send.ts";
 
 dotenv.config();
 
@@ -496,6 +498,10 @@ async function startServer() {
     const result = await handleIncomingWebhookMessage(req.body);
     return res.status(200).json({ status: "success", ...result });
   });
+
+  // Radar de Mercado (Google Places) e envio de modelos do WhatsApp
+  app.all("/api/radar", (req, res) => radarHandler(req, res));
+  app.all("/api/whatsapp-send", (req, res) => whatsappSendHandler(req, res));
 
   // Diagnosis API Route using Google Gen AI with Smart Fallback
   app.post("/api/atlas-score", async (req, res) => {

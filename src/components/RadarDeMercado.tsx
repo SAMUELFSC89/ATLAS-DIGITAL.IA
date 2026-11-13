@@ -1,13 +1,40 @@
-import React, { useState } from 'react';
-import { 
-  Search, MapPin, Globe, Star, Users, Phone, Mail, Instagram, 
-  Linkedin, Facebook, Compass, Check, AlertCircle, Plus, Sparkles, Loader2 
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Search, MapPin, Globe, Star, Phone, Mail, Instagram, Facebook, Compass, Check,
+  AlertCircle, Plus, Loader2, MessageCircle, FileSpreadsheet, FileText, ExternalLink
 } from 'lucide-react';
-import { Lead } from '../types';
+import { Lead, RadarLead } from '../types';
+import { ApiError, formatWhatsApp, searchRadar } from '../lib/radarApi';
+import { exportLeadsToExcel, exportLeadsToPdf } from '../lib/radarExport';
+import RadarWhatsAppCampaign from './RadarWhatsAppCampaign';
 
 interface RadarDeMercadoProps {
   onAddLeadToCrm: (lead: Omit<Lead, 'id' | 'createdAt'>) => void;
   crmLeads: Lead[];
+}
+
+const SEGMENTS = [
+  'Marmoraria', 'Vidraçaria', 'Móveis Planejados', 'Energia Solar', 'Clínica', 'Dentista',
+  'Advogado', 'Restaurante', 'Academia', 'Estúdio de Pilates', 'Imobiliária', 'Hotel',
+  'Oficina', 'Estética Automotiva', 'Contador', 'Arquiteto', 'Engenharia', 'Construtora',
+  'Clínica Veterinária', 'Pet Shop', 'Farmácia', 'Clínica de Estética', 'Barbearia'
+];
+
+const LOADING_STEPS = [
+  'Localizando a cidade e aplicando o raio de cobertura...',
+  'Buscando as empresas do segmento no Google Maps...',
+  'Lendo o site de cada empresa para achar WhatsApp, Instagram e e-mail...',
+  'Montando as fichas comerciais...'
+];
+
+const WHATSAPP_BADGE: Record<string, { label: string; className: string }> = {
+  confirmado: { label: 'WhatsApp confirmado', className: 'bg-emerald-500/10 text-emerald-400 border-emerald-900/20' },
+  provavel: { label: 'WhatsApp provável', className: 'bg-amber-500/10 text-amber-400 border-amber-900/20' },
+  incerto: { label: 'WhatsApp não confirmado', className: 'bg-gray-900 text-gray-400 border-gray-800' },
+};
+
+function displayUrl(url: string): string {
+  return url.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, '');
 }
 
 export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMercadoProps) {
@@ -15,7 +42,7 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
   const [segment, setSegment] = useState('Marmoraria');
   const [city, setCity] = useState('');
   const [state, setState] = useState('SP');
-  const [country, setCountry] = useState('Brasil');
+  const [country] = useState('Brasil');
   const [radius, setRadius] = useState('10');
   const [leadQuantity, setLeadQuantity] = useState('5');
   const [siteFilter, setSiteFilter] = useState<'all' | 'has_site' | 'no_site'>('all');
@@ -25,16 +52,26 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
 
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<RadarLead[]>([]);
+  const [searchSummary, setSearchSummary] = useState('');
+  const [searchError, setSearchError] = useState<{ code: string; message: string } | null>(null);
   const [notifiedLeadIds, setNotifiedLeadIds] = useState<string[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showCampaign, setShowCampaign] = useState(false);
+  const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
 
-  const SEGMENTS = [
-    'Marmoraria', 'Vidraçaria', 'Energia Solar', 'Clínica', 'Dentista', 
-    'Advogado', 'Restaurante', 'Academia', 'Imobiliária', 'Hotel', 
-    'Oficina', 'Contador', 'Arquiteto', 'Engenharia', 'Construtora'
-  ];
+  // Mostra em que etapa a busca está enquanto o servidor responde.
+  useEffect(() => {
+    if (!loading) return;
+    let index = 0;
+    setLoadingStep(LOADING_STEPS[0]);
+    const timer = setInterval(() => {
+      index = Math.min(index + 1, LOADING_STEPS.length - 1);
+      setLoadingStep(LOADING_STEPS[index]);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, [loading]);
 
-  // Prospect simulated API execution
   const handleProspect = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!city.trim()) {
@@ -44,109 +81,46 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
 
     setLoading(true);
     setResults([]);
+    setSelectedIds([]);
+    setShowCampaign(false);
+    setSearchError(null);
+    setSearchSummary('');
 
-    const steps = [
-      "Iniciando varredura georreferenciada via Radar...",
-      `Buscando estabelecimentos de ${segment} no raio de ${radius}km em ${city}...`,
-      "Mapeando resultados no Google Places e fontes locais...",
-      "Processando domínios oficiais para verificar presença de sites...",
-      "Analisando cobertura de avaliações, SEO inicial e responsividade móvel...",
-      "Cruzando dados públicos e compilando fichas comerciais completas..."
-    ];
-
-    for (let i = 0; i < steps.length; i++) {
-      setLoadingStep(steps[i]);
-      await new Promise((resolve) => setTimeout(resolve, 800));
+    try {
+      const data = await searchRadar({
+        segment, city: city.trim(), state, radius, quantity: leadQuantity,
+        siteFilter, minRating, minReviews, keyword
+      });
+      setResults(data.leads);
+      setSearchSummary(`Empresas analisadas no Google: ${data.scanned}. Sites lidos: ${data.enrichedSites}.`);
+      if (data.leads.length === 0) {
+        setSearchError({
+          code: 'empty',
+          message: 'Nenhuma empresa passou pelos filtros. Aumente o raio ou afrouxe os filtros de nota, avaliações e site.'
+        });
+      }
+    } catch (err) {
+      const apiError = err as ApiError;
+      setSearchError({ code: apiError.code || 'error', message: apiError.message || 'Não foi possível concluir a busca.' });
+    } finally {
+      setLoading(false);
     }
-
-    // Generate simulated leads list depending on segment and choices
-    const mockNames = {
-      Marmoraria: ["Imperial", "Granilux", "Arte em Pedras", "Marmoraria Prime", "Pedras Nobres", "Pilar Mármores", "Pedregulho", "Elite Granitos", "Vip Marbles"],
-      Vidraçaria: ["Cristal Glass", "Vidros Temperados Aliança", "Vidraçaria Mundial", "Portal dos Vidros", "Vip Sacadas", "Alpha Glass", "Inova Vidros", "Reflexo Vidraceiro"],
-      'Energia Solar': ["Solaris Eco", "Sun Volt Energia", "Futura Solar", "Solar Click", "Fóton Soluções Solar", "Infinity Sun", "Power Solar", "Eletrosun"],
-      Clínica: ["Saúde Integrada", "Clínica Bem Estar", "Clínica Médica Viver", "Vida & Saúde", "Cuidar Mais", "Vitta Clínicas", "Med Center"],
-      Dentista: ["Odonto Prime", "Sorriso Riso", "Belo Sorriso", "Inova Odontologia", "Odonto Arte", "Dental Clin", "Estética Dental"],
-      Advogado: ["Silva & Associados", "Oliveira Advocacia", "Direito Forte", "Conselho Jurídico", "Vip Advogados", "Leme & Costa Advocacia"],
-      Restaurante: ["Cantina della Mamma", "Gourmet Bistrô", "Churrascaria Fogo Forte", "Sushi Premium", "Terraço Sabor", "Divino Prato"],
-      Academia: ["Iron Fitness", "Glow Academia", "Body Tech Local", "Elite Corp", "Ritmo Academia", "Arena Fit", "Ultra Power Gym"],
-      Imobiliária: ["Lar Doce Lar Imóveis", "Inova Imobiliária", "VIP Broker", "Metrópole Imóveis", "Viver Bem Negócios", "Portal Imobiliário"],
-      Hotel: ["Hotel Center Park", "Pousada Sol e Mar", "Palace Hotel", "Suítes Executivo", "Vip Plaza", "Aconchego Real"],
-      Oficina: ["Mecânica Multimarcas", "Centro Automotivo Alpha", "Oficina Velocidade", "Express Auto Center", "Mecânica Precision"],
-      Contador: ["Contabilidade Líder", "Exata Assessoria Fiscal", "Forte Contábil", "Vip Balanços", "Meta Contabilidade"],
-      Arquiteto: ["Studio Arquitetura & Interiores", "Traço Nobre", "Elegance Decór", "Inova Arq", "Vip Design & Arquitetura"],
-      Engenharia: ["Engenharia de Estruturas Forte", "Vetor Engenharia", "Inovar Construções", "Solidez Cálculos"],
-      Construtora: ["Imperial Construtora", "Vanguarda Empreendimentos", "Solidez Obras", "Premium Edificações", "Inova Construtora"]
-    }[segment] || ["Empresa Exemplo A", "Empresa Exemplo B", "Empresa Exemplo C", "Empresa Exemplo D"];
-
-    const mockStates = ["SP", "RJ", "MG", "RS", "PR", "SC", "GO", "DF", "BA", "PE", "CE"];
-    const chosenState = state || mockStates[Math.floor(Math.random() * mockStates.length)];
-    const chosenCity = city;
-
-    const qty = parseInt(leadQuantity) || 5;
-    const items: any[] = [];
-
-    for (let i = 0; i < qty * 2; i++) {
-      const idx = i % mockNames.length;
-      const isLeadHasSite = siteFilter === 'has_site' ? true : siteFilter === 'no_site' ? false : Math.random() > 0.4;
-      const ratingVal = parseFloat((3.2 + Math.random() * 1.8).toFixed(1));
-      const reviewsVal = Math.floor(5 + Math.random() * 280);
-
-      // Apply rating/reviews criteria filters
-      if (minRating !== 'all' && ratingVal < parseFloat(minRating)) continue;
-      if (minReviews !== 'all' && reviewsVal < parseInt(minReviews)) continue;
-
-      const compName = `${mockNames[idx]} ${segment}`;
-      const slugName = compName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, "");
-
-      const leadData = {
-        id: `radar-${segment}-${slugName}-${i}`,
-        companyName: compName,
-        responsible: [
-          "Samuel Ferreira", "Carlos Alberto", "Renata Souza", "Mariana Costa", 
-          "Rodrigo Alencar", "Fernanda Lima", "Guilherme Santos", "Juliana Meireles"
-        ][i % 8],
-        phone: `(11) 9${Math.floor(8000 + Math.random() * 1999)}-${Math.floor(1000 + Math.random() * 8999)}`,
-        whatsapp: `(11) 9${Math.floor(8000 + Math.random() * 1999)}-${Math.floor(1000 + Math.random() * 8999)}`,
-        email: `contato@${slugName}.com.br`,
-        city: chosenCity,
-        state: chosenState,
-        website: isLeadHasSite ? `www.${slugName}.com.br` : '',
-        instagram: `instagram.com/${slugName}`,
-        facebook: `facebook.com/${slugName}`,
-        linkedin: `linkedin.com/company/${slugName}`,
-        googleProfile: `https://maps.google.com/?cid=${Math.floor(1000000 + Math.random() * 9000000)}`,
-        atlasScore: isLeadHasSite ? Math.floor(55 + Math.random() * 32) : Math.floor(15 + Math.random() * 25),
-        status: 'Novo' as const,
-        lastContact: 'Não efetuado',
-        nextAction: 'Enviar Primeira Auditoria',
-        closeProbability: Math.round(30 + Math.random() * 50),
-        notes: `Empresa mapeada através do Radar de Mercado ativa na região de ${chosenCity}. Apresenta bom perfil geográfico no Google Maps com ${reviewsVal} avaliações e nota ${ratingVal}.`,
-        segment: segment,
-        rating: ratingVal,
-        reviewsCount: reviewsVal
-      };
-
-      items.push(leadData);
-      if (items.length >= qty) break;
-    }
-
-    setResults(items);
-    setLoading(false);
   };
 
-  const handlePushToCrm = (lead: any) => {
-    // Check if already exists in CRM
-    const alreadyExists = crmLeads.some(l => l.companyName.toLowerCase() === lead.companyName.toLowerCase());
-    if (alreadyExists) {
-      alert("Esta empresa já está cadastrada no seu CRM Inteligente!");
+  const isInCrm = (lead: RadarLead) =>
+    notifiedLeadIds.includes(lead.id) || crmLeads.some(l => l.companyName.toLowerCase() === lead.companyName.toLowerCase());
+
+  const handlePushToCrm = (lead: RadarLead, silent = false) => {
+    if (isInCrm(lead)) {
+      if (!silent) alert("Esta empresa já está cadastrada no seu CRM Inteligente!");
       return;
     }
 
     onAddLeadToCrm({
       companyName: lead.companyName,
-      responsible: lead.responsible,
+      responsible: 'Não identificado',
       phone: lead.phone,
-      whatsapp: lead.whatsapp,
+      whatsapp: lead.whatsapp ? formatWhatsApp(lead.whatsapp) : '',
       email: lead.email,
       city: lead.city,
       state: lead.state,
@@ -166,6 +140,32 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
 
     setNotifiedLeadIds((prev) => [...prev, lead.id]);
   };
+
+  // Sem nada marcado, as ações em lote valem para a lista inteira.
+  const targetLeads = useMemo(
+    () => (selectedIds.length > 0 ? results.filter((lead) => selectedIds.includes(lead.id)) : results),
+    [results, selectedIds]
+  );
+  const whatsappLeads = useMemo(() => targetLeads.filter((lead) => lead.whatsapp), [targetLeads]);
+  const allSelected = results.length > 0 && selectedIds.length === results.length;
+
+  const toggleSelected = (id: string) =>
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+
+  const handleExport = async (format: 'excel' | 'pdf') => {
+    setExporting(format);
+    try {
+      if (format === 'excel') await exportLeadsToExcel(targetLeads);
+      else await exportLeadsToPdf(targetLeads);
+    } catch (err) {
+      console.error('[Radar] Falha ao exportar:', err);
+      alert('Não foi possível gerar o arquivo. Tente novamente.');
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handlePushManyToCrm = () => targetLeads.forEach((lead) => handlePushToCrm(lead, true));
 
   return (
     <div className="space-y-8 text-left">
@@ -368,32 +368,111 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
         </div>
       )}
 
+      {/* Search problems */}
+      {searchError && !loading && (
+        <div className={`border rounded-2xl p-5 flex items-start gap-3 ${
+          searchError.code === 'empty' ? 'border-gray-800 bg-gray-950/40' : 'border-red-900/40 bg-red-500/5'
+        }`}>
+          <AlertCircle className={`w-4 h-4 shrink-0 mt-0.5 ${searchError.code === 'empty' ? 'text-amber-400' : 'text-red-400'}`} />
+          <div className="space-y-1.5 text-xs text-gray-300 leading-relaxed">
+            <p>{searchError.message}</p>
+            {searchError.code === 'missing_key' && (
+              <p className="text-gray-500">
+                O Radar busca empresas reais no Google Maps. Crie uma chave da Places API (New) no Google Cloud e
+                cadastre-a no servidor com o nome GOOGLE_PLACES_API_KEY.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Results Listings Panel */}
       {results.length > 0 && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-gray-900 pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-900 pb-3">
             <h4 className="text-white text-xs font-bold font-mono uppercase tracking-wider">
               {results.length} Empresas Encontradas na Região
             </h4>
-            <span className="text-[10px] text-emerald-400 font-mono font-bold">
-              Varredura de dados públicos concluída
+            <span className="text-[10px] text-emerald-400 font-mono font-bold">{searchSummary}</span>
+          </div>
+
+          {/* Bulk actions */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <label className="flex items-center gap-2 text-[11px] text-gray-300 mr-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={() => setSelectedIds(allSelected ? [] : results.map((lead) => lead.id))}
+                className="accent-[#E2B755] w-3.5 h-3.5"
+              />
+              {selectedIds.length > 0 ? `${selectedIds.length} selecionadas` : 'Selecionar todas'}
+            </label>
+
+            <button
+              onClick={() => handleExport('excel')}
+              disabled={exporting !== null}
+              className="px-4 py-2 rounded-xl text-[11px] font-semibold bg-gray-900 border border-gray-800 text-gray-200 hover:border-gray-600 flex items-center gap-1.5 disabled:opacity-50"
+            >
+              {exporting === 'excel' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />}
+              Exportar Excel
+            </button>
+            <button
+              onClick={() => handleExport('pdf')}
+              disabled={exporting !== null}
+              className="px-4 py-2 rounded-xl text-[11px] font-semibold bg-gray-900 border border-gray-800 text-gray-200 hover:border-gray-600 flex items-center gap-1.5 disabled:opacity-50"
+            >
+              {exporting === 'pdf' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5 text-red-400" />}
+              Exportar PDF
+            </button>
+            <button
+              onClick={handlePushManyToCrm}
+              className="px-4 py-2 rounded-xl text-[11px] font-semibold bg-gray-900 border border-gray-800 text-gray-200 hover:border-gray-600 flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5 text-[#E2B755]" />
+              Adicionar ao CRM
+            </button>
+            <button
+              onClick={() => setShowCampaign(true)}
+              disabled={whatsappLeads.length === 0}
+              className="px-4 py-2 rounded-xl text-[11px] font-semibold bg-emerald-500 hover:bg-emerald-400 text-black flex items-center gap-1.5 disabled:opacity-40"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              Enviar WhatsApp ({whatsappLeads.length})
+            </button>
+            <span className="text-[10px] text-gray-500">
+              {selectedIds.length > 0 ? 'As ações valem para as selecionadas.' : 'Sem seleção, as ações valem para a lista inteira.'}
             </span>
           </div>
 
+          {showCampaign && whatsappLeads.length > 0 && (
+            <RadarWhatsAppCampaign leads={whatsappLeads} onClose={() => setShowCampaign(false)} />
+          )}
+
           <div className="grid grid-cols-1 gap-4">
             {results.map((lead) => {
-              const inCrm = notifiedLeadIds.includes(lead.id) || crmLeads.some(l => l.companyName.toLowerCase() === lead.companyName.toLowerCase());
-              
+              const inCrm = isInCrm(lead);
+              const selected = selectedIds.includes(lead.id);
+              const whatsappBadge = WHATSAPP_BADGE[lead.whatsappConfidence];
+
               return (
-                <div 
+                <div
                   key={lead.id}
-                  className="bg-gray-950/30 border border-gray-900 hover:border-gray-800 rounded-2xl p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 transition-all"
+                  className={`bg-gray-950/30 border rounded-2xl p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 transition-all ${
+                    selected ? 'border-[#E2B755]/60' : 'border-gray-900 hover:border-gray-800'
+                  }`}
                 >
                   {/* Company Profile Details */}
-                  <div className="space-y-4 flex-1">
+                  <div className="space-y-4 flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleSelected(lead.id)}
+                        aria-label={`Selecionar ${lead.companyName}`}
+                        className="accent-[#E2B755] w-4 h-4"
+                      />
                       <h5 className="text-white text-base font-bold tracking-tight">{lead.companyName}</h5>
-                      
+
                       <span className="text-[9px] uppercase tracking-wider bg-gray-900 text-gray-400 border border-gray-800 rounded-full px-2.5 py-0.5 font-semibold">
                         {lead.segment}
                       </span>
@@ -407,38 +486,49 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
                           Sem Site (Crítico)
                         </span>
                       )}
+
+                      {whatsappBadge && (
+                        <span className={`text-[9px] uppercase tracking-wider border rounded-full px-2.5 py-0.5 font-bold font-mono ${whatsappBadge.className}`}>
+                          {whatsappBadge.label}
+                        </span>
+                      )}
                     </div>
 
                     <p className="text-xs text-gray-400 font-light leading-relaxed">
                       {lead.notes}
                     </p>
 
-                    {/* Meta contacts list */}
+                    {/* Contacts and links */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1 text-[11px] text-gray-400 font-sans">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-3.5 h-3.5 text-[#E2B755] shrink-0" />
-                        <span>Resp: <strong className="text-gray-300">{lead.responsible}</strong></span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-3.5 h-3.5 text-[#E2B755] shrink-0" />
-                        <span>Fone: <strong className="text-gray-300">{lead.phone}</strong></span>
-                      </div>
-                      <div className="flex items-center gap-2 col-span-1 sm:col-span-2 lg:col-span-1">
-                        <Mail className="w-3.5 h-3.5 text-[#E2B755] shrink-0" />
-                        <span className="truncate">Email: <strong className="text-gray-300">{lead.email}</strong></span>
-                      </div>
+                      <ContactItem icon={<Phone className="w-3.5 h-3.5 text-[#E2B755] shrink-0" />} label="Fone"
+                        text={lead.phone} href={lead.phone ? `tel:${lead.phone.replace(/[^\d+]/g, '')}` : ''} external={false} />
+                      <ContactItem icon={<MessageCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />} label="WhatsApp"
+                        text={lead.whatsapp ? formatWhatsApp(lead.whatsapp) : ''} href={lead.whatsappLink} />
+                      <ContactItem icon={<Mail className="w-3.5 h-3.5 text-[#E2B755] shrink-0" />} label="Email"
+                        text={lead.email} href={lead.email ? `mailto:${lead.email}` : ''} external={false} />
+                      <ContactItem icon={<Globe className="w-3.5 h-3.5 text-blue-400 shrink-0" />} label="Website"
+                        text={lead.website ? displayUrl(lead.website) : ''} href={lead.website} emptyText="Ausente" />
+                      <ContactItem icon={<Instagram className="w-3.5 h-3.5 text-pink-500 shrink-0" />} label="Instagram"
+                        text={lead.instagram ? displayUrl(lead.instagram).replace(/^instagram\.com\//i, '@') : ''} href={lead.instagram} />
+                      <ContactItem icon={<Facebook className="w-3.5 h-3.5 text-blue-500 shrink-0" />} label="Facebook"
+                        text={lead.facebook ? displayUrl(lead.facebook).replace(/^facebook\.com\//i, '') : ''} href={lead.facebook} />
                       <div className="flex items-center gap-2">
                         <Star className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                        <span>Nota Google: <strong className="text-white">{lead.rating}</strong> ({lead.reviewsCount} posts)</span>
+                        <span>
+                          Nota Google:{' '}
+                          {lead.rating !== null
+                            ? <><strong className="text-white">{lead.rating.toFixed(1)}</strong> ({lead.reviewsCount} avaliações)</>
+                            : <strong className="text-gray-500">sem avaliações</strong>}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Globe className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                        <span className="truncate">Website: <strong className="text-gray-300">{lead.website || 'Ausente'}</strong></span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Instagram className="w-3.5 h-3.5 text-pink-500 shrink-0" />
-                        <span className="truncate">Instagram cadastrado</span>
-                      </div>
+                      <ContactItem icon={<MapPin className="w-3.5 h-3.5 text-red-400 shrink-0" />} label="Google Maps"
+                        text={lead.googleProfile ? 'Abrir perfil' : ''} href={lead.googleProfile} />
+                      {lead.distanceKm !== null && (
+                        <div className="flex items-center gap-2">
+                          <Search className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                          <span>A <strong className="text-gray-300">{lead.distanceKm.toLocaleString('pt-BR')} km</strong> do centro</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -457,7 +547,7 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
                       onClick={() => handlePushToCrm(lead)}
                       disabled={inCrm}
                       className={`px-5 py-2.5 rounded-xl text-xs font-semibold tracking-wider transition-all flex items-center justify-center gap-1.5 ${
-                        inCrm 
+                        inCrm
                           ? 'bg-gray-900 border border-gray-800 text-emerald-400 cursor-default'
                           : 'bg-white hover:bg-gray-200 text-black hover:scale-[1.02]'
                       }`}
@@ -474,6 +564,18 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
                         </>
                       )}
                     </button>
+
+                    {lead.whatsappLink && (
+                      <a
+                        href={lead.whatsappLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-5 py-2.5 rounded-xl text-xs font-semibold tracking-wider bg-emerald-500/10 border border-emerald-900/40 text-emerald-400 hover:bg-emerald-500/20 flex items-center justify-center gap-1.5"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        Abrir WhatsApp
+                      </a>
+                    )}
                   </div>
                 </div>
               );
@@ -488,12 +590,46 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
         <div className="space-y-1">
           <h5 className="text-white text-[11px] font-bold font-mono uppercase tracking-wide">Nota Metodológica do Radar</h5>
           <p className="text-[10px] text-gray-500 leading-relaxed font-sans">
-            Os dados mostrados acima são extraídos dinamicamente de mapeamentos locais de redes e registros abertos baseados nos filtros selecionados. 
-            A precisão técnica das palavras-chave, domínio do site, contato comercial e notas de avaliações reflete a situação pública declarada nos motores de busca locais na presente data.
+            As empresas, telefones, notas e avaliações vêm do Google Maps na data da busca. Instagram, Facebook, e-mail e o
+            WhatsApp "confirmado" são lidos do site da própria empresa. WhatsApp "provável" significa que o telefone do Google
+            é um celular; "não confirmado" é um fixo que pode ou não ter WhatsApp. O Atlas Score exibido aqui é uma estimativa
+            rápida de presença digital, calculada com esses sinais.
           </p>
         </div>
       </div>
 
+    </div>
+  );
+}
+
+interface ContactItemProps {
+  icon: React.ReactNode;
+  label: string;
+  text: string;
+  href: string;
+  external?: boolean;
+  emptyText?: string;
+}
+
+function ContactItem({ icon, label, text, href, external = true, emptyText = 'Não encontrado' }: ContactItemProps) {
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      {icon}
+      <span className="truncate">
+        {label}:{' '}
+        {text && href ? (
+          <a
+            href={href}
+            {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+            className="text-gray-200 font-semibold underline decoration-gray-700 underline-offset-2 hover:text-white hover:decoration-[#E2B755]"
+          >
+            {text}
+            {external && <ExternalLink className="w-2.5 h-2.5 inline ml-1 -mt-0.5 text-gray-500" />}
+          </a>
+        ) : (
+          <strong className="text-gray-600 font-normal">{emptyText}</strong>
+        )}
+      </span>
     </div>
   );
 }
