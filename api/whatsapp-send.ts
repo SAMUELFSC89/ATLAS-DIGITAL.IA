@@ -1,4 +1,6 @@
 import { getWhatsAppConnectionInfo, sendWhatsAppTemplate } from "./whatsapp-service.js";
+import type { PositioningSnapshot } from "../src/lib/positioningPdf.js";
+import { scoreForLocalPosition } from "./radar.js";
 
 const MAX_PARAM_LENGTH = 300;
 
@@ -35,6 +37,41 @@ function applyCors(res: any): void {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 }
 
+function parsePositioningSnapshot(input: unknown): PositioningSnapshot | undefined {
+  if (!input || typeof input !== "object") return;
+  const raw = input as Partial<PositioningSnapshot>;
+  const cleanText = (value: unknown, limit: number) => typeof value === "string"
+    ? value.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, limit)
+    : "";
+  const companyName = cleanText(raw.companyName, 180);
+  const city = cleanText(raw.city, 90);
+  if (!companyName || !city) return;
+  const reviewsCount = raw.reviewsCount;
+  const local = raw.localSearch;
+  const query = cleanText(local?.query, 240);
+  const position = local?.position;
+  const score = local?.score;
+  const checkedAt = cleanText(local?.checkedAt, 30);
+  const hasPosition = typeof position === "number" && Number.isInteger(position) && position >= 1 && position <= 60;
+  const hasScore = typeof score === "number" && hasPosition && score === scoreForLocalPosition(position);
+  return {
+    companyName,
+    city,
+    state: cleanText(raw.state, 2),
+    hasGoogleProfile: raw.hasGoogleProfile === true,
+    hasWebsite: raw.hasWebsite === true,
+    hasHttpsWebsite: raw.hasHttpsWebsite === true,
+    hasSocialProfile: raw.hasSocialProfile === true,
+    hasPublicPhone: raw.hasPublicPhone === true,
+    hasConfirmedWhatsApp: raw.hasConfirmedWhatsApp === true,
+    rating: typeof raw.rating === "number" && raw.rating >= 1 && raw.rating <= 5 ? raw.rating : null,
+    reviewsCount: typeof reviewsCount === "number" && Number.isSafeInteger(reviewsCount) && reviewsCount > 0 ? reviewsCount : 0,
+    localSearch: hasPosition && hasScore && query && Number.isFinite(Date.parse(checkedAt))
+      ? { query, position, score, checkedAt, resultsChecked: null }
+      : undefined,
+  };
+}
+
 /**
  * GET  -> situação da conexão e modelos aprovados da empresa logada.
  * POST -> envia um modelo aprovado para um único número. O painel chama uma
@@ -56,7 +93,7 @@ export default async function handler(req: any, res: any) {
     }
 
     if (req.method === "POST") {
-      const { to, templateName, languageCode, bodyParams } = req.body || {};
+      const { to, templateName, languageCode, bodyParams, positioning } = req.body || {};
       const digits = String(to || "").replace(/\D/g, "");
       if (digits.length < 12 || digits.length > 15) {
         return res.status(400).json({ success: false, error: "Número de destino inválido." });
@@ -68,7 +105,12 @@ export default async function handler(req: any, res: any) {
         ? bodyParams.slice(0, 10).map((value) => String(value ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_PARAM_LENGTH) || "-")
         : [];
 
-      const result = await sendWhatsAppTemplate(email, digits, templateName, String(languageCode || "pt_BR"), params);
+      const snapshot = parsePositioningSnapshot(positioning);
+      if (positioning !== undefined && !snapshot) {
+        return res.status(400).json({ success: false, error: "Dados insuficientes para gerar o PDF de posicionamento." });
+      }
+
+      const result = await sendWhatsAppTemplate(email, digits, templateName, String(languageCode || "pt_BR"), params, snapshot);
       return res.status(result.success ? 200 : 502).json(result);
     }
 

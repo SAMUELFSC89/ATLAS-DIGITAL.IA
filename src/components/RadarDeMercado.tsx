@@ -130,6 +130,8 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
       linkedin: lead.linkedin,
       googleProfile: lead.googleProfile,
       atlasScore: lead.atlasScore,
+      localPosition: lead.localPosition,
+      positionQuery: lead.positionQuery,
       status: 'Novo',
       lastContact: 'Não efetuado',
       nextAction: 'Enviar Primeira Auditoria',
@@ -535,12 +537,13 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
                   {/* Operational Status Box & Action CTAs */}
                   <div className="flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-end justify-center gap-3 lg:border-l lg:border-gray-900/60 lg:pl-6 shrink-0 min-w-44">
                     <div className="text-center sm:text-left lg:text-right">
-                      <span className="text-[9px] uppercase font-mono text-gray-500 block">Atlas Score Estimado</span>
+                      <span className="text-[9px] uppercase font-mono text-gray-500 block">Posição na busca local</span>
                       <span className={`text-xl font-display font-black inline-block mt-0.5 ${
                         lead.atlasScore >= 70 ? 'text-emerald-400' : lead.atlasScore >= 50 ? 'text-amber-500' : 'text-red-400'
                       }`}>
-                        {lead.atlasScore}/100
+                        {lead.localPosition}º lugar
                       </span>
+                      <p title={lead.positionQuery} className="text-[10px] text-gray-400">Atlas Score local · {lead.atlasScore}/100</p>
                     </div>
 
                     <button
@@ -592,8 +595,7 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
           <p className="text-[10px] text-gray-500 leading-relaxed font-sans">
             As empresas, telefones, notas e avaliações vêm do Google Maps na data da busca. Instagram, Facebook, e-mail e o
             WhatsApp "confirmado" são lidos do site da própria empresa. WhatsApp "provável" significa que o telefone do Google
-            é um celular; "não confirmado" é um fixo que pode ou não ter WhatsApp. O Atlas Score exibido aqui é uma estimativa
-            rápida de presença digital, calculada com esses sinais.
+            é um celular; "não confirmado" é um fixo que pode ou não ter WhatsApp. A posição é a ordem em que o Google Places retornou a empresa, antes dos filtros do Radar. O Atlas Score local usa essa posição.
           </p>
         </div>
       </div>

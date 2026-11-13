@@ -1,5 +1,6 @@
 import { auth } from './firebase';
-import { RadarLead } from '../types';
+import type { AtlasScoreReport, RadarLead } from '../types';
+import type { PositioningSnapshot } from './positioningPdf';
 
 export class ApiError extends Error {
   constructor(public code: string, message: string, public status: number) {
@@ -56,12 +57,23 @@ export function searchRadar(payload: RadarSearchPayload): Promise<RadarSearchRes
   return request('/api/radar', { method: 'POST', body: JSON.stringify(payload) });
 }
 
+export function getAtlasScore(payload: {
+  companyName: string;
+  city: string;
+  segment: string;
+  website?: string;
+  googleMapsUrl?: string;
+}): Promise<AtlasScoreReport> {
+  return request('/api/atlas-score', { method: 'POST', body: JSON.stringify(payload) });
+}
+
 export interface WhatsAppTemplate {
   name: string;
   language: string;
   category: string;
   body: string;
   variableCount: number;
+  headerFormat?: string;
 }
 
 export interface WhatsAppConnection {
@@ -84,10 +96,12 @@ export interface WhatsAppSendResult {
   error?: string;
 }
 
-export function sendWhatsAppTemplate(to: string, template: WhatsAppTemplate, bodyParams: string[]): Promise<WhatsAppSendResult> {
+export function sendWhatsAppTemplate(
+  to: string, template: WhatsAppTemplate, bodyParams: string[], positioning?: PositioningSnapshot,
+): Promise<WhatsAppSendResult> {
   return request('/api/whatsapp-send', {
     method: 'POST',
-    body: JSON.stringify({ to, templateName: template.name, languageCode: template.language, bodyParams }),
+    body: JSON.stringify({ to, templateName: template.name, languageCode: template.language, bodyParams, positioning }),
   });
 }
 

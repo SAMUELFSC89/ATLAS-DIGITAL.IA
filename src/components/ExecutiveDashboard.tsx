@@ -21,7 +21,7 @@ export default function ExecutiveDashboard({ leads, onNavigateToTab }: Executive
   const closedDeals = leads.filter(l => l.status === 'Fechado' || l.status === 'Pós-venda').length;
   
   // Calculate average Atlas Score
-  const scoredLeads = leads.filter(l => l.atlasScore !== null);
+  const scoredLeads = leads.filter(l => l.atlasScore !== null && l.localPosition && l.positionQuery);
   const avgScore = scoredLeads.length > 0 
     ? Math.round(scoredLeads.reduce((acc, l) => acc + (l.atlasScore || 0), 0) / scoredLeads.length)
     : 62;
@@ -130,10 +130,9 @@ export default function ExecutiveDashboard({ leads, onNavigateToTab }: Executive
             </div>
           </div>
           <div className="mt-4 flex items-baseline gap-2">
-            <span className="text-2xl font-display font-black text-white">{avgScore}/100</span>
-            <span className="text-[10px] text-gray-400 font-mono">Baixa presença digital</span>
+            <span className="text-2xl font-display font-black text-white">{scoredLeads.length ? `${avgScore}/100` : 'Sem medições'}</span>
           </div>
-          <p className="text-[10px] text-gray-500 mt-1">Maturidade digital geral das empresas locais</p>
+          <p className="text-[10px] text-gray-500 mt-1">Média das consultas locais registradas no CRM</p>
         </div>
 
         {/* Simulated commercial pipeline revenue */}

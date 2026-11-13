@@ -32,7 +32,9 @@ const COLUMNS: Column[] = [
   { header: 'Endereço', width: 48, value: (l) => l.address },
   { header: 'Cidade', width: 18, value: (l) => l.city },
   { header: 'UF', width: 6, value: (l) => l.state },
-  { header: 'Atlas Score estimado', width: 14, value: (l) => l.atlasScore },
+  { header: 'Atlas Score local', width: 14, value: (l) => l.atlasScore },
+  { header: 'Posição no Google Places', width: 14, value: (l) => l.localPosition },
+  { header: 'Busca no Google Places', width: 36, value: (l) => l.positionQuery },
 ];
 
 function xmlEscape(value: string): string {
