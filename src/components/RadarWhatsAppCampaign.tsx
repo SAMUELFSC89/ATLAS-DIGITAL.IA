@@ -121,11 +121,11 @@ export default function RadarWhatsAppCampaign({ leads, onClose }: RadarWhatsAppC
       setStatuses((prev) => ({ ...prev, [lead.id]: { state: 'enviando' } }));
       try {
         const positioning = includePdf ? positioningFromLead(lead) : undefined;
-        const result = await sendWhatsAppTemplate(lead.whatsapp, chosen, resolveParams(lead), positioning);
+        const result = await sendWhatsAppTemplate(lead.whatsapp, chosen, resolveParams(lead), positioning, lead.companyName);
         setStatuses((prev) => ({
           ...prev,
           [lead.id]: result.success
-            ? { state: result.simulated ? 'simulado' : 'enviado' }
+            ? { state: result.simulated ? 'simulado' : 'enviado', detail: result.crmWarning }
             : { state: 'erro', detail: result.error },
         }));
       } catch (err) {
@@ -385,7 +385,7 @@ export default function RadarWhatsAppCampaign({ leads, onClose }: RadarWhatsAppC
                     }
                   >
                     {status?.state === 'enviando' && 'Enviando...'}
-                    {status?.state === 'enviado' && 'Enviado'}
+                    {status?.state === 'enviado' && (status.detail || 'Enviado')}
                     {status?.state === 'simulado' && 'Simulado (não enviado)'}
                     {status?.state === 'erro' && `Falhou: ${status.detail || 'erro desconhecido'}`}
                     {!status && 'Aguardando'}

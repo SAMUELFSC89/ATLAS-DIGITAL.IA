@@ -5,7 +5,8 @@ import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import metaHandler from "./api/meta.ts";
 import metaCallbackHandler from "./api/meta-callback.ts";
-import { handleIncomingWebhookMessage } from "./api/whatsapp-service.ts";
+import webhookHandler from "./api/webhook.ts";
+import crmHandler from "./api/crm.ts";
 import radarHandler from "./api/radar.ts";
 import atlasScoreHandler from "./api/atlas-score.ts";
 import whatsappSendHandler from "./api/whatsapp-send.ts";
@@ -46,6 +47,7 @@ async function startServer() {
   app.set("trust proxy", true);
   const PORT = 3000;
 
+  app.all("/api/webhook", (req, res) => webhookHandler(req, res));
   app.use(express.json());
 
   // Meta Integration Routes
@@ -83,32 +85,12 @@ async function startServer() {
     }
   });
 
-  // Meta Webhook Verification (GET)
-  app.get("/api/webhook", (req, res) => {
-    const mode = req.query["hub.mode"];
-    const token = req.query["hub.verify_token"];
-    const challenge = req.query["hub.challenge"];
-
-    if (mode === "subscribe" && token === "atlasdigital") {
-      res.setHeader("Content-Type", "text/plain");
-      return res.status(200).send(challenge);
-    } else {
-      return res.sendStatus(403);
-    }
-  });
-
-  // Meta Webhook Event Handling (POST)
-  app.post("/api/webhook", async (req, res) => {
-    console.log("Webhook Event received:", JSON.stringify(req.body, null, 2));
-    const result = await handleIncomingWebhookMessage(req.body);
-    return res.status(200).json({ status: "success", ...result });
-  });
-
   // Radar de Mercado (Google Places) e envio de modelos do WhatsApp
   app.all("/api/radar", (req, res) => radarHandler(req, res));
   app.all("/api/whatsapp-send", (req, res) => whatsappSendHandler(req, res));
 
   app.all("/api/atlas-score", (req, res) => atlasScoreHandler(req, res));
+  app.all("/api/crm", (req, res) => crmHandler(req, res));
 
   const isProduction = 
     process.env.NODE_ENV === "production" || 

@@ -110,6 +110,26 @@ export async function placesTextSearch(body: Record<string, unknown>, fieldMask:
   return data;
 }
 
+export async function findCityCenter(place: string): Promise<{ latitude: number; longitude: number } | null> {
+  try {
+    const data = await placesTextSearch(
+      { textQuery: place, languageCode: "pt-BR", regionCode: "BR", pageSize: 1 },
+      "places.location"
+    );
+    return data?.places?.[0]?.location || null;
+  } catch (error) {
+    if (error instanceof RadarError && error.code === "missing_key") throw error;
+    return null;
+  }
+}
+
+export function localRankingQuery(textQuery: string, center: Awaited<ReturnType<typeof findCityCenter>>, radiusKm: number) {
+  return {
+    textQuery, rankPreference: "RELEVANCE", languageCode: "pt-BR", regionCode: "BR", pageSize: PLACES_PAGE_SIZE,
+    ...(center ? { locationBias: { circle: { center, radius: Math.min(radiusKm * 1000, MAX_RADIUS_BIAS_METERS) } } } : {}),
+  };
+}
+
 function haversineKm(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }): number {
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const dLat = toRad(b.latitude - a.latitude);
@@ -277,17 +297,7 @@ export async function searchRadar(params: RadarSearchParams): Promise<RadarSearc
   const place = [city, state, "Brasil"].filter(Boolean).join(", ");
 
   // 1. Centro da cidade, para aplicar o raio de cobertura.
-  let center: { latitude: number; longitude: number } | null = null;
-  try {
-    const cityData = await placesTextSearch(
-      { textQuery: place, languageCode: "pt-BR", regionCode: "BR", pageSize: 1 },
-      "places.location"
-    );
-    center = cityData?.places?.[0]?.location || null;
-  } catch (err) {
-    if (err instanceof RadarError && err.code === "missing_key") throw err;
-    // Sem o centro a busca continua, apenas sem o filtro de distância.
-  }
+  const center = await findCityCenter(place);
 
   // 2. Empresas do segmento na região.
   const fieldMask = [
@@ -306,18 +316,7 @@ export async function searchRadar(params: RadarSearchParams): Promise<RadarSearc
   ].join(",");
 
   const positionQuery = `${segment}${keyword ? ` ${keyword}` : ""} em ${place}`;
-  const baseBody: Record<string, unknown> = {
-    textQuery: positionQuery,
-    rankPreference: "RELEVANCE",
-    languageCode: "pt-BR",
-    regionCode: "BR",
-    pageSize: PLACES_PAGE_SIZE,
-  };
-  if (center) {
-    baseBody.locationBias = {
-      circle: { center, radius: Math.min(radiusKm * 1000, MAX_RADIUS_BIAS_METERS) },
-    };
-  }
+  const baseBody = localRankingQuery(positionQuery, center, radiusKm);
 
   const positionCheckedAt = new Date().toISOString();
   const leads: RadarLead[] = [];

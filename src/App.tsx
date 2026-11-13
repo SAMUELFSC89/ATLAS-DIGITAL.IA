@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { auth, db } from './lib/firebase';
+import { auth } from './lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { getCrmLeads, updateCrm } from './lib/radarApi';
 import {
   ZapOff,
   SearchCode,
@@ -70,7 +70,7 @@ import SaaSDocs from './components/SaaSDocs';
 import PrecosPlanos from './components/PrecosPlanos';
 import SegmentPages from './components/SegmentPages';
 import AuthPage from './components/AuthPage';
-import { Lead, LeadStatus, IntegrationConfig } from './types';
+import { Lead, LeadStatus, IntegrationConfig, LocalSearchPosition } from './types';
 
 export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -88,6 +88,8 @@ export default function App() {
   const [selectedLeadForCopilot, setSelectedLeadForCopilot] = useState<Lead | null>(null);
 
   useEffect(() => onAuthStateChanged(auth, (user) => {
+    setCrmLeads([]);
+    setCrmError('');
     setCurrentUser(user && !user.isAnonymous ? user.email : null);
   }), []);
 
@@ -115,97 +117,69 @@ export default function App() {
 
   const [crmLeads, setCrmLeads] = useState<Lead[]>([]);
 
-  // Load CRM Leads from Firebase Firestore on Mount/Login
+  const [crmError, setCrmError] = useState('');
+  const [crmLoading, setCrmLoading] = useState(false);
+  const crmRevision = useRef(0);
+
   useEffect(() => {
     if (!isPortalActive || !currentUser) return;
-    let cancelled = false;
+    const controller = new AbortController();
+    let loading = false;
 
-    const fetchLeads = async () => {
+    const refresh = async () => {
+      if (loading || document.hidden || controller.signal.aborted) return;
+      loading = true;
+      const revision = crmRevision.current;
       try {
-        const querySnapshot = await getDocs(collection(db, 'leads'));
-        if (cancelled) return;
-        const loadedLeads: Lead[] = [];
-        querySnapshot.forEach((document) => {
-          const lead = document.data() as Lead;
-          if (['l-1', 'l-2', 'l-3'].includes(lead.id)) return;
-          loadedLeads.push({ ...lead, atlasScore: lead.positionQuery && lead.localPosition ? lead.atlasScore : null });
-        });
-        setCrmLeads(loadedLeads);
+        const { leads } = await getCrmLeads(controller.signal);
+        if (!controller.signal.aborted && revision === crmRevision.current) {
+          setCrmLeads(leads);
+          setCrmError('');
+        }
       } catch (err) {
-        if (cancelled) return;
-        console.error('Failed to load leads from Firestore:', err);
-        setCrmLeads([]);
+        if (!controller.signal.aborted) setCrmError((err as Error).message);
+      } finally {
+        loading = false;
+        if (!controller.signal.aborted) setCrmLoading(false);
       }
     };
 
-    fetchLeads();
-    return () => { cancelled = true; };
-  }, [isPortalActive, currentUser]);
-
-  const handleAddLeadToCrm = async (newLead: Omit<Lead, 'id' | 'createdAt'>) => {
-    const leadId = `lead-added-${Date.now()}`;
-    const leadWithId: Lead = {
-      ...newLead,
-      id: leadId,
-      createdAt: new Date().toISOString()
+    setCrmLoading(true);
+    void refresh();
+    const timer = ['crm', 'dashboard', 'radar'].includes(activePortalTab) ? window.setInterval(refresh, 10000) : undefined;
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refresh);
     };
-    
-    // Save to local React State
-    setCrmLeads((prev) => [leadWithId, ...prev]);
+  }, [isPortalActive, currentUser, activePortalTab]);
 
-    // Save to Firestore asynchronously
+  const saveCrm = async (mutation: Parameters<typeof updateCrm>[0]) => {
+    const user = auth.currentUser;
     try {
-      await setDoc(doc(db, 'leads', leadId), leadWithId);
-      console.log('[Firebase Store] Added lead successfully:', leadId);
+      const { lead } = await updateCrm(mutation);
+      if (auth.currentUser !== user) return;
+      crmRevision.current++;
+      if (lead) {
+        setCrmLeads(previous => previous.some(item => item.id === lead.id)
+          ? previous.map(item => item.id === lead.id ? lead : item)
+          : [lead, ...previous]);
+      } else if (mutation.action === 'delete') {
+        setCrmLeads(previous => previous.filter(item => item.id !== mutation.id));
+      }
+      setCrmError('');
     } catch (err) {
-      console.error('[Firebase Store] Failed to save added lead:', err);
+      if (auth.currentUser === user) setCrmError((err as Error).message);
+      throw err;
     }
   };
 
-  const handleUpdateLeadStatus = async (leadId: string, newStatus: LeadStatus) => {
-    // Find matching lead to update
-    const currentLead = crmLeads.find((l) => l.id === leadId);
-    if (!currentLead) return;
-
-    const updatedLead: Lead = { ...currentLead, status: newStatus };
-
-    // Save to local React State
-    setCrmLeads((prev) => prev.map((l) => l.id === leadId ? updatedLead : l));
-
-    // Save to Firestore asynchronously
-    try {
-      await setDoc(doc(db, 'leads', leadId), updatedLead);
-      console.log('[Firebase Store] Updated lead status successfully:', leadId);
-    } catch (err) {
-      console.error('[Firebase Store] Failed to update lead status:', err);
-    }
-  };
-
-  const handleUpdateLead = async (updatedLead: Lead) => {
-    // Save to local React State
-    setCrmLeads((prev) => prev.map((l) => l.id === updatedLead.id ? updatedLead : l));
-
-    // Save to Firestore asynchronously
-    try {
-      await setDoc(doc(db, 'leads', updatedLead.id), updatedLead);
-      console.log('[Firebase Store] Updated lead successfully:', updatedLead.id);
-    } catch (err) {
-      console.error('[Firebase Store] Failed to update lead:', err);
-    }
-  };
-
-  const handleDeleteLead = async (leadId: string) => {
-    // Save to local React State
-    setCrmLeads((prev) => prev.filter((l) => l.id !== leadId));
-
-    // Save to Firestore asynchronously
-    try {
-      await deleteDoc(doc(db, 'leads', leadId));
-      console.log('[Firebase Store] Deleted lead successfully:', leadId);
-    } catch (err) {
-      console.error('[Firebase Store] Failed to delete lead:', err);
-    }
-  };
+  const handleAddLeadToCrm = (lead: Omit<Lead, 'id' | 'createdAt'>) => saveCrm({ action: 'create', lead });
+  const handleUpdateLeadStatus = (id: string, status: LeadStatus) => saveCrm({ action: 'stage', id, status });
+  const handleUpdateLead = (lead: Lead) => saveCrm({ action: 'edit', id: lead.id, lead });
+  const handleDeleteLead = (id: string) => saveCrm({ action: 'delete', id });
+  const handleSaveLeadPosition = (id: string, localSearch: LocalSearchPosition) => saveCrm({ action: 'position', id, localSearch });
 
   const handleUpdateIntegration = (id: string, state: 'connected' | 'disconnected') => {
     setIntegrations((prev) => prev.map((item) => item.id === id ? { ...item, status: state } : item));
@@ -415,12 +389,14 @@ export default function App() {
                 )}
 
                 {activePortalTab === 'atlas-score' && (
-                  <div key={auditLead?.id || 'atlas-score'}><AtlasScoreModule lead={auditLead} /></div>
+                  <div key={auditLead?.id || 'atlas-score'}><AtlasScoreModule lead={auditLead} onSavePosition={handleSaveLeadPosition} /></div>
                 )}
 
                 {activePortalTab === 'crm' && (
                   <CrmInteligente 
                     leads={crmLeads} 
+                    error={crmError}
+                    loading={crmLoading}
                     onUpdateLeadStatus={handleUpdateLeadStatus} 
                     onUpdateLead={handleUpdateLead} 
                     onDeleteLead={handleDeleteLead} 

@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
-import { readDb, writeDb, decrypt } from "./db-helper.js";
+import { readDb, writeDb, decrypt, getFirestoreAdmin } from "./db-helper.js";
+import { recordCrmInteraction } from "./crm-store.js";
 import { createPositioningPdf, type PositioningSnapshot } from "../src/lib/positioningPdf.js";
 
 const WHATSAPP_GRAPH_URL = "https://graph.facebook.com/v24.0";
@@ -100,100 +101,69 @@ export async function sendWhatsAppMessage(empresaId: string, telefoneDestino: st
   }
 }
 
-/**
- * Processa as mensagens recebidas no Webhook oficial da Meta.
- * Identifica o Phone Number ID, busca a respectiva empresa, ativa a IA contextualizada e responde.
- */
-export async function handleIncomingWebhookMessage(body: any): Promise<{ processed: boolean; error?: string }> {
-  try {
-    const entry = body?.entry?.[0];
-    const change = entry?.changes?.[0];
-    const value = change?.value;
-    
-    if (!value || !value.messages || value.messages.length === 0) {
-      return { processed: false }; // Evento não é de mensagem de texto (pode ser status de entrega)
-    }
-
-    const metadata = value.metadata;
-    const phoneNumberId = metadata?.phone_number_id;
-    
-    if (!phoneNumberId) {
-      return { processed: false, error: "Nenhum phone_number_id encontrado no evento." };
-    }
-
-    // Busca qual empresa possui esse phoneNumberId em suas configurações
-    const db = await readDb();
-    let targetEmpresaId: string | null = null;
-    let targetCompany: any = null;
-
-    for (const [empresaId, company] of Object.entries(db)) {
-      if ((company as any).phoneNumberId === phoneNumberId && (company as any).status === "connected") {
-        targetEmpresaId = empresaId;
-        targetCompany = company;
-        break;
-      }
-    }
-
-    if (!targetEmpresaId || !targetCompany) {
-      console.warn(`[WhatsApp Webhook] Mensagem recebida para o Phone Number ID: ${phoneNumberId}, mas nenhuma empresa SaaS correspondente está conectada.`);
-      return { processed: false, error: `Nenhuma empresa conectada para o Phone Number ID: ${phoneNumberId}` };
-    }
-
-    if (targetCompany.autoReplyEnabled === false) return { processed: false };
-
-    const messageObj = value.messages[0];
-    const from = messageObj.from;
-    const clientName = value.contacts?.[0]?.profile?.name || "Cliente";
-    const textBody = messageObj.text?.body;
-
-    if (!textBody) {
-      return { processed: true }; // Mensagem vazia ou tipo não textual
-    }
-
-    console.log(`[WhatsApp Webhook] Mensagem recebida de [${clientName}] (${from}) para a empresa [${targetEmpresaId}]. Conteúdo: "${textBody}"`);
-
-    // Atualiza número de conversas abertas
-    targetCompany.openConversations = Math.max(targetCompany.openConversations || 1, Math.floor(1 + Math.random() * 5));
-    db[targetEmpresaId] = targetCompany;
-    await writeDb(db);
-
-    // Formula a resposta utilizando Inteligência Artificial (Gemini) de acordo com o contexto do nicho/empresa
-    let aiResponse = "";
-    const ai = getAiClient();
-
-    if (ai) {
-      try {
-        const prompt = `Você é o assistente virtual inteligente da empresa "${targetCompany.verifiedName || targetEmpresaId}".
-        O cliente se chama "${clientName}" e enviou a seguinte mensagem no WhatsApp:
-        "${textBody}"
-
-        Sua missão é responder de forma extremamente prestativa, profissional, objetiva e simpática, alinhada com as melhores práticas de atendimento ao cliente.
-        Mantenha a resposta curta (máximo 2 ou 3 parágrafos) e adequada para leitura rápida em chat de WhatsApp. Se o cliente demonstrar interesse em auditorias ou SEO, mencione o "Atlas Score" da Atlas Digital.`;
-
-        const response = await ai.models.generateContent({
-          model: "gemini-3.5-flash",
-          contents: prompt
+/** Processa lotes de mensagens assinados pela Meta. */
+export async function handleIncomingWebhookMessage(body: any): Promise<{ processed: boolean }> {
+  if (body?.object !== "whatsapp_business_account" || !Array.isArray(body.entry)) return { processed: false };
+  const companies = getFirestoreAdmin().collection("companies");
+  let processed = false;
+  for (const entry of body.entry) {
+    for (const change of Array.isArray(entry?.changes) ? entry.changes : []) {
+      const value = change?.value;
+      const phoneNumberId = value?.metadata?.phone_number_id;
+      const outbound = change?.field === "smb_message_echoes";
+      const messages = outbound ? value?.message_echoes : change?.field === "messages" ? value?.messages : undefined;
+      if (!Array.isArray(messages) || !messages.length || typeof phoneNumberId !== "string") continue;
+      const matches = await companies.where("phoneNumberId", "==", phoneNumberId).get();
+      const connected = matches.docs.filter(doc => {
+        const company = doc.data();
+        return company.status === "connected" && company.whatsappBusinessAccountId === entry.id;
+      });
+      if (connected.length !== 1) continue;
+      const target = connected[0];
+      const company = target.data();
+      for (const message of messages) {
+        const phone = outbound ? message?.to : message?.from;
+        if (typeof phone !== "string" || typeof message?.id !== "string" || /^wmid\.Simulated_/i.test(message.id) ||
+          ["edit", "revoke", "reaction", "system"].includes(message.type)) continue;
+        const name = (Array.isArray(value.contacts) ? value.contacts : [])
+          .find(contact => contact?.wa_id === phone)?.profile?.name;
+        const text = message.text?.body ?? message.document?.caption;
+        const recorded = await recordCrmInteraction(target.id, {
+          id: message.id, phone, timestamp: message.timestamp,
+          direction: outbound ? "outbound" : "inbound",
+          name: typeof name === "string" ? name : undefined,
+          text: typeof text === "string" ? text : undefined,
         });
-
-        aiResponse = response.text || "";
-      } catch (err) {
-        console.error("[WhatsApp Webhook] Erro ao consultar Gemini SDK:", err);
+        processed ||= recorded;
+        if (recorded && !outbound && company.autoReplyEnabled !== false && typeof text === "string" && text.trim()) {
+          await replyToIncomingMessage(target.id, company.verifiedName, phone, typeof name === "string" ? name : "Cliente", text);
+        }
       }
     }
-
-    // Fallback inteligente se Gemini falhar ou não estiver disponível
-    if (!aiResponse) {
-      aiResponse = `Olá, ${clientName}! Obrigado pelo seu contato com a ${targetCompany.verifiedName || "nossa equipe"}. Eu sou o assistente inteligente da empresa e já recebi sua mensagem. Como posso ajudar você hoje?`;
-    }
-
-    // Despacha a resposta oficial
-    const result = await sendWhatsAppMessage(targetEmpresaId, from, aiResponse);
-    return { processed: result.success, error: result.error };
-
-  } catch (err: any) {
-    console.error("[WhatsApp Webhook] Falha ao processar mensagem recebida:", err);
-    return { processed: false, error: err.message || "Erro desconhecido processando webhook" };
   }
+  return { processed };
+}
+
+async function replyToIncomingMessage(email: string, companyName: string | undefined, phone: string, name: string, text: string) {
+  const company = companyName || "nossa equipe";
+  let reply = "";
+  const ai = getAiClient();
+  if (ai) {
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: `Você é o assistente de atendimento da empresa "${company}".
+Responda à mensagem do cliente de forma profissional, objetiva e simpática, em até três parágrafos.
+Cliente: ${name}
+Mensagem: ${text}`,
+      });
+      reply = response.text || "";
+    } catch {
+      console.error("[WhatsApp Webhook] Falha ao gerar resposta automática.");
+    }
+  }
+  await sendWhatsAppMessage(email, phone, reply ||
+    `Olá, ${name}! Obrigado pelo contato com ${company}. Como podemos ajudar você hoje?`);
 }
 
 export interface WhatsAppTemplateSummary {

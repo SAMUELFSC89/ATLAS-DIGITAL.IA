@@ -7,16 +7,20 @@ import { Lead, LeadStatus } from '../types';
 
 interface CrmInteligenteProps {
   leads: Lead[];
-  onUpdateLeadStatus: (leadId: string, newStatus: LeadStatus) => void;
-  onUpdateLead: (updatedLead: Lead) => void;
-  onDeleteLead: (leadId: string) => void;
-  onAddLead: (lead: Omit<Lead, 'id' | 'createdAt'>) => void;
+  error: string;
+  loading: boolean;
+  onUpdateLeadStatus: (leadId: string, newStatus: LeadStatus) => Promise<void>;
+  onUpdateLead: (updatedLead: Lead) => Promise<void>;
+  onDeleteLead: (leadId: string) => Promise<void>;
+  onAddLead: (lead: Omit<Lead, 'id' | 'createdAt'>) => Promise<void>;
   onSelectLeadForCopilot: (lead: Lead) => void;
   onTriggerAuditForLead: (lead: Lead) => void;
 }
 
 export default function CrmInteligente({
   leads,
+  error,
+  loading,
   onUpdateLeadStatus,
   onUpdateLead,
   onDeleteLead,
@@ -27,6 +31,19 @@ export default function CrmInteligente({
   
   const [selectedLeadForEdit, setSelectedLeadForEdit] = useState<Lead | null>(null);
   const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const save = async (operation: () => Promise<void>) => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await operation();
+    } catch {
+      // The parent renders the error and keeps the form open.
+    } finally {
+      setSaving(false);
+    }
+  };
   
   // Fields for adding a new lead manually
   const [newCompanyName, setNewCompanyName] = useState('');
@@ -52,53 +69,59 @@ export default function CrmInteligente({
     { status: 'Pós-venda', label: 'Pós-venda', colorClass: 'bg-teal-500/10 text-teal-400 border-teal-900/30', borderClass: 'border-l-teal-500' }
   ];
 
-  const handleCreateLead = (e: React.FormEvent) => {
+  const handleCreateLead = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCompanyName.trim() || !newCity.trim()) {
       alert("Por favor, preencha o Nome da Empresa e a Cidade!");
       return;
     }
 
-    onAddLead({
-      companyName: newCompanyName.trim(),
-      responsible: newResponsible.trim() || "Não informado",
-      phone: newPhone.trim() || "(11) 99999-9999",
-      whatsapp: newWhatsapp.trim() || newPhone.trim() || "(11) 99999-9999",
-      email: newEmail.trim() || `contato@${newCompanyName.toLowerCase().replace(/\s+/g, '')}.com.br`,
-      city: newCity.trim(),
-      state: newState.trim().toUpperCase(),
-      website: newWebsite.trim(),
-      instagram: `instagram.com/${newCompanyName.toLowerCase().replace(/\s+/g, '')}`,
-      facebook: '',
-      linkedin: '',
-      googleProfile: '',
-      atlasScore: null,
-      status: 'Novo',
-      lastContact: 'Não efetuado',
-      nextAction: 'Enviar Primeira Auditoria',
-      closeProbability: parseInt(newProbability) || 50,
-      notes: newNotes.trim() || "Lead cadastrado manualmente no CRM.",
-      segment: newSegment
-    });
+    await save(async () => {
+      await onAddLead({
+        companyName: newCompanyName.trim(),
+        responsible: newResponsible.trim() || "Não informado",
+        phone: newPhone.trim(),
+        whatsapp: newWhatsapp.trim() || newPhone.trim(),
+        email: newEmail.trim(),
+        city: newCity.trim(),
+        state: newState.trim().toUpperCase(),
+        website: newWebsite.trim(),
+        instagram: '',
+        facebook: '',
+        linkedin: '',
+        googleProfile: '',
+        atlasScore: null,
+        status: 'Novo',
+        lastContact: 'Não efetuado',
+        nextAction: 'Enviar Primeira Auditoria',
+        closeProbability: parseInt(newProbability) || 50,
+        notes: newNotes.trim() || "Lead cadastrado manualmente no CRM.",
+        segment: newSegment
+      });
 
-    // Reset inputs
-    setNewCompanyName('');
-    setNewResponsible('');
-    setNewPhone('');
-    setNewWhatsapp('');
-    setNewEmail('');
-    setNewCity('');
-    setNewState('SP');
-    setNewWebsite('');
-    setNewNotes('');
-    setIsAddLeadModalOpen(false);
+      // Reset inputs
+      setNewCompanyName('');
+      setNewResponsible('');
+      setNewPhone('');
+      setNewWhatsapp('');
+      setNewEmail('');
+      setNewCity('');
+      setNewState('SP');
+      setNewWebsite('');
+      setNewNotes('');
+      setNewSegment('Marmoraria');
+      setNewProbability('50');
+      setIsAddLeadModalOpen(false);
+    });
   };
 
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedLeadForEdit) {
-      onUpdateLead(selectedLeadForEdit);
-      setSelectedLeadForEdit(null);
+      void save(async () => {
+        await onUpdateLead(selectedLeadForEdit);
+        setSelectedLeadForEdit(null);
+      });
     }
   };
 
@@ -115,7 +138,7 @@ export default function CrmInteligente({
             Gestão Comercial e Leads
           </h2>
           <p className="text-xs text-gray-400 mt-1">
-            Acompanhe todo o seu pipeline de vendas. Arraste ou atualize o status de cada lead, use a IA para propor respostas e execute auditorias.
+            O CRM atualiza as etapas com os envios e as respostas do WhatsApp conectado. Você também pode ajustar a etapa manualmente.
           </p>
         </div>
         
@@ -127,6 +150,8 @@ export default function CrmInteligente({
           Adicionar Lead Manual
         </button>
       </div>
+      {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
+      {loading && !leads.length && <p role="status" className="text-sm text-gray-400">Carregando leads…</p>}
 
       {/* Visual Pipeline Lanes (Kanban view scrollable horizontally) */}
       <div className="flex gap-4 overflow-x-auto pb-4 pt-1 snap-x select-none scrollbar-thin scrollbar-thumb-gray-900">
@@ -178,6 +203,11 @@ export default function CrmInteligente({
                       <p className="text-[10px] text-gray-400 line-clamp-2 leading-relaxed">
                         {lead.notes}
                       </p>
+                      {lead.nextAction && <p className="text-[10px] text-gray-300">{lead.nextAction}</p>}
+                      {lead.statusSource === 'whatsapp' && (
+                        <p className="text-[10px] text-emerald-400">Etapa atualizada pelo WhatsApp</p>
+                      )}
+                      {lead.localPosition && <p className="text-[10px] text-gray-400">{lead.localPosition}º lugar no Google Places</p>}
 
                       {/* Stats footer in card */}
                       <div className="flex items-center justify-between pt-2 border-t border-gray-900/60 text-[9px]">
@@ -218,8 +248,13 @@ export default function CrmInteligente({
                       {/* Quick Status Shift selector (for slick mouse/touch moves) */}
                       <div className="pt-2">
                         <select
+                          aria-label={`Etapa de ${lead.companyName}`}
+                          disabled={saving}
                           value={lead.status}
-                          onChange={(e: any) => onUpdateLeadStatus(lead.id, e.target.value)}
+                          onChange={(e) => {
+                            const status = e.target.value as LeadStatus;
+                            void save(() => onUpdateLeadStatus(lead.id, status));
+                          }}
                           className="w-full bg-gray-950 text-gray-400 border border-gray-900 text-[9px] rounded-lg px-2 py-1 font-mono focus:outline-none focus:border-gray-700"
                         >
                           <option value="Novo">Mover para: Novo</option>
@@ -259,6 +294,7 @@ export default function CrmInteligente({
             </div>
 
             <form onSubmit={handleSaveEdit} className="space-y-4">
+              {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[9px] uppercase font-mono font-bold text-gray-500">Nome da Empresa</label>
@@ -371,10 +407,13 @@ export default function CrmInteligente({
                   type="button"
                   onClick={() => {
                     if(confirm("Deseja realmente remover este lead permanentemente do CRM?")) {
-                      onDeleteLead(selectedLeadForEdit.id);
-                      setSelectedLeadForEdit(null);
+                      void save(async () => {
+                        await onDeleteLead(selectedLeadForEdit.id);
+                        setSelectedLeadForEdit(null);
+                      });
                     }
                   }}
+                  disabled={saving}
                   className="px-4 py-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -391,6 +430,7 @@ export default function CrmInteligente({
                   </button>
                   <button
                     type="submit"
+                    disabled={saving}
                     className="px-5 py-2 bg-white text-black font-semibold text-xs rounded-lg hover:bg-gray-200"
                   >
                     Salvar Alterações
@@ -419,6 +459,7 @@ export default function CrmInteligente({
             </div>
 
             <form onSubmit={handleCreateLead} className="space-y-4">
+              {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1 col-span-2">
                   <label className="text-[9px] uppercase font-mono font-bold text-gray-500">Nome da Empresa *</label>
@@ -553,6 +594,7 @@ export default function CrmInteligente({
                 </button>
                 <button
                   type="submit"
+                  disabled={saving}
                   className="px-5 py-2.5 bg-white text-black font-semibold text-xs rounded-lg hover:bg-gray-200"
                 >
                   Criar Lead
