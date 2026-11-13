@@ -1,7 +1,39 @@
-import { applyCors, getAuthenticatedEmail } from "./_lib/auth.ts";
 import { getWhatsAppConnectionInfo, sendWhatsAppTemplate } from "./whatsapp-service.ts";
 
 const MAX_PARAM_LENGTH = 300;
+
+// Chave pública do app web do Firebase (a mesma que já vai no navegador).
+const FIREBASE_WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY || "AIzaSyCqIc_q1LJLCtPLtlB0j_daTwvyCP7XkrE";
+
+/**
+ * Confere o token de login do Firebase no serviço do Google e devolve o e-mail
+ * do usuário. Usa apenas fetch, para não depender de nenhuma biblioteca no servidor.
+ */
+async function getAuthenticatedEmail(req: any): Promise<string | null> {
+  const header: string = req.headers?.authorization || "";
+  const match = /^Bearer\s+(.+)$/i.exec(header);
+  if (!match) return null;
+  try {
+    const origin: string = req.headers?.origin || (req.headers?.host ? `https://${req.headers.host}` : "");
+    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_WEB_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(origin ? { Referer: `${origin}/` } : {}) },
+      body: JSON.stringify({ idToken: match[1] }),
+    });
+    if (!response.ok) return null;
+    const data: any = await response.json();
+    return data?.users?.[0]?.email || null;
+  } catch (err) {
+    console.warn("[Auth] Não foi possível conferir o login:", (err as Error).message);
+    return null;
+  }
+}
+
+function applyCors(res: any): void {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+}
 
 /**
  * GET  -> situação da conexão e modelos aprovados da empresa logada.

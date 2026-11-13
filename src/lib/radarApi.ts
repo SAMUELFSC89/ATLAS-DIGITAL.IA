@@ -16,7 +16,15 @@ async function authHeaders(): Promise<Record<string, string>> {
 
 async function request<T>(url: string, init: RequestInit): Promise<T> {
   const response = await fetch(url, { ...init, headers: await authHeaders() });
-  const data = await response.json().catch(() => ({}));
+  const raw = await response.text();
+  let data: any = {};
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    // Resposta que não é JSON: o servidor caiu antes de responder. Mostra o trecho para diagnóstico.
+    const snippet = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
+    throw new ApiError('server_crash', `Erro ${response.status} no servidor${snippet ? `: ${snippet}` : '.'}`, response.status);
+  }
   if (!response.ok && data?.success === undefined) {
     throw new ApiError(data?.code || 'error', data?.error || `Erro ${response.status} ao falar com o servidor.`, response.status);
   }
