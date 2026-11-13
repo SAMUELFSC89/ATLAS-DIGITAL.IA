@@ -15,6 +15,13 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 async function request<T>(url: string, init: RequestInit): Promise<T> {
+  if (!auth.currentUser) {
+    throw new ApiError(
+      'guest',
+      'Você está no portal como convidado, sem login confirmado. Clique em "Sair do Portal" e entre com seu e-mail e senha (use "Esqueceu?" se precisar criar uma senha nova).',
+      401
+    );
+  }
   const response = await fetch(url, { ...init, headers: await authHeaders() });
   const raw = await response.text();
   let data: any = {};

@@ -1,7 +1,18 @@
 import React, { useState } from 'react';
 import { Bot, Sparkles, Loader2, ArrowRight, ShieldCheck, Mail, Lock, CheckCircle } from 'lucide-react';
 import { auth } from '../lib/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+
+// Motivos de falha de login que o usuário consegue resolver sozinho.
+const LOGIN_ERROR_MESSAGES: Record<string, string> = {
+  'auth/invalid-credential': 'Senha incorreta para este e-mail. Confira a senha ou clique em "Esqueceu?" para criar uma nova.',
+  'auth/wrong-password': 'Senha incorreta para este e-mail. Confira a senha ou clique em "Esqueceu?" para criar uma nova.',
+  'auth/email-already-in-use': 'Este e-mail já tem conta. Use "Acessar Portal" com a senha cadastrada.',
+  'auth/weak-password': 'A senha precisa ter pelo menos 6 caracteres.',
+  'auth/invalid-email': 'O e-mail informado não é válido.',
+  'auth/too-many-requests': 'Muitas tentativas seguidas. Aguarde alguns minutos ou redefina a senha em "Esqueceu?".',
+  'auth/user-disabled': 'Esta conta foi desativada.',
+};
 
 interface AuthPageProps {
   onLoginSuccess: (userEmail: string) => void;
@@ -63,12 +74,36 @@ export default function AuthPage({ onLoginSuccess }: AuthPageProps) {
         onLoginSuccess(userCredential.user.email || email);
       }
     } catch (error: any) {
-      console.error("Firebase Authentication Error, activating robust demo fallback:", error);
-      
-      // Since this is a sandboxed demonstration/preview environment, we want to maximize user access and prevent blocks.
-      // If sign-in/registration fails, we bypass the restriction and let the user in seamlessly.
+      console.error("Firebase Authentication Error:", error);
       setLoading(false);
+
+      // Erro de credencial: avisa e não entra. Entrar sem login válido deixava o
+      // Radar e o WhatsApp sem funcionar, sem o usuário saber o motivo.
+      const knownMessage = LOGIN_ERROR_MESSAGES[error?.code];
+      if (knownMessage) {
+        alert(knownMessage);
+        return;
+      }
+
+      // Falha de infraestrutura (rede, serviço fora do ar): entra em modo convidado, avisando.
+      alert(
+        `Não foi possível confirmar o login agora (${error?.code || 'erro desconhecido'}). ` +
+        'Você vai entrar como convidado: o Radar de Mercado e o envio por WhatsApp ficam indisponíveis até um login válido.'
+      );
       onLoginSuccess(email.trim() || "samuelfsc89@gmail.com");
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!email.trim()) {
+      alert('Digite o seu e-mail no campo acima e clique em "Esqueceu?" de novo.');
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      alert(`Enviamos um link para ${email.trim()}. Abra o e-mail, crie a nova senha e volte para entrar. Confira também a caixa de spam.`);
+    } catch (error: any) {
+      alert(LOGIN_ERROR_MESSAGES[error?.code] || `Não foi possível enviar o link de recuperação (${error?.code || 'erro desconhecido'}).`);
     }
   };
 
@@ -127,7 +162,7 @@ export default function AuthPage({ onLoginSuccess }: AuthPageProps) {
               {isLogin && (
                 <button 
                   type="button" 
-                  onClick={() => alert("Link de recuperação enviado para o seu e-mail!")}
+                  onClick={handleResetPassword}
                   className="text-[9px] font-mono text-gray-500 hover:text-white"
                 >
                   Esqueceu?
@@ -172,7 +207,7 @@ export default function AuthPage({ onLoginSuccess }: AuthPageProps) {
               className="w-full py-2.5 bg-gray-950 hover:bg-gray-900 border border-gray-800 text-gray-350 hover:text-white font-medium text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 mt-1"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Acessar como Convidado (Bypass)</span>
+              <span>Acessar como Convidado (sem Radar e WhatsApp)</span>
             </button>
           )}
         </form>

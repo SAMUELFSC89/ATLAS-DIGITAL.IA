@@ -20,8 +20,11 @@ async function getAuthenticatedEmail(req: any): Promise<string | null> {
       headers: { "Content-Type": "application/json", ...(origin ? { Referer: `${origin}/` } : {}) },
       body: JSON.stringify({ idToken: match[1] }),
     });
-    if (!response.ok) return null;
-    const data: any = await response.json();
+    const data: any = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      console.warn("[Auth] O Google recusou o token de login:", data?.error?.message || response.status);
+      return null;
+    }
     return data?.users?.[0]?.email || null;
   } catch (err) {
     console.warn("[Auth] Não foi possível conferir o login:", (err as Error).message);
