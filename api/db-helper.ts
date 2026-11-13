@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import { initializeApp, getApps, getApp } from "firebase-admin/app";
+import { initializeApp, getApps, getApp, cert } from "firebase-admin/app";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "atlas_intelligence_secret_key_32c";
@@ -40,6 +40,27 @@ export function decrypt(text: string): string {
   }
 }
 
+/**
+ * Fora do Google Cloud (na Vercel, por exemplo) o servidor só consegue ler e
+ * gravar no Firestore com a chave de uma conta de serviço. Ela vem da variável
+ * FIREBASE_SERVICE_ACCOUNT, com o JSON da conta em texto ou em base64.
+ */
+function readServiceAccount(): any | null {
+  const raw = (process.env.FIREBASE_SERVICE_ACCOUNT || "").trim();
+  if (!raw) return null;
+  try {
+    const json = raw.startsWith("{") ? raw : Buffer.from(raw, "base64").toString("utf-8");
+    const account = JSON.parse(json);
+    if (typeof account.private_key === "string") {
+      account.private_key = account.private_key.replace(/\\n/g, "\n");
+    }
+    return account;
+  } catch (e) {
+    console.error("FIREBASE_SERVICE_ACCOUNT inválida: não é um JSON de conta de serviço.", (e as Error).message);
+    return null;
+  }
+}
+
 let firestoreDb: Firestore | null = null;
 
 export function getFirestoreAdmin(): Firestore {
@@ -61,9 +82,17 @@ export function getFirestoreAdmin(): Firestore {
     }
 
     if (getApps().length === 0) {
-      initializeApp({
-        projectId: projectId || "gen-lang-client-0890994677"
-      });
+      const serviceAccount = readServiceAccount();
+      if (serviceAccount) {
+        initializeApp({
+          credential: cert(serviceAccount),
+          projectId: projectId || serviceAccount.project_id
+        });
+      } else {
+        initializeApp({
+          projectId: projectId || "gen-lang-client-0890994677"
+        });
+      }
     }
 
     const app = getApp();
