@@ -76,11 +76,13 @@ export async function prepareMetaSignup(): Promise<{ sdk: SignupSdk; configId: s
 export function authorizeWhatsApp(
   signup: Awaited<ReturnType<typeof prepareMetaSignup>>,
   signal: AbortSignal,
-): Promise<{ code: string; whatsappBusinessAccountId: string; phoneNumberId: string }> {
+  coexistence = false,
+): Promise<{ code: string; whatsappBusinessAccountId: string; phoneNumberId?: string; coexistence: boolean }> {
   return new Promise((resolve, reject) => {
     let code = '';
     let accountId = '';
     let phoneId = '';
+    let finished = false;
     let finishTimer: number | undefined;
     const timeout = window.setTimeout(() => fail('A autorização expirou. Abra a janela da Meta novamente.'), 600000);
     const abort = () => fail('Autorização encerrada.');
@@ -95,9 +97,9 @@ export function authorizeWhatsApp(
       reject(new Error(message));
     }
     function completeIfReady() {
-      if (!code || !accountId || !phoneId) return;
+      if (!code || !finished || !accountId || (!coexistence && !phoneId)) return;
       cleanup();
-      resolve({ code, whatsappBusinessAccountId: accountId, phoneNumberId: phoneId });
+      resolve({ code, whatsappBusinessAccountId: accountId, phoneNumberId: phoneId || undefined, coexistence });
     }
     function onMessage(event: MessageEvent) {
       if (!['https://www.facebook.com', 'https://web.facebook.com', 'https://business.facebook.com', 'https://m.facebook.com'].includes(event.origin)) return;
@@ -112,6 +114,10 @@ export function authorizeWhatsApp(
         const detail = message.data?.error_message;
         fail(typeof detail === 'string' && detail.trim() ? detail.slice(0, 300) : 'A Meta encontrou um erro na autorização.');
       } else if (['FINISH', 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING', 'FINISH_ONLY_WABA'].includes(message.event)) {
+        if (coexistence && message.event !== 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING') {
+          return fail('A Meta não confirmou a coexistência. Escolha conectar sua conta existente do WhatsApp Business.');
+        }
+        finished = true;
         accountId = String(message.data?.waba_id || '');
         phoneId = String(message.data?.phone_number_id || '');
         completeIfReady();
@@ -125,7 +131,7 @@ export function authorizeWhatsApp(
       signup.sdk.login((response) => {
         code = response.authResponse?.code || '';
         if (!code) return fail('A Meta não concluiu a autorização. Confira se a janela abriu e se você confirmou o número.');
-        if (!accountId || !phoneId) {
+        if (!finished || !accountId || (!coexistence && !phoneId)) {
           finishTimer = window.setTimeout(() => fail('A Meta autorizou a conta, mas não retornou um telefone. Selecione um número na autorização.'), 8000);
         }
         completeIfReady();
@@ -133,7 +139,10 @@ export function authorizeWhatsApp(
         config_id: signup.configId,
         response_type: 'code',
         override_default_response_type: true,
-        extras: { setup: signup.solutionId ? { solutionID: signup.solutionId } : {} },
+        extras: {
+          setup: signup.solutionId ? { solutionID: signup.solutionId } : {},
+          ...(coexistence ? { featureType: 'whatsapp_business_app_onboarding', sessionInfoVersion: '3' } : {}),
+        },
       });
     } catch {
       fail('A janela da Meta não pôde ser aberta.');

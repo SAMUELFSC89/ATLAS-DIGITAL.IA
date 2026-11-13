@@ -132,14 +132,14 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
     if (selectedSubTab === 'whatsapp' && currentUser) void prepareConnection();
   }, [selectedSubTab, currentUser]);
 
-  const handleConnectWhatsApp = async () => {
+  const handleConnectWhatsApp = async (coexistence = false) => {
     if (!signup || signupAbort.current) return;
     const controller = new AbortController();
     signupAbort.current = controller;
     setConnecting(true);
     setSignupError('');
     try {
-      const authorization = await authorizeWhatsApp(signup, controller.signal);
+      const authorization = await authorizeWhatsApp(signup, controller.signal, coexistence);
       const result = await requestMeta('connect', authorization);
       if (!controller.signal.aborted) applyConnection(result.record);
     } catch (error) {
@@ -792,7 +792,7 @@ Equipe Atlas Intelligence`;
                     </div>
 
                     <button
-                      onClick={signup ? handleConnectWhatsApp : prepareConnection}
+                      onClick={signup ? () => handleConnectWhatsApp() : prepareConnection}
                       disabled={signupPreparing || connecting}
                       className="w-full py-3 px-5 bg-[#1877F2] hover:bg-[#166FE5] text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg flex items-center justify-center gap-2.5 hover:scale-[1.01]"
                     >
@@ -803,6 +803,12 @@ Equipe Atlas Intelligence`;
                       {signupPreparing ? 'Carregando a Meta…' : connecting ? 'Aguardando autorização…' : signup ? 'Conectar WhatsApp Oficial' : 'Verificar configuração da Meta'}
                     </button>
 
+                    {signup && (
+                      <button type="button" onClick={() => handleConnectWhatsApp(true)} disabled={connecting}
+                        className="w-full px-4 py-2.5 border border-zinc-700 rounded-lg text-xs text-white hover:border-[#E2B755] disabled:opacity-50">
+                        Conectar WhatsApp Business do celular
+                      </button>
+                    )}
                     {signupError && <p role="alert" className="text-xs text-red-300">{signupError}</p>}
                     <div className="space-y-2">
                       <div className="text-[10px] text-zinc-600 font-mono">
@@ -828,6 +834,19 @@ Equipe Atlas Intelligence`;
             <div className="space-y-6">
               {/* Active Connection metrics header */}
               <div className="bg-[#121214]/30 border border-gray-900 rounded-2xl p-6 space-y-6">
+                {whatsappMetaConfig?.coexistence ? (
+                  <p className="text-sm text-emerald-400">Coexistência confirmada pela Meta na conexão deste número.</p>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs text-zinc-400">Use esta opção quando o número já estiver ativo no WhatsApp Business do celular.</p>
+                    <button type="button" onClick={signup ? () => handleConnectWhatsApp(true) : prepareConnection}
+                      disabled={signupPreparing || connecting}
+                      className="px-4 py-2.5 border border-zinc-700 rounded-lg text-xs text-white hover:border-[#E2B755] disabled:opacity-50">
+                      {connecting ? 'Aguardando autorização…' : 'Conectar WhatsApp Business do celular'}
+                    </button>
+                    {signupError && <p role="alert" className="text-xs text-red-300">{signupError}</p>}
+                  </div>
+                )}
                 {whatsappMetaConfig?.autoReplyEnabled === false && (
                   <p className="text-sm text-zinc-300">Número validado na Meta. O atendimento automático está desativado para esta conexão.</p>
                 )}
