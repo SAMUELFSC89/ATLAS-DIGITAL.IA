@@ -1,5 +1,5 @@
 import { auth } from './firebase';
-import type { AtlasScoreReport, RadarLead } from '../types';
+import type { AtlasScoreReport, Lead, LeadStatus, LocalSearchPosition, RadarLead } from '../types';
 import type { PositioningSnapshot } from './positioningPdf';
 
 export class ApiError extends Error {
@@ -63,8 +63,25 @@ export function getAtlasScore(payload: {
   segment: string;
   website?: string;
   googleMapsUrl?: string;
+  radiusKm?: number;
 }): Promise<AtlasScoreReport> {
   return request('/api/atlas-score', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+type CrmMutation =
+  | { action: 'create'; lead: Omit<Lead, 'id' | 'createdAt'> }
+  | { action: 'edit'; id: string; lead: Lead }
+  | { action: 'stage'; id: string; status: LeadStatus }
+  | { action: 'position'; id: string; localSearch: LocalSearchPosition }
+  | { action: 'delete'; id: string };
+
+export function getCrmLeads(signal?: AbortSignal): Promise<{ leads: Lead[] }> {
+  const timeout = AbortSignal.timeout(15000);
+  return request('/api/crm', { method: 'GET', signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
+}
+
+export function updateCrm(mutation: CrmMutation): Promise<{ lead?: Lead }> {
+  return request('/api/crm', { method: 'POST', body: JSON.stringify(mutation) });
 }
 
 export interface WhatsAppTemplate {
@@ -94,14 +111,15 @@ export interface WhatsAppSendResult {
   simulated?: boolean;
   messageId?: string;
   error?: string;
+  crmWarning?: string;
 }
 
 export function sendWhatsAppTemplate(
-  to: string, template: WhatsAppTemplate, bodyParams: string[], positioning?: PositioningSnapshot,
+  to: string, template: WhatsAppTemplate, bodyParams: string[], positioning?: PositioningSnapshot, companyName?: string,
 ): Promise<WhatsAppSendResult> {
   return request('/api/whatsapp-send', {
     method: 'POST',
-    body: JSON.stringify({ to, templateName: template.name, languageCode: template.language, bodyParams, positioning }),
+    body: JSON.stringify({ to, templateName: template.name, languageCode: template.language, bodyParams, positioning, companyName }),
   });
 }
 

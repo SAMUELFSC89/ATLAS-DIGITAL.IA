@@ -5,6 +5,7 @@ import {
   Search, ExternalLink, RefreshCw, Send, ArrowRight, Bot, Compass, Plus, Loader2, AlertTriangle 
 } from 'lucide-react';
 import { IntegrationConfig, EmailMessage, WhatsAppChat } from '../types';
+import { nextCrmStage } from '../lib/crmPipeline';
 import { authorizeWhatsApp, prepareMetaSignup, requestMeta } from '../lib/metaSignup';
 
 interface AutomacoesProps {
@@ -53,7 +54,6 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
   const [clientSimulatedPhone, setClientSimulatedPhone] = useState<string>('5511999999999');
   const [clientSimulatedName, setClientSimulatedName] = useState<string>('Carlos Imperial');
   const [clientSimulatedMessage, setClientSimulatedMessage] = useState<string>('Olá! Recebi a auditoria Atlas Score e gostaria de marcar a reunião comercial.');
-  const [isSimulatingMessage, setIsSimulatingMessage] = useState<boolean>(false);
   const [simulationLogs, setSimulationLogs] = useState<string[]>([]);
 
   // WhatsApp chat list state
@@ -214,103 +214,20 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
     }
   };
 
-  // Simulate incoming webhook message
-  const handleSimulateWebhook = async () => {
-    setIsSimulatingMessage(true);
-    setSimulationLogs(prev => [...prev, `[Webhook] POST /api/webhook iniciado...`]);
-    try {
-      const payload = {
-        object: "whatsapp_business_account",
-        entry: [
-          {
-            id: whatsappMetaConfig?.whatsappBusinessAccountId || "204855512",
-            changes: [
-              {
-                value: {
-                  messaging_product: "whatsapp",
-                  metadata: {
-                    display_phone_number: whatsappMetaConfig?.displayPhoneNumber || "+55 11 98888-7777",
-                    phone_number_id: whatsappMetaConfig?.phoneNumberId || "106512345"
-                  },
-                  contacts: [
-                    {
-                      profile: {
-                        name: clientSimulatedName
-                      },
-                      wa_id: clientSimulatedPhone
-                    }
-                  ],
-                  messages: [
-                    {
-                      from: clientSimulatedPhone,
-                      id: `wmid.Simulated_${Date.now()}`,
-                      timestamp: String(Math.floor(Date.now() / 1000)),
-                      text: {
-                        body: clientSimulatedMessage
-                      },
-                      type: "text"
-                    }
-                  ]
-                },
-                field: "messages"
-              }
-            ]
-          }
-        ]
-      };
-
-      const response = await fetch('/api/webhook', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-      
-      const data = await response.json();
-      
-      const formattedPhone = `+${clientSimulatedPhone.substring(0, 2)} ${clientSimulatedPhone.substring(2, 4)} ${clientSimulatedPhone.substring(4, 9)}-${clientSimulatedPhone.substring(9)}`;
-      const existingChat = waChats.find(c => c.phone === formattedPhone || c.phone.replace(/[^0-9]/g, '') === clientSimulatedPhone);
-      
-      const newIncomingMsg = {
-        id: `w_msg_inc_${Date.now()}`,
-        sender: 'client' as const,
-        text: clientSimulatedMessage,
-        timestamp: 'Agora'
-      };
-
-      if (existingChat) {
-        setWaChats(waChats.map(c => c.id === existingChat.id ? {
-          ...c,
-          lastMessage: clientSimulatedMessage,
-          lastMessageTime: 'Agora',
-          messages: [...c.messages, newIncomingMsg]
-        } : c));
-      } else {
-        const newChat = {
-          id: `c_sim_${Date.now()}`,
-          contactName: `${clientSimulatedName}`,
-          phone: formattedPhone,
-          lastMessage: clientSimulatedMessage,
-          lastMessageTime: 'Agora',
-          messages: [newIncomingMsg]
-        };
-        setWaChats(prev => [newChat, ...prev]);
-        setSelectedChat(newChat);
-      }
-
-      setSimulationLogs(prev => [...prev, `[Webhook] HTTP ${response.status} Sucesso!`]);
-      
-      setTimeout(async () => {
-        await handleRefreshWhatsApp();
-        setSimulationLogs(prev => [...prev, `[Webhook] Métricas atualizadas. Resposta IA enviada via central dispatcher!`]);
-      }, 1500);
-
-    } catch (err: any) {
-      setSimulationLogs(prev => [...prev, `[Webhook] Erro: ${err.message}`]);
-    } finally {
-      setIsSimulatingMessage(false);
-    }
+  const handleSimulateWebhook = () => {
+    const phone = clientSimulatedPhone.trim();
+    const name = clientSimulatedName.trim();
+    const text = clientSimulatedMessage.trim();
+    if (!phone || !name || !text) return;
+    const existing = waChats.find(chat => chat.phone.replace(/\D/g, '') === phone.replace(/\D/g, ''));
+    const id = existing?.id || `c_sim_${Date.now()}`;
+    const incoming = { id: `w_msg_inc_${Date.now()}`, sender: 'client' as const, text, timestamp: 'Agora' };
+    const chat = { id, contactName: name, phone, lastMessage: text, lastMessageTime: 'Agora',
+      messages: [...(existing?.messages || []), incoming] };
+    setWaChats(previous => existing ? previous.map(item => item.id === id ? chat : item) : [chat, ...previous]);
+    setSelectedChat(chat);
+    const stage = nextCrmStage('Novo', { direction: 'inbound', text });
+    setSimulationLogs(previous => [...previous, `[Simulação] Etapa identificada: ${stage}.`]);
   };
 
   // Gmail AI Auto Response trigger
@@ -865,6 +782,9 @@ Equipe Atlas Intelligence`;
                 {whatsappMetaConfig?.autoReplyEnabled === false && (
                   <p className="text-sm text-zinc-300">Número validado na Meta. O atendimento automático está desativado para esta conexão.</p>
                 )}
+                {whatsappMetaConfig?.webhookSubscribed === false && (
+                  <p role="alert" className="text-sm text-amber-300">A Meta não confirmou o recebimento de eventos. Use a sincronização para tentar ativar as atualizações automáticas do CRM.</p>
+                )}
                 {isEditingConfig && (
                   <div className="bg-zinc-950/60 border border-zinc-900 rounded-2xl p-6 space-y-5 text-left">
                     <div className="border-b border-zinc-900 pb-3 flex justify-between items-center">
@@ -1191,7 +1111,7 @@ Equipe Atlas Intelligence`;
                           <MessageCircle className="w-6 h-6 text-zinc-800" />
                           <span className="text-zinc-600 text-[11px] font-mono">Aguardando chat</span>
                           <p className="text-[9px] text-zinc-700 max-w-xs leading-relaxed font-sans">
-                            Selecione uma conversa ativa ou utilize o simulador à direita para forçar o recebimento de uma mensagem do cliente no seu webhook SaaS!
+                            Selecione uma conversa ou use o simulador para testar uma mensagem.
                           </p>
                         </div>
                       )}
@@ -1213,7 +1133,7 @@ Equipe Atlas Intelligence`;
                     </div>
 
                     <p className="text-[11px] text-zinc-500 leading-relaxed font-light text-left">
-                      Dispare eventos de mensagem simulando ações reais dos clientes para testar a triagem e o despache automático via Inteligência Artificial!
+                      Teste a etapa que o CRM identifica em uma mensagem de exemplo. A simulação é local.
                     </p>
 
                     <div className="space-y-3 text-left">
@@ -1253,22 +1173,18 @@ Equipe Atlas Intelligence`;
                       <button
                         type="button"
                         onClick={handleSimulateWebhook}
-                        disabled={isSimulatingMessage || waActionLoading}
+                        disabled={!clientSimulatedPhone.trim() || !clientSimulatedName.trim() || !clientSimulatedMessage.trim()}
                         className="w-full py-2.5 bg-[#E2B755] hover:bg-yellow-500 text-black font-semibold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2"
                       >
-                        {isSimulatingMessage ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-black" />
-                        ) : (
-                          <Play className="w-3.5 h-3.5 text-black fill-black" />
-                        )}
-                        Simular Recebimento no Webhook
+                        <Play className="w-3 h-3" />
+                        Simular mensagem
                       </button>
                     </div>
                   </div>
 
                   {/* Simulator real-time logs terminal */}
                   <div className="mt-4 pt-3 border-t border-zinc-900/60">
-                    <span className="text-[9px] uppercase font-mono font-bold text-zinc-500 block mb-1.5 text-left">Logs do Servidor (Webhook Console)</span>
+                    <span className="text-[9px] uppercase font-mono font-bold text-zinc-500 block mb-1.5 text-left">Resultado da simulação</span>
                     <div className="w-full h-24 bg-black border border-zinc-900 rounded-xl p-2.5 font-mono text-[9px] text-zinc-400 overflow-y-auto space-y-1 text-left">
                       {simulationLogs.length === 0 ? (
                         <span className="text-zinc-600 block italic">Nenhum evento disparado ainda. Use o botão acima para iniciar...</span>

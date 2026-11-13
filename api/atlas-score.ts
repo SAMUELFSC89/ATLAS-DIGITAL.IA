@@ -1,4 +1,4 @@
-import { classifyUrl, getAuthenticatedEmail, LOCAL_SCORE_WINDOW, placesTextSearch, RadarError, scoreForLocalPosition } from "./radar.js";
+import { classifyUrl, findCityCenter, getAuthenticatedEmail, localRankingQuery, LOCAL_SCORE_WINDOW, placesTextSearch, RadarError, scoreForLocalPosition } from "./radar.js";
 import type { AtlasScoreReport } from "../src/types.js";
 
 interface GooglePlace {
@@ -111,12 +111,18 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ error: "Informe o nome da empresa, a cidade e o termo de busca." });
   }
 
-  const query = `${segment} em ${city}, Brasil`;
+  const place = `${city}, Brasil`;
+  const query = `${segment} em ${place}`;
+  const radiusKm = typeof body.radiusKm === "number" && Number.isFinite(body.radiusKm)
+    ? Math.min(100, Math.max(1, body.radiusKm)) : 10;
   const options = { languageCode: "pt-BR", regionCode: "BR", pageSize: LOCAL_SCORE_WINDOW };
   try {
-    const profileResult = await placesTextSearch({ ...options, textQuery: `${name}, ${city}, Brasil` }, PROFILE_FIELDS);
+    const [profileResult, center] = await Promise.all([
+      placesTextSearch({ ...options, textQuery: `${name}, ${place}` }, PROFILE_FIELDS),
+      findCityCenter(place),
+    ]);
     const profile = matchProfile(profileResult.places || [], name, city, website, mapsUrl);
-    const ranked = await placesTextSearch({ ...options, textQuery: query, rankPreference: "RELEVANCE" }, "places.id");
+    const ranked = await placesTextSearch(localRankingQuery(query, center, radiusKm), "places.id");
     const ids = [...new Set<string>((ranked.places || []).map((place: GooglePlace) => place.id).filter(Boolean))].slice(0, LOCAL_SCORE_WINDOW);
     const rankIndex = ids.indexOf(profile.id!);
     const position = rankIndex < 0 ? null : rankIndex + 1;

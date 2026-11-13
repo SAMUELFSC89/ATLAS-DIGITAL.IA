@@ -83,8 +83,9 @@ export interface Lead {
   linkedin: string;
   googleProfile: string;
   atlasScore: number | null;
-  localPosition?: number;
+  localPosition?: number | null;
   positionQuery?: string;
+  positionCheckedAt?: string;
   status: LeadStatus;
   lastContact: string;
   nextAction: string;
@@ -92,6 +93,8 @@ export interface Lead {
   notes: string;
   segment: string;
   createdAt: string;
+  statusSource?: 'manual' | 'whatsapp';
+  statusUpdatedAt?: string;
 }
 
 export interface BlogArticle {

@@ -17,6 +17,19 @@ async function graph(path: string, token?: string) {
   return response.json();
 }
 
+async function subscribeWhatsAppEvents(wabaId: string, token: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${GRAPH}/${wabaId}/subscribed_apps`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    return response.ok && (await response.json()).success === true;
+  } catch {
+    return false;
+  }
+}
+
 function publicRecord(record: any) {
   const { accessToken, ...safe } = record;
   return { ...safe, status: isRealRecord(record) ? "connected" : "disconnected" };
@@ -116,10 +129,11 @@ export default async function handler(req: any, res: any) {
       const phoneNumberId = phone.id;
 
       if (action === "refresh") {
+        const webhookSubscribed = await subscribeWhatsAppEvents(whatsappBusinessAccountId, token);
         const record = { ...existing, displayPhoneNumber: phone.display_phone_number,
-          verifiedName: phone.verified_name || "", qualityRating: phone.quality_rating || "" };
+          verifiedName: phone.verified_name || "", qualityRating: phone.quality_rating || "", webhookSubscribed };
         await ref.update({ displayPhoneNumber: record.displayPhoneNumber,
-          verifiedName: record.verifiedName, qualityRating: record.qualityRating });
+          verifiedName: record.verifiedName, qualityRating: record.qualityRating, webhookSubscribed });
         return res.status(200).json({ success: true, record: publicRecord(record) });
       }
 
@@ -143,7 +157,9 @@ export default async function handler(req: any, res: any) {
         fallbackWarning: "",
       };
       await ref.set(record, { merge: true });
-      return res.status(200).json({ success: true, record: publicRecord({ ...existing, ...record }) });
+      const webhookSubscribed = await subscribeWhatsAppEvents(whatsappBusinessAccountId, token);
+      await ref.update({ webhookSubscribed });
+      return res.status(200).json({ success: true, record: publicRecord({ ...existing, ...record, webhookSubscribed }) });
     }
 
     return res.status(405).json({ error: "Ação não suportada." });
