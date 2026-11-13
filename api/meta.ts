@@ -1,241 +1,142 @@
-import { IncomingMessage, ServerResponse } from "http";
-import { encrypt, decrypt, readDb, writeDb } from "./db-helper.js";
+import { decrypt, encrypt, getFirestoreAdmin } from "./db-helper.js";
+import { getAuthenticatedEmail } from "./radar.js";
 
-// Router/Controller
+const GRAPH = "https://graph.facebook.com/v24.0";
+const isId = (value: unknown): value is string => typeof value === "string" && /^\d{5,32}$/.test(value);
+const isRealRecord = (record: any) => record.status === "connected" &&
+  isId(record.whatsappBusinessAccountId) && isId(record.phoneNumberId) &&
+  Boolean(record.accessToken) && !record.hasGraphErrors &&
+  !/^EAAG.*EAAG$/.test(decrypt(record.accessToken));
+
+async function graph(path: string, token?: string) {
+  const response = await fetch(`${GRAPH}/${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw new Error("A Meta recusou a autorização ou o acesso aos dados do WhatsApp.");
+  return response.json();
+}
+
+function publicRecord(record: any) {
+  const { accessToken, ...safe } = record;
+  return { ...safe, status: isRealRecord(record) ? "connected" : "disconnected" };
+}
+
 export default async function handler(req: any, res: any) {
-  // CORS Headers
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS,PATCH,DELETE,POST,PUT");
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, X-Company-Id"
-  );
+  res.setHeader("Cache-Control", "no-store");
+  if (req.method !== "GET" && req.method !== "POST") return res.status(405).json({ error: "Método não suportado." });
+  const email = await getAuthenticatedEmail(req);
+  if (!email) return res.status(401).json({ error: "Entre na Atlas para configurar o WhatsApp." });
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
+  const action = req.query?.action || "status";
+  const appId = process.env.META_APP_ID?.trim();
+  const configId = process.env.META_CONFIG_ID?.trim();
+  const appSecret = process.env.META_APP_SECRET?.trim() || process.env.META_CLIENT_SECRET?.trim();
+  const solutionId = process.env.META_SOLUTION_ID?.trim();
+
+  if (req.method === "GET" && action === "config") {
+    const missing = [
+      !isId(appId) && "META_APP_ID",
+      !isId(configId) && "META_CONFIG_ID",
+      !appSecret && "META_APP_SECRET",
+    ].filter(Boolean);
+    return res.status(200).json({ appId, configId, solutionId: isId(solutionId) ? solutionId : undefined, missing });
   }
 
   try {
-    // Safe parsing and fallback logging
-    console.log(`[Meta API] [${req.method}] Action: ${req.query?.action || "status"}, Company: ${req.headers?.["x-company-id"] || req.query?.companyId}`);
-    
-    // Identify tenant from request header
-    const companyId = req.headers?.["x-company-id"] || req.query?.companyId;
-
-    if (!companyId) {
-      console.warn("[Meta API] Blocked request: missing companyId");
-      return res.status(401).json({ error: "Empresa não autenticada. Cabeçalho 'X-Company-Id' ausente ou vazio." });
+    const ref = getFirestoreAdmin().collection("companies").doc(email);
+    if (req.method === "GET" && (action === "status" || action === "profile")) {
+      const existing = (await ref.get()).data() || {};
+      return res.status(200).json(publicRecord(existing));
     }
 
-    const action = req.query?.action || "status";
-    const db = await readDb();
-    const companyRecord = db[companyId] || {
-      empresaId: companyId,
-      status: "disconnected"
-    };
-
-    if (req.method === "GET") {
-      if (action === "status") {
-        // Return status without sensitive access token
-        const cleanRecord = { ...companyRecord };
-        delete cleanRecord.accessToken;
-        return res.status(200).json(cleanRecord);
-      }
-
-      if (action === "config") {
-        let baseUrl = "";
-        if (process.env.APP_URL && process.env.APP_URL !== "MY_APP_URL" && process.env.APP_URL.trim() !== "") {
-          baseUrl = process.env.APP_URL.replace(/\/$/, "");
-        } else {
-          const protocol = req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http");
-          const host = req.headers.host;
-          baseUrl = `${protocol}://${host}`;
-        }
-        const redirectUri = `${baseUrl}/api/meta-callback`;
-        return res.status(200).json({
-          appId: process.env.META_APP_ID || "123456789",
-          redirectUri
-        });
-      }
-
-      if (action === "profile") {
-        if (companyRecord.status !== "connected") {
-          return res.status(400).json({ error: "WhatsApp não está conectado para esta empresa." });
-        }
-        
-        // Return profile metrics
-        return res.status(200).json({
-          verifiedName: companyRecord.verifiedName,
-          displayPhoneNumber: companyRecord.displayPhoneNumber,
-          phoneNumberId: companyRecord.phoneNumberId,
-          qualityRating: companyRecord.qualityRating,
-          messagingLimit: companyRecord.messagingLimit,
-          status: companyRecord.status,
-          messagesToday: companyRecord.messagesToday || 0,
-          openConversations: companyRecord.openConversations || 0,
-          connectedAt: companyRecord.connectedAt
-        });
-      }
+    if (req.method === "POST" && action === "disconnect") {
+      await ref.set({ empresaId: email, status: "disconnected", accessToken: null, updatedAt: new Date().toISOString() }, { merge: true });
+      return res.status(200).json({ success: true });
     }
 
-    if (req.method === "POST") {
-      if (action === "update_config") {
-        const { facebookBusinessId, whatsappBusinessAccountId, phoneNumberId, displayPhoneNumber, verifiedName, accessToken } = req.body || {};
-
-        let record = db[companyId] || {
-          empresaId: companyId,
-          status: "connected",
-          connectedAt: new Date().toISOString(),
-          messagesToday: 0,
-          openConversations: 0,
-          qualityRating: "GREEN",
-          messagingLimit: "TIER_250"
-        };
-
-        record.facebookBusinessId = facebookBusinessId || record.facebookBusinessId || "";
-        record.whatsappBusinessAccountId = whatsappBusinessAccountId || record.whatsappBusinessAccountId || "";
-        record.phoneNumberId = phoneNumberId || record.phoneNumberId || "";
-        record.displayPhoneNumber = displayPhoneNumber || record.displayPhoneNumber || "";
-        record.verifiedName = verifiedName || record.verifiedName || companyId;
-        record.status = "connected";
-        record.updatedAt = new Date().toISOString();
-
-        if (accessToken) {
-          record.accessToken = encrypt(accessToken);
-        }
-
-        db[companyId] = record;
-        await writeDb(db);
-
-        const responsePayload = { ...record };
-        delete responsePayload.accessToken;
-        return res.status(200).json({ success: true, record: responsePayload });
+    if (req.method === "POST" && ["connect", "update_config", "refresh"].includes(action)) {
+      const existing = (await ref.get()).data() || {};
+      if (action === "refresh" && !isRealRecord(existing)) {
+        return res.status(400).json({ error: "Conecte um número na Meta antes de sincronizar." });
+      }
+      const input = req.body || {};
+      const whatsappBusinessAccountId = action === "refresh" ? existing.whatsappBusinessAccountId : input.whatsappBusinessAccountId;
+      const phoneNumberId = action === "refresh" ? existing.phoneNumberId : input.phoneNumberId;
+      if (!isId(whatsappBusinessAccountId) || !isId(phoneNumberId)) {
+        return res.status(400).json({ error: "Informe os IDs da conta do WhatsApp Business e do telefone exibidos pela Meta." });
       }
 
+      let token: string = action === "refresh" ? "" : typeof input.accessToken === "string" ? input.accessToken.trim() : "";
       if (action === "connect") {
-        const { code, facebookBusinessId, whatsappBusinessAccountId, phoneNumberId, accessToken, displayPhoneNumber, verifiedName } = req.body || {};
-
-        // If it is simulated signup or code is mock
-        if (code === "simulated_code" || !accessToken) {
-          // Process simulated Embedded Signup response
-          const simulatedPhoneId = phoneNumberId || `1065${Math.floor(1000000 + Math.random() * 9000000)}`;
-          const simulatedWabaId = whatsappBusinessAccountId || `2048${Math.floor(1000000 + Math.random() * 9000000)}`;
-          const simulatedBizId = facebookBusinessId || `3019${Math.floor(1000000 + Math.random() * 9000000)}`;
-          const cleanPhone = displayPhoneNumber || `+55 11 9${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
-          const cleanName = verifiedName || `${companyId.split("@")[0].toUpperCase()} Local CRM`;
-
-          const encryptedToken = encrypt("EAAG" + Math.random().toString(36).substring(2, 15) + "EAAG");
-
-          const updatedRecord = {
-            empresaId: companyId,
-            facebookBusinessId: simulatedBizId,
-            whatsappBusinessAccountId: simulatedWabaId,
-            phoneNumberId: simulatedPhoneId,
-            accessToken: encryptedToken,
-            status: "connected",
-            connectedAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            displayPhoneNumber: cleanPhone,
-            verifiedName: cleanName,
-            qualityRating: "GREEN",
-            messagingLimit: "TIER_10K",
-            messagesToday: 0,
-            openConversations: 0
-          };
-
-          db[companyId] = updatedRecord;
-          await writeDb(db);
-
-          const responsePayload = { ...updatedRecord };
-          delete responsePayload.accessToken;
-          return res.status(200).json({ success: true, record: responsePayload });
-        } else {
-          // Process real credentials from Meta Embedded Signup
-          const encryptedToken = encrypt(accessToken);
-
-          const updatedRecord = {
-            empresaId: companyId,
-            facebookBusinessId: facebookBusinessId || "",
-            whatsappBusinessAccountId: whatsappBusinessAccountId || "",
-            phoneNumberId: phoneNumberId || "",
-            accessToken: encryptedToken,
-            status: "connected",
-            connectedAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            displayPhoneNumber: displayPhoneNumber || "",
-            verifiedName: verifiedName || companyId,
-            qualityRating: "GREEN",
-            messagingLimit: "TIER_250",
-            messagesToday: 0,
-            openConversations: 0
-          };
-
-          db[companyId] = updatedRecord;
-          await writeDb(db);
-
-          const responsePayload = { ...updatedRecord };
-          delete responsePayload.accessToken;
-          return res.status(200).json({ success: true, record: responsePayload });
+        if (!appId || !appSecret || !configId) {
+          return res.status(503).json({ error: "A configuração do cadastro integrado da Meta está incompleta na Atlas." });
         }
+        if (typeof input.code !== "string" || !input.code.trim() || input.code.length > 4000) {
+          return res.status(400).json({ error: "A Meta não retornou um código de autorização válido. Inicie a conexão novamente." });
+        }
+        const params = new URLSearchParams({ client_id: appId, client_secret: appSecret, code: input.code });
+        const result = await graph(`oauth/access_token?${params}`);
+        token = typeof result.access_token === "string" ? result.access_token : "";
+      } else if (!token && isRealRecord(existing)) {
+        token = decrypt(existing.accessToken);
+      }
+      if (!token || token.length > 5000 || (token.startsWith("EAAG") && token.endsWith("EAAG"))) {
+        return res.status(400).json({ error: "Use um token válido da Meta para o número informado." });
       }
 
-      if (action === "disconnect") {
-        db[companyId] = {
-          empresaId: companyId,
-          status: "disconnected",
-          updatedAt: new Date().toISOString()
-        };
-        await writeDb(db);
-        return res.status(200).json({ success: true, message: "WhatsApp Business desconectado com sucesso." });
+      // Read the phone through its WABA so the submitted IDs must match the same authorized account.
+      const fields = "id,display_phone_number,verified_name,quality_rating";
+      let after = "";
+      let phone: any;
+      for (let page = 0; page < 10 && !phone; page++) {
+        const params = new URLSearchParams({ fields, limit: "100" });
+        if (after) params.set("after", after);
+        const list = await graph(`${whatsappBusinessAccountId}/phone_numbers?${params}`, token);
+        phone = Array.isArray(list.data) && list.data.find((item: any) => item.id === phoneNumberId);
+        after = list.paging?.next ? list.paging?.cursors?.after : "";
+        if (!after) break;
+      }
+      if (!phone || !phone.display_phone_number) {
+        return res.status(422).json({ error: "A Meta não retornou esse telefone na conta informada. Confira o número e a conta selecionados." });
       }
 
       if (action === "refresh") {
-        if (companyRecord.status !== "connected") {
-          return res.status(400).json({ error: "Empresa não possui WhatsApp conectado para sincronizar." });
-        }
-
-        const decryptedToken = decrypt(companyRecord.accessToken);
-        const phoneNumberId = companyRecord.phoneNumberId;
-
-        if (decryptedToken && phoneNumberId && !decryptedToken.startsWith("EAAG")) {
-          try {
-            const url = `https://graph.facebook.com/v18.0/${phoneNumberId}?fields=quality_rating,messaging_limit_tier,verified_name,display_phone_number`;
-            const resMeta = await fetch(url, {
-              headers: { "Authorization": `Bearer ${decryptedToken}` }
-            });
-            
-            if (resMeta.ok) {
-              const dataMeta = await resMeta.json();
-              companyRecord.qualityRating = dataMeta.quality_rating || companyRecord.qualityRating;
-              companyRecord.messagingLimit = dataMeta.messaging_limit_tier || companyRecord.messagingLimit;
-              companyRecord.verifiedName = dataMeta.verified_name || companyRecord.verifiedName;
-              companyRecord.displayPhoneNumber = dataMeta.display_phone_number || companyRecord.displayPhoneNumber;
-            }
-          } catch (err) {
-            console.error("Error refreshing WhatsApp info from Meta Graph API:", err);
-          }
-        } else {
-          // Simulation metric increments for local sandbox/dev modes
-          companyRecord.messagesToday = (companyRecord.messagesToday || 0) + Math.floor(1 + Math.random() * 3);
-          companyRecord.openConversations = Math.floor(1 + Math.random() * 5);
-          companyRecord.qualityRating = "GREEN";
-          companyRecord.messagingLimit = "TIER_250";
-        }
-
-        companyRecord.updatedAt = new Date().toISOString();
-        db[companyId] = companyRecord;
-        await writeDb(db);
-
-        const responsePayload = { ...companyRecord };
-        delete responsePayload.accessToken;
-        return res.status(200).json({ success: true, record: responsePayload });
+        const record = { ...existing, displayPhoneNumber: phone.display_phone_number,
+          verifiedName: phone.verified_name || "", qualityRating: phone.quality_rating || "" };
+        await ref.update({ displayPhoneNumber: record.displayPhoneNumber,
+          verifiedName: record.verifiedName, qualityRating: record.qualityRating });
+        return res.status(200).json({ success: true, record: publicRecord(record) });
       }
+
+      const encryptedToken = encrypt(token);
+      if (encryptedToken === token) return res.status(503).json({ error: "A Atlas não conseguiu proteger a credencial da Meta." });
+      const now = new Date().toISOString();
+      const record = {
+        empresaId: email,
+        whatsappBusinessAccountId,
+        phoneNumberId,
+        displayPhoneNumber: phone.display_phone_number,
+        verifiedName: phone.verified_name || "",
+        qualityRating: phone.quality_rating || "",
+        accessToken: encryptedToken,
+        status: "connected",
+        connectedAt: existing.phoneNumberId === phoneNumberId && existing.connectedAt ? existing.connectedAt : now,
+        updatedAt: now,
+        hasGraphErrors: false,
+        ...(existing.phoneNumberId !== phoneNumberId || existing.status !== "connected" ? { autoReplyEnabled: false } : {}),
+        fallbackWarning: "",
+      };
+      await ref.set(record, { merge: true });
+      return res.status(200).json({ success: true, record: publicRecord({ ...existing, ...record }) });
     }
 
-    return res.status(405).json({ error: "Método não suportado." });
-  } catch (err: any) {
-    console.error("Meta API error:", err);
-    return res.status(500).json({ error: "Erro processando a integração Meta.", details: err.message });
+    return res.status(405).json({ error: "Ação não suportada." });
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("A Meta recusou")) {
+      return res.status(502).json({ error: error.message });
+    }
+    console.error("[Meta] Falha na integração", error instanceof Error ? error.name : "unknown");
+    return res.status(503).json({ error: "A Atlas não conseguiu concluir a conexão agora. Tente novamente." });
   }
 }

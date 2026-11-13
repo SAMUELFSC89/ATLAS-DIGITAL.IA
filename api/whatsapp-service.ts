@@ -61,7 +61,7 @@ export async function sendWhatsAppMessage(empresaId: string, telefoneDestino: st
   }
 
   try {
-    const url = `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`;
+    const url = `${WHATSAPP_GRAPH_URL}/${phoneNumberId}/messages`;
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -138,6 +138,8 @@ export async function handleIncomingWebhookMessage(body: any): Promise<{ process
       console.warn(`[WhatsApp Webhook] Mensagem recebida para o Phone Number ID: ${phoneNumberId}, mas nenhuma empresa SaaS correspondente está conectada.`);
       return { processed: false, error: `Nenhuma empresa conectada para o Phone Number ID: ${phoneNumberId}` };
     }
+
+    if (targetCompany.autoReplyEnabled === false) return { processed: false };
 
     const messageObj = value.messages[0];
     const from = messageObj.from;
