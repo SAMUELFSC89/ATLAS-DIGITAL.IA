@@ -10,7 +10,10 @@ export class ApiError extends Error {
 async function authHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const user = auth.currentUser;
-  if (user) headers.Authorization = `Bearer ${await user.getIdToken()}`;
+  if (!user?.email || user.isAnonymous) {
+    throw new ApiError('unauthenticated', 'Entre na sua conta para continuar.', 401);
+  }
+  headers.Authorization = `Bearer ${await user.getIdToken()}`;
   return headers;
 }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db } from './lib/firebase';
+import { auth, db } from './lib/firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import {
   ZapOff,
@@ -82,9 +83,25 @@ export default function App() {
 
   // Portal / SaaS States
   const [isPortalActive, setIsPortalActive] = useState(false);
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<string | null | undefined>(undefined);
   const [activePortalTab, setActivePortalTab] = useState<string>('dashboard');
   const [selectedLeadForCopilot, setSelectedLeadForCopilot] = useState<Lead | null>(null);
+
+  useEffect(() => onAuthStateChanged(auth, (user) => {
+    setCurrentUser(user && !user.isAnonymous ? user.email : null);
+  }), []);
+
+  const handlePortalSignOut = async () => {
+    try {
+      await signOut(auth);
+      setCrmLeads([]);
+      setSelectedLeadForCopilot(null);
+      setActivePortalTab('dashboard');
+      setIsPortalActive(false);
+    } catch {
+      alert('Não foi possível sair do portal. Tente novamente.');
+    }
+  };
 
   const [integrations, setIntegrations] = useState<IntegrationConfig[]>([
     { id: 'gmail', name: 'Google Gmail API', status: 'connected', category: 'Google', icon: 'Mail', description: 'Permite gerenciar a caixa de entrada comercial de seus clientes com rascunhos de e-mails inteligentes sugeridos pela IA.', requiresOAuth: true },
@@ -171,11 +188,13 @@ export default function App() {
 
   // Load CRM Leads from Firebase Firestore on Mount/Login
   useEffect(() => {
-    if (!isPortalActive) return;
+    if (!isPortalActive || !currentUser) return;
+    let cancelled = false;
 
     const fetchLeads = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, 'leads'));
+        if (cancelled) return;
         if (querySnapshot.empty) {
           // Seed the 3 default mock leads to Firestore
           const batch = writeBatch(db);
@@ -184,7 +203,7 @@ export default function App() {
             batch.set(leadRef, lead);
           });
           await batch.commit();
-          setCrmLeads(DEFAULT_MOCK_LEADS);
+          if (!cancelled) setCrmLeads(DEFAULT_MOCK_LEADS);
           console.log('[Firebase Seed] Successfully seeded CRM leads to Firestore');
         } else {
           const loadedLeads: Lead[] = [];
@@ -195,13 +214,15 @@ export default function App() {
           console.log('[Firebase Sync] Loaded CRM leads from Firestore');
         }
       } catch (err) {
+        if (cancelled) return;
         console.error('Failed to load leads from Firestore, using mock fallback:', err);
         setCrmLeads(DEFAULT_MOCK_LEADS);
       }
     };
 
     fetchLeads();
-  }, [isPortalActive]);
+    return () => { cancelled = true; };
+  }, [isPortalActive, currentUser]);
 
   const handleAddLeadToCrm = async (newLead: Omit<Lead, 'id' | 'createdAt'>) => {
     const leadId = `lead-added-${Date.now()}`;
@@ -366,7 +387,7 @@ export default function App() {
             </div>
 
             {/* Sidebar Tab Selectors */}
-            <nav className="space-y-1 text-left">
+            {currentUser && <nav className="space-y-1 text-left">
               {[
                 { id: 'dashboard', label: 'Painel Executivo', icon: Layout },
                 { id: 'radar', label: 'Radar de Mercado', icon: Compass },
@@ -395,11 +416,11 @@ export default function App() {
                   </button>
                 );
               })}
-            </nav>
+            </nav>}
           </div>
 
           {/* User profile / Logout bar */}
-          <div className="p-4 border-t border-zinc-900 bg-black/40 space-y-3 text-left">
+          {currentUser && <div className="p-4 border-t border-zinc-900 bg-black/40 space-y-3 text-left">
             <div className="flex items-center gap-2.5 px-2">
               <div className="w-7.5 h-7.5 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-white uppercase font-mono">
                 {currentUser ? currentUser.substring(0, 2) : "C"}
@@ -411,16 +432,13 @@ export default function App() {
             </div>
 
             <button
-              onClick={() => {
-                setIsPortalActive(false);
-                setCurrentUser(null);
-              }}
+              onClick={handlePortalSignOut}
               className="w-full py-2 bg-zinc-950 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 border border-zinc-900 hover:border-red-900/40 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
             >
               <LogOut className="w-3.5 h-3.5" />
               Sair do Portal
             </button>
-          </div>
+          </div>}
 
         </aside>
 
@@ -430,10 +448,7 @@ export default function App() {
           <header className="h-16 border-b border-zinc-900 bg-[#09090b]/80 backdrop-blur px-6 flex items-center justify-between z-10">
             <div className="flex items-center gap-2">
               <button 
-                onClick={() => {
-                  setIsPortalActive(false);
-                  setCurrentUser(null);
-                }} 
+                onClick={() => setIsPortalActive(false)}
                 className="text-zinc-400 hover:text-white text-xs font-mono font-bold flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-900"
               >
                 &larr; Voltar para o Site
@@ -444,17 +459,24 @@ export default function App() {
               <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest hidden sm:inline">Status do Cluster: <strong className="text-emerald-400 font-bold">ONLINE</strong></span>
               <div className="h-4 w-px bg-zinc-900 hidden sm:inline" />
               <div className="text-right">
-                <span className="text-white text-[11px] font-semibold block">{currentUser || "Acesso de Teste"}</span>
+                <span className="text-white text-[11px] font-semibold block">{currentUser || "Acesso ao portal"}</span>
                 <span className="text-[#E2B755] text-[9px] font-mono block uppercase tracking-wider">Atlas Intelligence SaaS</span>
               </div>
+              {currentUser && (
+                <button type="button" onClick={handlePortalSignOut} className="md:hidden text-xs font-semibold text-zinc-300 hover:text-white px-2 py-2">
+                  Sair
+                </button>
+              )}
             </div>
           </header>
 
           {/* Main workspace scrollable container */}
           <main className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8">
             
-            {!currentUser ? (
-              <AuthPage onLoginSuccess={(email) => setCurrentUser(email)} />
+            {currentUser === undefined ? (
+              <p role="status" className="text-sm text-zinc-400">Verificando sua sessão...</p>
+            ) : !currentUser ? (
+              <AuthPage />
             ) : (
               <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
                 {activePortalTab === 'dashboard' && (
