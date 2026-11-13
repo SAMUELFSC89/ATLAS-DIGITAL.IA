@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { readDb, writeDb, decrypt } from "./db-helper.ts";
+import { readDb, writeDb, decrypt } from "./db-helper.js";
 
 let aiClient: GoogleGenAI | null = null;
 

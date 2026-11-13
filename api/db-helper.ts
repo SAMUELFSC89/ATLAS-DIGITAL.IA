@@ -66,8 +66,10 @@ let firestoreDb: Firestore | null = null;
 export function getFirestoreAdmin(): Firestore {
   if (!firestoreDb) {
     const configPath = path.join(process.cwd(), "firebase-applet-config.json");
-    let projectId = process.env.FIREBASE_PROJECT_ID;
-    let databaseId = "(default)";
+    // Valores do firebase-applet-config.json, repetidos aqui porque esse arquivo
+    // não acompanha as funções quando o site roda na Vercel.
+    let projectId = process.env.FIREBASE_PROJECT_ID || "gen-lang-client-0890994677";
+    let databaseId = process.env.FIRESTORE_DATABASE_ID || "ai-studio-atlasdigital-4891cb7b-96c9-4c4e-9aa7-16118c1c9905";
 
     if (fs.existsSync(configPath)) {
       try {

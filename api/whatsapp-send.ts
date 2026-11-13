@@ -1,4 +1,4 @@
-import { getWhatsAppConnectionInfo, sendWhatsAppTemplate } from "./whatsapp-service.ts";
+import { getWhatsAppConnectionInfo, sendWhatsAppTemplate } from "./whatsapp-service.js";
 
 const MAX_PARAM_LENGTH = 300;
 

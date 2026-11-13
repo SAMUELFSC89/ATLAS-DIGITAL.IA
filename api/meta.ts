@@ -1,5 +1,5 @@
 import { IncomingMessage, ServerResponse } from "http";
-import { encrypt, decrypt, readDb, writeDb } from "./db-helper.ts";
+import { encrypt, decrypt, readDb, writeDb } from "./db-helper.js";
 
 // Router/Controller
 export default async function handler(req: any, res: any) {

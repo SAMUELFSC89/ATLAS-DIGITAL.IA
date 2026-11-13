@@ -1,4 +1,4 @@
-import { encrypt, readDb, writeDb } from "./db-helper.ts";
+import { encrypt, readDb, writeDb } from "./db-helper.js";
 
 export default async function callbackHandler(req: any, res: any) {
   const code = req.query.code as string;

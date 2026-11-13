@@ -1,5 +1,5 @@
 import { IncomingMessage, ServerResponse } from "http";
-import { handleIncomingWebhookMessage } from "./whatsapp-service.ts";
+import { handleIncomingWebhookMessage } from "./whatsapp-service.js";
 
 export default async function handler(req: any, res: any) {
   // Configure basic CORS headers
