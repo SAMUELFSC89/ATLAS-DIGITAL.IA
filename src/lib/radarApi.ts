@@ -7,7 +7,8 @@ export class ApiError extends Error {
   }
 }
 
-async function authHeaders(): Promise<Record<string, string>> {
+/** Cabeçalhos das chamadas ao backend, com o token de login do Firebase. */
+export async function authHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const user = auth.currentUser;
   if (user) headers.Authorization = `Bearer ${await user.getIdToken()}`;

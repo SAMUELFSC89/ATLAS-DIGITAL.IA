@@ -5,6 +5,7 @@ import {
   Search, ExternalLink, RefreshCw, Send, ArrowRight, Bot, Compass, Plus, Loader2, AlertTriangle 
 } from 'lucide-react';
 import { IntegrationConfig, EmailMessage, WhatsAppChat } from '../types';
+import { authHeaders } from '../lib/radarApi';
 
 interface AutomacoesProps {
   onIntegrate: (id: string, state: 'connected' | 'disconnected') => void;
@@ -88,9 +89,7 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
     setWaLoading(true);
     try {
       const response = await fetch(`/api/meta?action=status`, {
-        headers: {
-          'x-company-id': currentUser || 'demo@empresa.com'
-        }
+        headers: await authHeaders()
       });
       const data = await response.json();
       if (data && data.status === 'connected') {
@@ -117,6 +116,8 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
     fetchWhatsAppStatus();
 
     const handleOAuthMessage = (event: MessageEvent) => {
+      // Só aceita o aviso vindo da janela do próprio app (/api/meta-callback).
+      if (event.origin !== window.location.origin) return;
       if (event.data && event.data.type === 'META_CONNECTED') {
         if (event.data.success) {
           fetchWhatsAppStatus();
@@ -142,8 +143,15 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
   const handleConnectWhatsApp = async () => {
     setWaLoading(true);
     try {
-      const response = await fetch(`/api/meta?action=config&companyId=${currentUser || 'demo@empresa.com'}`);
-      const { appId, redirectUri } = await response.json();
+      // O servidor devolve um `state` assinado que amarra o retorno da Meta à empresa logada.
+      const response = await fetch(`/api/meta?action=config`, { headers: await authHeaders() });
+      const { appId, redirectUri, state, error } = await response.json();
+
+      if (!response.ok) {
+        alert(error || "Sessão expirada. Saia e entre novamente.");
+        setWaLoading(false);
+        return;
+      }
 
       if (!appId || appId === '123456789') {
         alert("O App ID da Meta não está configurado nas variáveis de ambiente (.env). Por favor, configure META_APP_ID para produção.");
@@ -151,7 +159,12 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
         return;
       }
 
-      const state = currentUser || 'demo@empresa.com';
+      if (!state) {
+        alert("O servidor não conseguiu iniciar a conexão segura com a Meta. Confira se META_CLIENT_SECRET está configurado.");
+        setWaLoading(false);
+        return;
+      }
+
       const scope = 'whatsapp_business_management,whatsapp_business_messaging,business_management';
       const extras = JSON.stringify({
         setup: {
@@ -184,9 +197,7 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
     try {
       const response = await fetch(`/api/meta?action=disconnect`, {
         method: 'POST',
-        headers: {
-          'x-company-id': currentUser || 'demo@empresa.com'
-        }
+        headers: await authHeaders()
       });
       const data = await response.json();
       if (data.success) {
@@ -194,6 +205,8 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
         setMetaApproved(false);
         setShowDisconnectConfirm(false);
         onIntegrate('whatsapp-biz', 'disconnected');
+      } else {
+        alert("Erro ao desconectar: " + (data.error || "Desconhecido"));
       }
     } catch (err: any) {
       alert("Erro ao desconectar: " + err.message);
@@ -208,9 +221,7 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
     try {
       const response = await fetch(`/api/meta?action=refresh`, {
         method: 'POST',
-        headers: {
-          'x-company-id': currentUser || 'demo@empresa.com'
-        }
+        headers: await authHeaders()
       });
       const data = await response.json();
       if (data.success) {
@@ -229,10 +240,7 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
     try {
       const response = await fetch(`/api/meta?action=update_config`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-company-id': currentUser || 'demo@empresa.com'
-        },
+        headers: await authHeaders(),
         body: JSON.stringify({
           facebookBusinessId: formBizId,
           whatsappBusinessAccountId: formWabaId,
@@ -265,7 +273,7 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
   // Simulate incoming webhook message
   const handleSimulateWebhook = async () => {
     setIsSimulatingMessage(true);
-    setSimulationLogs(prev => [...prev, `[Webhook] POST /api/webhook iniciado...`]);
+    setSimulationLogs(prev => [...prev, `[Webhook] Evento de teste enviado...`]);
     try {
       const payload = {
         object: "whatsapp_business_account",
@@ -307,15 +315,18 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
         ]
       };
 
-      const response = await fetch('/api/webhook', {
+      // O /api/webhook real só aceita eventos assinados pela Meta; o simulador usa
+      // uma rota autenticada que processa o teste para a empresa logada.
+      const response = await fetch('/api/meta?action=simulate_webhook', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: await authHeaders(),
         body: JSON.stringify(payload)
       });
-      
+
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
       
       const formattedPhone = `+${clientSimulatedPhone.substring(0, 2)} ${clientSimulatedPhone.substring(2, 4)} ${clientSimulatedPhone.substring(4, 9)}-${clientSimulatedPhone.substring(9)}`;
       const existingChat = waChats.find(c => c.phone === formattedPhone || c.phone.replace(/[^0-9]/g, '') === clientSimulatedPhone);
@@ -439,7 +450,7 @@ Equipe Atlas Intelligence`;
     setActiveWaSuggestion('');
     
     // Send message to backend dispatcher
-    fetch(`/api/meta?action=refresh`, { method: 'POST', headers: { 'x-company-id': currentUser || 'demo@empresa.com' } });
+    authHeaders().then((headers) => fetch(`/api/meta?action=refresh`, { method: 'POST', headers })).catch(() => {});
     
     // Auto simulated response after 2 seconds
     setTimeout(() => {

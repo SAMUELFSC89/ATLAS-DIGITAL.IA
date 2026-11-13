@@ -41,6 +41,9 @@ export async function sendWhatsAppMessage(empresaId: string, telefoneDestino: st
   }
 
   const decryptedToken = decrypt(accessToken);
+  if (!decryptedToken) {
+    return { success: false, error: "O token salvo do WhatsApp não é mais válido. Reconecte em Automações." };
+  }
 
   // Se o token for simulado ou estarmos em ambiente de desenvolvimento sem tokens reais
   if (decryptedToken.startsWith("EAAG") && decryptedToken.endsWith("EAAG")) {
@@ -229,9 +232,13 @@ export async function getWhatsAppConnectionInfo(empresaId: string): Promise<What
   if (!company || company.status !== "connected" || !company.accessToken || !company.phoneNumberId) {
     return info;
   }
+  const token = decrypt(company.accessToken);
+  if (!token) {
+    info.templatesError = "O token salvo do WhatsApp não é mais válido. Reconecte em Automações.";
+    return info;
+  }
   info.connected = true;
 
-  const token = decrypt(company.accessToken);
   if (isSimulatedToken(token)) {
     info.simulated = true;
     return info;
@@ -280,6 +287,9 @@ export async function sendWhatsAppTemplate(
   }
 
   const token = decrypt(company.accessToken);
+  if (!token) {
+    return { success: false, error: "O token salvo do WhatsApp não é mais válido. Reconecte em Automações." };
+  }
   if (isSimulatedToken(token)) {
     return { success: true, simulated: true, messageId: `wmid.Simulated_${Date.now()}` };
   }

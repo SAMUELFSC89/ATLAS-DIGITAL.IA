@@ -223,6 +223,8 @@ export interface Lead {
   notes: string;
   segment: string;
   createdAt: string;
+  /** UID do Firebase de quem criou o lead. As regras do Firestore só liberam o lead para esse usuário. */
+  ownerUid?: string;
 }
 
 export interface BlogArticle {

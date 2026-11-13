@@ -1,19 +1,24 @@
 import { encrypt, readDb, writeDb } from "./db-helper.ts";
+import { OAUTH_NONCE_COOKIE, getBaseUrl, oauthNonceCookie, readCookie, verifyOAuthState } from "./_lib/auth.ts";
+
+function escapeHtml(value: unknown): string {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" } as Record<string, string>
+  )[char]);
+}
+
+/** JSON seguro para colocar dentro de uma tag <script>. */
+function scriptJson(value: unknown): string {
+  return JSON.stringify(value ?? null).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
+}
 
 export default async function callbackHandler(req: any, res: any) {
   const code = req.query.code as string;
-  const companyId = (req.query.state as string) || "demo@empresa.com";
   const errorMsg = req.query.error_description || req.query.error || "Erro desconhecido";
 
-  let baseUrl = "";
-  if (process.env.APP_URL && process.env.APP_URL !== "MY_APP_URL" && process.env.APP_URL.trim() !== "") {
-    baseUrl = process.env.APP_URL.replace(/\/$/, "");
-  } else {
-    const protocol = req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http");
-    const host = req.headers.host;
-    baseUrl = `${protocol}://${host}`;
-  }
+  const baseUrl = getBaseUrl(req);
   const redirectUri = `${baseUrl}/api/meta-callback`;
+  const appOrigin = new URL(baseUrl).origin;
 
   const renderHTML = (success: boolean, error?: string, warningMsg?: string) => {
     let extraErrorInfo = "";
@@ -122,7 +127,7 @@ export default async function callbackHandler(req: any, res: any) {
             <div class="warning-icon">⚠</div>
             <h2>Conectado com Ajuste Pendente</h2>
             <p style="font-size: 13px; color: #fbbf24; margin-bottom: 16px; background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.2); padding: 12px; border-radius: 12px; text-align: left;">
-              ${warningMsg}
+              ${escapeHtml(warningMsg)}
             </p>
             <p style="margin-bottom: 24px;">
               Sua conta Meta foi autenticada, mas devido ao tipo do seu aplicativo na Meta, não conseguimos buscar as contas automaticamente. Nós criamos uma conexão temporária. <strong>Você poderá ajustar seus IDs reais de telefone e WABA manualmente nas configurações avançadas no painel.</strong>
@@ -137,7 +142,7 @@ export default async function callbackHandler(req: any, res: any) {
               : `
             <div class="error-icon">✕</div>
             <h2>Falha na Integração</h2>
-            <p>Ocorreu um erro ao processar a autorização oficial com a Meta: <strong style="color: #f3f4f6;">${error}</strong></p>
+            <p>Ocorreu um erro ao processar a autorização oficial com a Meta: <strong style="color: #f3f4f6;">${escapeHtml(error)}</strong></p>
             ${extraErrorInfo}
           `
           }
@@ -147,9 +152,9 @@ export default async function callbackHandler(req: any, res: any) {
             window.opener.postMessage({
               type: 'META_CONNECTED',
               success: ${success},
-              error: ${error ? JSON.stringify(error) : "null"},
-              warning: ${warningMsg ? JSON.stringify(warningMsg) : "null"}
-            }, '*');
+              error: ${scriptJson(error)},
+              warning: ${scriptJson(warningMsg)}
+            }, ${scriptJson(appOrigin)});
           }
           if (${success} && !${warningMsg ? "true" : "false"}) {
             setTimeout(function() {
@@ -162,6 +167,15 @@ export default async function callbackHandler(req: any, res: any) {
     `;
   };
 
+  // A empresa vem do `state` assinado pelo servidor para o usuário logado que
+  // iniciou a conexão, conferido contra o cookie do mesmo navegador. Sem isso,
+  // qualquer pessoa poderia gravar um token na conta de outra empresa.
+  const companyId = verifyOAuthState(req.query.state, readCookie(req, OAUTH_NONCE_COOKIE));
+  res.setHeader("Set-Cookie", oauthNonceCookie("", redirectUri.startsWith("https://"))); // uso único
+  if (!companyId) {
+    return res.status(200).send(renderHTML(false, "Não foi possível confirmar quem iniciou esta conexão (sessão expirada ou link inválido). Feche esta janela, entre no painel e clique em conectar novamente."));
+  }
+
   if (!code) {
     return res.status(200).send(renderHTML(false, `Meta cancelou a autorização ou ocorreu um erro: ${errorMsg}`));
   }
@@ -173,49 +187,23 @@ export default async function callbackHandler(req: any, res: any) {
     return res.status(200).send(renderHTML(false, "O 'META_CLIENT_SECRET' não está configurado no servidor. Configure-o nas variáveis de ambiente (.env)."));
   }
 
-  // Detailed Logging helper for Meta Graph API calls
+  // Registra só o caminho e o status das chamadas à Meta. As URLs, cabeçalhos e
+  // respostas carregam o App Secret e tokens de acesso, que não podem ir para os logs.
   async function fetchWithLogs(url: string, options: any = {}) {
-    const method = options.method || "GET";
-    const headers = options.headers || {};
-    const body = options.body || "";
-
-    console.log(`\n=== [Meta API Fetch Request] ===`);
-    console.log(`Endpoint: ${url}`);
-    console.log(`Method: ${method}`);
-    console.log(`Headers: ${JSON.stringify(headers, null, 2)}`);
-    if (body) {
-      console.log(`Body: ${body}`);
-    }
-
+    const endpoint = url.split("?")[0];
     try {
       const response = await fetch(url, options);
-      console.log(`\n=== [Meta API Fetch Response] ===`);
-      console.log(`Endpoint: ${url}`);
-      console.log(`HTTP Status: ${response.status}`);
-      
-      const responseClone = response.clone();
-      let textResponse = "";
-      try {
-        textResponse = await responseClone.text();
-        console.log(`Response Payload: ${textResponse}`);
-      } catch (e: any) {
-        console.warn(`Could not read response payload: ${e.message}`);
-      }
-      console.log(`=================================\n`);
+      console.log(`[Meta API] ${options.method || "GET"} ${endpoint} -> HTTP ${response.status}`);
       return response;
     } catch (error: any) {
-      console.error(`\n=== [Meta API Fetch Exception] ===`);
-      console.error(`Endpoint: ${url}`);
-      console.error(`Error: ${error.message}`);
-      console.error(`Stacktrace:`, error.stack);
-      console.log(`==================================\n`);
+      console.error(`[Meta API] ${options.method || "GET"} ${endpoint} falhou: ${error.message}`);
       throw error;
     }
   }
 
   try {
     // 1. Exchange auth code for User Access Token
-    const tokenUrl = `https://graph.facebook.com/v18.0/oauth/access_token?client_id=${appId}&client_secret=${clientSecret}&code=${code}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    const tokenUrl = `https://graph.facebook.com/v18.0/oauth/access_token?client_id=${appId}&client_secret=${encodeURIComponent(clientSecret)}&code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
     const tokenRes = await fetchWithLogs(tokenUrl);
     
     if (!tokenRes.ok) {

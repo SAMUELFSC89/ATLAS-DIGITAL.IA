@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Cópia local dos dados das empresas (contém tokens criptografados)
+companies-db.json

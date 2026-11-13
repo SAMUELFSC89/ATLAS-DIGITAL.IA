@@ -6,7 +6,8 @@ import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 import metaHandler from "./api/meta.ts";
 import metaCallbackHandler from "./api/meta-callback.ts";
-import { handleIncomingWebhookMessage } from "./api/whatsapp-service.ts";
+import webhookHandler from "./api/webhook.ts";
+import { assertEncryptionKey } from "./api/db-helper.ts";
 import radarHandler from "./api/radar.ts";
 import whatsappSendHandler from "./api/whatsapp-send.ts";
 
@@ -437,11 +438,29 @@ function generateFallbackReport(companyName: string, city: string, segment: stri
 }
 
 async function startServer() {
+  // Sem chave de criptografia o servidor de produção não sobe.
+  try {
+    assertEncryptionKey();
+  } catch (err: any) {
+    const runningInProduction =
+      process.env.NODE_ENV === "production" || __filename.includes("dist") || __filename.endsWith(".cjs");
+    if (runningInProduction) {
+      console.error(`[Segurança] ${err.message} Servidor encerrado.`);
+      process.exit(1);
+    }
+    console.warn(`[Segurança] ${err.message} Em desenvolvimento o servidor sobe, mas conectar o WhatsApp vai falhar.`);
+  }
+
   const app = express();
   app.set("trust proxy", true);
   const PORT = 3000;
 
-  app.use(express.json());
+  // Guarda o corpo original: a assinatura do webhook da Meta é calculada sobre ele.
+  app.use(express.json({
+    verify: (req, _res, buf) => {
+      (req as any).rawBody = buf;
+    }
+  }));
 
   // Meta Integration Routes
   app.get("/api/meta", async (req, res) => {
@@ -471,32 +490,21 @@ async function startServer() {
         <head><title>Erro Interno</title></head>
         <body style="font-family: sans-serif; background: #0b0c0e; color: white; text-align: center; padding: 50px;">
           <h2>Erro de Processamento da Meta</h2>
-          <p>${err.message || String(err)}</p>
+          <p>Erro interno. Feche esta janela e tente conectar novamente.</p>
         </body>
         </html>
       `);
     }
   });
 
-  // Meta Webhook Verification (GET)
-  app.get("/api/webhook", (req, res) => {
-    const mode = req.query["hub.mode"];
-    const token = req.query["hub.verify_token"];
-    const challenge = req.query["hub.challenge"];
-
-    if (mode === "subscribe" && token === "atlasdigital") {
-      res.setHeader("Content-Type", "text/plain");
-      return res.status(200).send(challenge);
-    } else {
-      return res.sendStatus(403);
+  // Webhook da Meta: verificação (GET) e eventos assinados (POST)
+  app.all("/api/webhook", async (req, res) => {
+    try {
+      await webhookHandler(req, res);
+    } catch (err: any) {
+      console.error("[/api/webhook] Unhandled Exception:", err);
+      return res.status(500).end();
     }
-  });
-
-  // Meta Webhook Event Handling (POST)
-  app.post("/api/webhook", async (req, res) => {
-    console.log("Webhook Event received:", JSON.stringify(req.body, null, 2));
-    const result = await handleIncomingWebhookMessage(req.body);
-    return res.status(200).json({ status: "success", ...result });
   });
 
   // Radar de Mercado (Google Places) e envio de modelos do WhatsApp

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db } from './lib/firebase';
-import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { auth, db } from './lib/firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, query, where } from 'firebase/firestore';
 import {
   ZapOff,
   SearchCode,
@@ -169,22 +170,34 @@ export default function App() {
 
   const [crmLeads, setCrmLeads] = useState<Lead[]>([]);
 
-  // Load CRM Leads from Firebase Firestore on Mount/Login
+  // O usuário do portal é sempre o do login real do Firebase.
   useEffect(() => {
-    if (!isPortalActive) return;
+    return onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user?.email ?? null);
+    });
+  }, []);
+
+  // Load CRM Leads from Firebase Firestore on Mount/Login.
+  // Cada lead guarda o dono (ownerUid) e só os leads do usuário logado são lidos.
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!isPortalActive || !currentUser || !uid) {
+      setCrmLeads([]);
+      return;
+    }
 
     const fetchLeads = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, 'leads'));
+        const querySnapshot = await getDocs(query(collection(db, 'leads'), where('ownerUid', '==', uid)));
         if (querySnapshot.empty) {
-          // Seed the 3 default mock leads to Firestore
+          // Seed the 3 default mock leads to Firestore, com id próprio por usuário
+          const seededLeads: Lead[] = DEFAULT_MOCK_LEADS.map((lead) => ({ ...lead, id: `${uid}-${lead.id}`, ownerUid: uid }));
           const batch = writeBatch(db);
-          DEFAULT_MOCK_LEADS.forEach((lead) => {
-            const leadRef = doc(db, 'leads', lead.id);
-            batch.set(leadRef, lead);
+          seededLeads.forEach((lead) => {
+            batch.set(doc(db, 'leads', lead.id), lead);
           });
           await batch.commit();
-          setCrmLeads(DEFAULT_MOCK_LEADS);
+          setCrmLeads(seededLeads);
           console.log('[Firebase Seed] Successfully seeded CRM leads to Firestore');
         } else {
           const loadedLeads: Lead[] = [];
@@ -201,14 +214,22 @@ export default function App() {
     };
 
     fetchLeads();
-  }, [isPortalActive]);
+  }, [isPortalActive, currentUser]);
+
+  // Mantém o dono em toda gravação; as regras do Firestore recusam leads sem ele.
+  const withOwner = (lead: Lead): Lead => {
+    const uid = auth.currentUser?.uid;
+    return uid ? { ...lead, ownerUid: uid } : lead;
+  };
 
   const handleAddLeadToCrm = async (newLead: Omit<Lead, 'id' | 'createdAt'>) => {
-    const leadId = `lead-added-${Date.now()}`;
+    const uid = auth.currentUser?.uid;
+    const leadId = `lead-added-${uid ? uid.slice(0, 8) + '-' : ''}${Date.now()}`;
     const leadWithId: Lead = {
       ...newLead,
       id: leadId,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      ...(uid ? { ownerUid: uid } : {})
     };
     
     // Save to local React State
@@ -228,7 +249,7 @@ export default function App() {
     const currentLead = crmLeads.find((l) => l.id === leadId);
     if (!currentLead) return;
 
-    const updatedLead: Lead = { ...currentLead, status: newStatus };
+    const updatedLead: Lead = withOwner({ ...currentLead, status: newStatus });
 
     // Save to local React State
     setCrmLeads((prev) => prev.map((l) => l.id === leadId ? updatedLead : l));
@@ -242,7 +263,8 @@ export default function App() {
     }
   };
 
-  const handleUpdateLead = async (updatedLead: Lead) => {
+  const handleUpdateLead = async (leadChanges: Lead) => {
+    const updatedLead = withOwner(leadChanges);
     // Save to local React State
     setCrmLeads((prev) => prev.map((l) => l.id === updatedLead.id ? updatedLead : l));
 
@@ -414,6 +436,7 @@ export default function App() {
               onClick={() => {
                 setIsPortalActive(false);
                 setCurrentUser(null);
+                signOut(auth).catch(() => {});
               }}
               className="w-full py-2 bg-zinc-950 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 border border-zinc-900 hover:border-red-900/40 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
             >
@@ -433,6 +456,7 @@ export default function App() {
                 onClick={() => {
                   setIsPortalActive(false);
                   setCurrentUser(null);
+                  signOut(auth).catch(() => {});
                 }} 
                 className="text-zinc-400 hover:text-white text-xs font-mono font-bold flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-900"
               >

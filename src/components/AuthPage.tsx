@@ -1,10 +1,31 @@
 import React, { useState } from 'react';
-import { Bot, Sparkles, Loader2, ArrowRight, ShieldCheck, Mail, Lock, CheckCircle } from 'lucide-react';
+import { Bot, Loader2, ArrowRight, ShieldCheck, Mail, Lock, CheckCircle } from 'lucide-react';
 import { auth } from '../lib/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 
 interface AuthPageProps {
   onLoginSuccess: (userEmail: string) => void;
+}
+
+function authErrorMessage(code?: string): string {
+  switch (code) {
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found':
+      return "E-mail ou senha incorretos.";
+    case 'auth/email-already-in-use':
+      return "Este e-mail já tem cadastro. Use a opção de acessar o portal.";
+    case 'auth/weak-password':
+      return "A senha precisa ter pelo menos 6 caracteres.";
+    case 'auth/invalid-email':
+      return "E-mail inválido.";
+    case 'auth/too-many-requests':
+      return "Muitas tentativas. Aguarde alguns minutos e tente de novo.";
+    case 'auth/network-request-failed':
+      return "Sem conexão com o servidor de login. Verifique sua internet.";
+    default:
+      return "Não foi possível entrar. Tente novamente.";
+  }
 }
 
 export default function AuthPage({ onLoginSuccess }: AuthPageProps) {
@@ -63,12 +84,10 @@ export default function AuthPage({ onLoginSuccess }: AuthPageProps) {
         onLoginSuccess(userCredential.user.email || email);
       }
     } catch (error: any) {
-      console.error("Firebase Authentication Error, activating robust demo fallback:", error);
-      
-      // Since this is a sandboxed demonstration/preview environment, we want to maximize user access and prevent blocks.
-      // If sign-in/registration fails, we bypass the restriction and let the user in seamlessly.
+      // Sem login válido no Firebase ninguém entra no portal.
+      console.error("Firebase Authentication Error:", error);
       setLoading(false);
-      onLoginSuccess(email.trim() || "samuelfsc89@gmail.com");
+      alert(authErrorMessage(error?.code));
     }
   };
 
@@ -162,19 +181,6 @@ export default function AuthPage({ onLoginSuccess }: AuthPageProps) {
             )}
           </button>
           
-          {isLogin && (
-            <button
-              type="button"
-              onClick={() => {
-                const targetEmail = email.trim() || "samuelfsc89@gmail.com";
-                onLoginSuccess(targetEmail);
-              }}
-              className="w-full py-2.5 bg-gray-950 hover:bg-gray-900 border border-gray-800 text-gray-350 hover:text-white font-medium text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 mt-1"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Acessar como Convidado (Bypass)</span>
-            </button>
-          )}
         </form>
 
         <div className="pt-4 border-t border-gray-900/60 text-center text-xs text-gray-500">

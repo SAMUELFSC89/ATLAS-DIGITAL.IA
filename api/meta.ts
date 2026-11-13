@@ -1,32 +1,25 @@
-import { IncomingMessage, ServerResponse } from "http";
 import { encrypt, decrypt, readDb, writeDb } from "./db-helper.ts";
+import { applyCors, createOAuthState, getAuthenticatedEmail, getBaseUrl, oauthNonceCookie } from "./_lib/auth.ts";
+import { handleIncomingWebhookMessage } from "./whatsapp-service.ts";
 
 // Router/Controller
 export default async function handler(req: any, res: any) {
-  // CORS Headers
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS,PATCH,DELETE,POST,PUT");
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, X-Company-Id"
-  );
+  applyCors(res);
 
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
   try {
-    // Safe parsing and fallback logging
-    console.log(`[Meta API] [${req.method}] Action: ${req.query?.action || "status"}, Company: ${req.headers?.["x-company-id"] || req.query?.companyId}`);
-    
-    // Identify tenant from request header
-    const companyId = req.headers?.["x-company-id"] || req.query?.companyId;
+    // A empresa é sempre a do login verificado do Firebase, nunca um valor
+    // enviado pelo navegador (cabeçalho X-Company-Id ou ?companyId= são ignorados).
+    const companyId = await getAuthenticatedEmail(req);
 
     if (!companyId) {
-      console.warn("[Meta API] Blocked request: missing companyId");
-      return res.status(401).json({ error: "Empresa não autenticada. Cabeçalho 'X-Company-Id' ausente ou vazio." });
+      return res.status(401).json({ code: "unauthenticated", error: "Sessão expirada. Saia e entre novamente." });
     }
+
+    console.log(`[Meta API] [${req.method}] Action: ${req.query?.action || "status"}, Company: ${companyId}`);
 
     const action = req.query?.action || "status";
     const db = await readDb();
@@ -40,22 +33,25 @@ export default async function handler(req: any, res: any) {
         // Return status without sensitive access token
         const cleanRecord = { ...companyRecord };
         delete cleanRecord.accessToken;
+        // Token gravado com uma chave de criptografia antiga: tratar como desconectado.
+        if (cleanRecord.status === "connected" && !decrypt(companyRecord.accessToken)) {
+          cleanRecord.status = "disconnected";
+          cleanRecord.needsReconnect = true;
+        }
         return res.status(200).json(cleanRecord);
       }
 
       if (action === "config") {
-        let baseUrl = "";
-        if (process.env.APP_URL && process.env.APP_URL !== "MY_APP_URL" && process.env.APP_URL.trim() !== "") {
-          baseUrl = process.env.APP_URL.replace(/\/$/, "");
-        } else {
-          const protocol = req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http");
-          const host = req.headers.host;
-          baseUrl = `${protocol}://${host}`;
+        const redirectUri = `${getBaseUrl(req)}/api/meta-callback`;
+        // `state` assinado amarra o retorno da Meta a esta empresa e a este navegador.
+        const oauth = createOAuthState(companyId);
+        if (oauth) {
+          res.setHeader("Set-Cookie", oauthNonceCookie(oauth.nonce, redirectUri.startsWith("https://")));
         }
-        const redirectUri = `${baseUrl}/api/meta-callback`;
         return res.status(200).json({
           appId: process.env.META_APP_ID || "123456789",
-          redirectUri
+          redirectUri,
+          state: oauth?.state || null
         });
       }
 
@@ -184,6 +180,7 @@ export default async function handler(req: any, res: any) {
         db[companyId] = {
           empresaId: companyId,
           status: "disconnected",
+          accessToken: "", // a gravação faz merge; sem isto o token continuaria salvo após desconectar
           updatedAt: new Date().toISOString()
         };
         await writeDb(db);
@@ -197,6 +194,10 @@ export default async function handler(req: any, res: any) {
 
         const decryptedToken = decrypt(companyRecord.accessToken);
         const phoneNumberId = companyRecord.phoneNumberId;
+
+        if (!decryptedToken) {
+          return res.status(409).json({ code: "needs_reconnect", error: "O token salvo não é mais válido. Reconecte o WhatsApp em Automações." });
+        }
 
         if (decryptedToken && phoneNumberId && !decryptedToken.startsWith("EAAG")) {
           try {
@@ -233,9 +234,25 @@ export default async function handler(req: any, res: any) {
       }
     }
 
+    if (req.method === "POST" && action === "simulate_webhook") {
+      // Simulador do painel: processa uma mensagem de teste como se viesse da Meta,
+      // mas sempre para o número da própria empresa logada. O /api/webhook real só
+      // aceita chamadas assinadas pela Meta.
+      if (companyRecord.status !== "connected" || !companyRecord.phoneNumberId) {
+        return res.status(400).json({ error: "Conecte o WhatsApp antes de usar o simulador." });
+      }
+      const value = req.body?.entry?.[0]?.changes?.[0]?.value;
+      if (!value || !Array.isArray(value.messages)) {
+        return res.status(400).json({ error: "Evento de teste inválido." });
+      }
+      value.metadata = { ...(value.metadata || {}), phone_number_id: companyRecord.phoneNumberId };
+      const result = await handleIncomingWebhookMessage(req.body);
+      return res.status(200).json({ status: "success", ...result });
+    }
+
     return res.status(405).json({ error: "Método não suportado." });
   } catch (err: any) {
     console.error("Meta API error:", err);
-    return res.status(500).json({ error: "Erro processando a integração Meta.", details: err.message });
+    return res.status(500).json({ error: "Erro processando a integração Meta." });
   }
 }
