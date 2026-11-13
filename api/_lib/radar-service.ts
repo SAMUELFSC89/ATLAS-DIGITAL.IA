@@ -119,7 +119,7 @@ export function normalizeBrazilPhone(raw: string): { digits: string; isMobile: b
 
 const SOCIAL_HOSTS: Array<{ test: RegExp; kind: "instagram" | "facebook" | "whatsapp" | "linkedin" | "other" }> = [
   { test: /(^|\.)instagram\.com$/i, kind: "instagram" },
-  { test: /(^|\.)(facebook|fb)\.com$/i, kind: "facebook" },
+  { test: /(^|\.)(facebook|fb)\.com(\.br)?$/i, kind: "facebook" },
   { test: /(^|\.)(wa\.me|whatsapp\.com|wa\.link)$/i, kind: "whatsapp" },
   { test: /(^|\.)linkedin\.com$/i, kind: "linkedin" },
   { test: /(^|\.)(linktr\.ee|linktree\.com|bio\.link|beacons\.ai|taplink\.cc)$/i, kind: "other" },
