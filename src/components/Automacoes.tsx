@@ -45,7 +45,8 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
   const [signupError, setSignupError] = useState('');
   const [signupPreparing, setSignupPreparing] = useState(false);
   const [connectionError, setConnectionError] = useState('');
-  const [connecting, setConnecting] = useState(false);
+  const [signupPhase, setSignupPhase] = useState<'authorizing' | 'saving'>();
+  const connecting = !!signupPhase;
   const signupAbort = useRef<AbortController | null>(null);
 
   // Sandbox Webhook Simulator States
@@ -136,17 +137,19 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
     if (!signup || signupAbort.current) return;
     const controller = new AbortController();
     signupAbort.current = controller;
-    setConnecting(true);
+    setSignupPhase('authorizing');
     setSignupError('');
     try {
       const authorization = await authorizeWhatsApp(signup, controller.signal, coexistence);
+      if (controller.signal.aborted) return;
+      setSignupPhase('saving');
       const result = await requestMeta('connect', authorization);
       if (!controller.signal.aborted) applyConnection(result.record);
     } catch (error) {
       if (!controller.signal.aborted) setSignupError((error as Error).message);
     } finally {
       signupAbort.current = null;
-      setConnecting(false);
+      setSignupPhase(undefined);
     }
   };
 
@@ -646,6 +649,18 @@ Equipe Atlas Intelligence`;
               <button type="button" onClick={fetchWhatsAppStatus} className="underline">Tentar novamente</button>
             </p>
           )}
+          {signupPhase && (
+            <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-300">
+              <p role="status">{signupPhase === 'authorizing'
+                ? 'Conclua a autorização na janela da Meta.'
+                : 'Validando o número na Meta e salvando a conexão…'}</p>
+              {signupPhase === 'authorizing' && (
+                <button type="button" onClick={() => signupAbort.current?.abort()} className="underline">
+                  Cancelar tentativa
+                </button>
+              )}
+            </div>
+          )}
           {waLoading && (
             <div className="bg-[#121214]/30 border border-gray-900 rounded-2xl p-12 flex flex-col items-center justify-center text-center space-y-4">
               <Loader2 className="w-8 h-8 text-[#E2B755] animate-spin" />
@@ -800,7 +815,7 @@ Equipe Atlas Intelligence`;
                       <svg className="w-4 h-4 fill-white" viewBox="0 0 24 24">
                         <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                       </svg>
-                      {signupPreparing ? 'Carregando a Meta…' : connecting ? 'Aguardando autorização…' : signup ? 'Conectar WhatsApp Oficial' : 'Verificar configuração da Meta'}
+                      {signupPreparing ? 'Carregando a Meta…' : signup ? 'Conectar WhatsApp Oficial' : 'Verificar configuração da Meta'}
                     </button>
 
                     {signup && (
@@ -842,7 +857,7 @@ Equipe Atlas Intelligence`;
                     <button type="button" onClick={signup ? () => handleConnectWhatsApp(true) : prepareConnection}
                       disabled={signupPreparing || connecting}
                       className="px-4 py-2.5 border border-zinc-700 rounded-lg text-xs text-white hover:border-[#E2B755] disabled:opacity-50">
-                      {connecting ? 'Aguardando autorização…' : 'Conectar WhatsApp Business do celular'}
+                      {signupPreparing ? 'Carregando a Meta…' : signup ? 'Conectar WhatsApp Business do celular' : 'Verificar configuração da Meta'}
                     </button>
                     {signupError && <p role="alert" className="text-xs text-red-300">{signupError}</p>}
                   </div>
