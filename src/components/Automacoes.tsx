@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { 
   Settings, Zap, Check, Shield, AlertCircle, Play, 
   HelpCircle, MessageCircle, Mail, Calendar, FolderOpen, CreditCard, 
   Search, ExternalLink, RefreshCw, Send, ArrowRight, Bot, Compass, Plus, Loader2, AlertTriangle 
 } from 'lucide-react';
 import { IntegrationConfig, EmailMessage, WhatsAppChat } from '../types';
+import { authorizeWhatsApp, prepareMetaSignup, requestMeta } from '../lib/metaSignup';
 
 interface AutomacoesProps {
   onIntegrate: (id: string, state: 'connected' | 'disconnected') => void;
@@ -38,12 +39,14 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
   const [isManualMode, setIsManualMode] = useState<boolean>(false);
   const [formPhoneId, setFormPhoneId] = useState<string>('');
   const [formWabaId, setFormWabaId] = useState<string>('');
-  const [formBizId, setFormBizId] = useState<string>('');
-  const [formPhoneNum, setFormPhoneNum] = useState<string>('');
-  const [formName, setFormName] = useState<string>('');
   const [formToken, setFormToken] = useState<string>('');
 
-  // Meta Embedded Signup OAuth configuration state
+  const [signup, setSignup] = useState<Awaited<ReturnType<typeof prepareMetaSignup>>>();
+  const [signupError, setSignupError] = useState('');
+  const [signupPreparing, setSignupPreparing] = useState(false);
+  const [connectionError, setConnectionError] = useState('');
+  const [connecting, setConnecting] = useState(false);
+  const signupAbort = useRef<AbortController | null>(null);
 
   // Sandbox Webhook Simulator States
   const [clientSimulatedPhone, setClientSimulatedPhone] = useState<string>('5511999999999');
@@ -83,98 +86,67 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
   const [activeWaSuggestion, setActiveWaSuggestion] = useState<string>('');
   const [metaStep, setMetaStep] = useState<number>(1);
 
-  // Fetch Connection status on mount/tenant change
+  const applyConnection = (data: any) => {
+    const connected = data?.status === 'connected';
+    setWhatsappMetaConfig(connected ? data : null);
+    setMetaApproved(connected);
+    onIntegrate('whatsapp-biz', connected ? 'connected' : 'disconnected');
+    if (connected) {
+      setFormPhoneId(data.phoneNumberId || '');
+      setFormWabaId(data.whatsappBusinessAccountId || '');
+    }
+  };
+
   const fetchWhatsAppStatus = async () => {
     setWaLoading(true);
+    setConnectionError('');
     try {
-      const response = await fetch(`/api/meta?action=status`, {
-        headers: {
-          'x-company-id': currentUser || 'demo@empresa.com'
-        }
-      });
-      const data = await response.json();
-      if (data && data.status === 'connected') {
-        setWhatsappMetaConfig(data);
-        setMetaApproved(true);
-        // Pre-populate manual form fields
-        setFormPhoneId(data.phoneNumberId || '');
-        setFormWabaId(data.whatsappBusinessAccountId || '');
-        setFormBizId(data.facebookBusinessId || '');
-        setFormPhoneNum(data.displayPhoneNumber || '');
-        setFormName(data.verifiedName || '');
-      } else {
-        setWhatsappMetaConfig(null);
-        setMetaApproved(false);
-      }
-    } catch (err) {
-      console.error("Error fetching WhatsApp status:", err);
+      applyConnection(await requestMeta('status'));
+    } catch (error) {
+      setConnectionError((error as Error).message);
     } finally {
       setWaLoading(false);
     }
   };
 
   React.useEffect(() => {
-    fetchWhatsAppStatus();
+    if (selectedSubTab !== 'whatsapp' || !currentUser) return;
+    void fetchWhatsAppStatus();
+    return () => signupAbort.current?.abort();
+  }, [selectedSubTab, currentUser]);
 
-    const handleOAuthMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === 'META_CONNECTED') {
-        if (event.data.success) {
-          fetchWhatsAppStatus();
-          onIntegrate('whatsapp-biz', 'connected');
-          if (event.data.warning) {
-            alert("Sua conta foi vinculada à Meta!\n\nNo entanto, devido a restrições no seu aplicativo Meta de desenvolvedor, não conseguimos buscar as contas automaticamente. Criamos canais temporários; por favor, use as 'Configurações Avançadas' que agora estão liberadas abaixo no painel para inserir seus IDs reais de telefone e WABA.");
-          } else {
-            alert("Parabéns! WhatsApp Business conectado via API oficial Meta Cloud!");
-          }
-        } else {
-          alert("Erro na conexão oficial da Meta: " + (event.data.error || "Desconhecido"));
-        }
-      }
-    };
-
-    window.addEventListener('message', handleOAuthMessage);
-    return () => {
-      window.removeEventListener('message', handleOAuthMessage);
-    };
-  }, [currentUser]);
-
-  // Connect WhatsApp using the official Meta Embedded Signup OAuth popup flow
-  const handleConnectWhatsApp = async () => {
-    setWaLoading(true);
+  const prepareConnection = async () => {
+    setSignupPreparing(true);
+    setSignupError('');
     try {
-      const response = await fetch(`/api/meta?action=config&companyId=${currentUser || 'demo@empresa.com'}`);
-      const { appId, redirectUri } = await response.json();
-
-      if (!appId || appId === '123456789') {
-        alert("O App ID da Meta não está configurado nas variáveis de ambiente (.env). Por favor, configure META_APP_ID para produção.");
-        setWaLoading(false);
-        return;
-      }
-
-      const state = currentUser || 'demo@empresa.com';
-      const scope = 'whatsapp_business_management,whatsapp_business_messaging,business_management';
-      const extras = JSON.stringify({
-        setup: {
-          type: 'whatsapp_embedded_signup'
-        }
-      });
-
-      const oauthUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&extras=${encodeURIComponent(extras)}&state=${encodeURIComponent(state)}`;
-
-      const width = 600;
-      const height = 660;
-      const left = window.screen.width / 2 - width / 2;
-      const top = window.screen.height / 2 - height / 2;
-
-      window.open(
-        oauthUrl,
-        'MetaEmbeddedSignup',
-        `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
-      );
-    } catch (err: any) {
-      alert("Erro ao recuperar configuração da Meta: " + err.message);
+      setSignup(await prepareMetaSignup());
+    } catch (error) {
+      setSignup(undefined);
+      setSignupError((error as Error).message);
     } finally {
-      setWaLoading(false);
+      setSignupPreparing(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (selectedSubTab === 'whatsapp' && currentUser) void prepareConnection();
+  }, [selectedSubTab, currentUser]);
+
+  const handleConnectWhatsApp = async () => {
+    if (!signup || signupAbort.current) return;
+    const controller = new AbortController();
+    signupAbort.current = controller;
+    setConnecting(true);
+    setSignupError('');
+    try {
+      const authorization = await authorizeWhatsApp(signup, controller.signal);
+      const result = await requestMeta('connect', authorization);
+      if (!controller.signal.aborted) applyConnection(result.record);
+    } catch (error) {
+      if (!controller.signal.aborted) setSignupError((error as Error).message);
+    } finally {
+      signupAbort.current = null;
+      setConnecting(false);
     }
   };
 
@@ -182,13 +154,7 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
   const handleDisconnectWhatsApp = async () => {
     setWaActionLoading(true);
     try {
-      const response = await fetch(`/api/meta?action=disconnect`, {
-        method: 'POST',
-        headers: {
-          'x-company-id': currentUser || 'demo@empresa.com'
-        }
-      });
-      const data = await response.json();
+      const data = await requestMeta('disconnect', {});
       if (data.success) {
         setWhatsappMetaConfig(null);
         setMetaApproved(false);
@@ -206,13 +172,7 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
   const handleRefreshWhatsApp = async () => {
     setWaActionLoading(true);
     try {
-      const response = await fetch(`/api/meta?action=refresh`, {
-        method: 'POST',
-        headers: {
-          'x-company-id': currentUser || 'demo@empresa.com'
-        }
-      });
-      const data = await response.json();
+      const data = await requestMeta('refresh', {});
       if (data.success) {
         setWhatsappMetaConfig(data.record);
       }
@@ -227,23 +187,12 @@ export default function Automacoes({ integrations, onIntegrate, currentUser }: A
   const handleSaveAdvancedConfig = async () => {
     setWaActionLoading(true);
     try {
-      const response = await fetch(`/api/meta?action=update_config`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-company-id': currentUser || 'demo@empresa.com'
-        },
-        body: JSON.stringify({
-          facebookBusinessId: formBizId,
-          whatsappBusinessAccountId: formWabaId,
-          phoneNumberId: formPhoneId,
-          displayPhoneNumber: formPhoneNum,
-          verifiedName: formName,
-          accessToken: formToken || undefined
-        })
+      const data = await requestMeta('update_config', {
+        whatsappBusinessAccountId: formWabaId.trim(),
+        phoneNumberId: formPhoneId.trim(),
+        accessToken: formToken.trim() || undefined,
       });
 
-      const data = await response.json();
       if (data.success) {
         setWhatsappMetaConfig(data.record);
         setMetaApproved(true);
@@ -437,9 +386,6 @@ Equipe Atlas Intelligence`;
 
     setWaMessageInput('');
     setActiveWaSuggestion('');
-    
-    // Send message to backend dispatcher
-    fetch(`/api/meta?action=refresh`, { method: 'POST', headers: { 'x-company-id': currentUser || 'demo@empresa.com' } });
     
     // Auto simulated response after 2 seconds
     setTimeout(() => {
@@ -695,12 +641,18 @@ Equipe Atlas Intelligence`;
       {/* SUBTAB 3: WHATSAPP BUSINESS DEVELOPER WIZARD */}
       {selectedSubTab === 'whatsapp' && (
         <div className="space-y-6">
-          {waLoading ? (
+          {connectionError && (
+            <p role="alert" className="text-sm text-red-300">{connectionError}{' '}
+              <button type="button" onClick={fetchWhatsAppStatus} className="underline">Tentar novamente</button>
+            </p>
+          )}
+          {waLoading && (
             <div className="bg-[#121214]/30 border border-gray-900 rounded-2xl p-12 flex flex-col items-center justify-center text-center space-y-4">
               <Loader2 className="w-8 h-8 text-[#E2B755] animate-spin" />
               <span className="text-xs text-gray-500 font-mono">Verificando credenciamento e conexão Meta oficial...</span>
             </div>
-          ) : !metaApproved ? (
+          )}
+          {!metaApproved ? (
             /* STEP BY STEP PAUSE GUIDE FOR WHATSAPP BUSINESS PLATFORM */
             <div className="bg-[#121214]/30 border border-gray-900 rounded-2xl p-6 sm:p-8 space-y-8">
               <div className="border-b border-zinc-900 pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -731,10 +683,10 @@ Equipe Atlas Intelligence`;
                   <div className="border-b border-zinc-900 pb-3 flex justify-between items-center">
                     <div>
                       <h4 className="text-[#E2B755] font-mono text-xs font-bold uppercase tracking-wider">
-                        Configuração Manual de IDs (Modo de Compatibilidade)
+                        Configuração manual pela Meta
                       </h4>
                       <p className="text-[11px] text-zinc-500 font-light mt-0.5">
-                        Insira os dados do seu aplicativo de testes ou IDs do painel Meta Developers manualmente.
+                        Em Meta for Developers, abra o app da Atlas e procure a configuração da API do WhatsApp. Copie os IDs e o token do mesmo número.
                       </p>
                     </div>
                     <button
@@ -746,28 +698,6 @@ Equipe Atlas Intelligence`;
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">Nome do Canal / Nome Verificado</label>
-                      <input 
-                        type="text"
-                        value={formName}
-                        onChange={(e) => setFormName(e.target.value)}
-                        placeholder="Ex: WhatsApp Oficial"
-                        className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">Número do Telefone com DDI</label>
-                      <input 
-                        type="text"
-                        value={formPhoneNum}
-                        onChange={(e) => setFormPhoneNum(e.target.value)}
-                        placeholder="Ex: +55 11 99999-9999"
-                        className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
-                      />
-                    </div>
-
                     <div className="space-y-1">
                       <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">Phone Number ID (ID do Número na Meta)</label>
                       <input 
@@ -786,17 +716,6 @@ Equipe Atlas Intelligence`;
                         value={formWabaId}
                         onChange={(e) => setFormWabaId(e.target.value)}
                         placeholder="Ex: 204859684715"
-                        className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">Facebook Business ID (ID da Empresa)</label>
-                      <input 
-                        type="text"
-                        value={formBizId}
-                        onChange={(e) => setFormBizId(e.target.value)}
-                        placeholder="Ex: 105847259684"
                         className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
                       />
                     </div>
@@ -849,7 +768,7 @@ Equipe Atlas Intelligence`;
                       {[
                         "Sem números fixos compartilhados: isolamento absoluto de dados.",
                         "Sem digitação manual: tokens e IDs de telefone são capturados automaticamente.",
-                        "Integração instantânea do Webhook para resposta automática imediata por IA.",
+                        "Confirmação do número selecionado diretamente pela Meta.",
                         "Armazenamento altamente seguro com criptografia de ponta a ponta dos tokens de acesso."
                       ].map((text, i) => (
                         <div key={i} className="flex items-start gap-2 text-xs text-zinc-400 font-light">
@@ -873,33 +792,30 @@ Equipe Atlas Intelligence`;
                     </div>
 
                     <button
-                      onClick={handleConnectWhatsApp}
+                      onClick={signup ? handleConnectWhatsApp : prepareConnection}
+                      disabled={signupPreparing || connecting}
                       className="w-full py-3 px-5 bg-[#1877F2] hover:bg-[#166FE5] text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg flex items-center justify-center gap-2.5 hover:scale-[1.01]"
                     >
                       {/* Official Facebook Icon */}
                       <svg className="w-4 h-4 fill-white" viewBox="0 0 24 24">
                         <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                       </svg>
-                      Conectar WhatsApp Oficial
+                      {signupPreparing ? 'Carregando a Meta…' : connecting ? 'Aguardando autorização…' : signup ? 'Conectar WhatsApp Oficial' : 'Verificar configuração da Meta'}
                     </button>
 
+                    {signupError && <p role="alert" className="text-xs text-red-300">{signupError}</p>}
                     <div className="space-y-2">
                       <div className="text-[10px] text-zinc-600 font-mono">
-                        Meta Business Platform v18.0 Verified
+                        WhatsApp Business Platform
                       </div>
                       <div className="pt-2 border-t border-zinc-900 w-full">
                         <button
                           onClick={() => {
                             setIsManualMode(true);
-                            setFormPhoneId(formPhoneId || "1065" + Math.floor(1000000 + Math.random() * 9000000));
-                            setFormWabaId(formWabaId || "2048" + Math.floor(1000000 + Math.random() * 9000000));
-                            setFormBizId(formBizId || "1058" + Math.floor(1000000 + Math.random() * 9000000));
-                            setFormPhoneNum(formPhoneNum || "+55 11 99999-9999");
-                            setFormName(formName || "WhatsApp Business " + (currentUser || 'Empresa'));
                           }}
                           className="text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors underline"
                         >
-                          Configuração Manual de IDs (Aplicativos Sandbox)
+                          Configuração manual pela Meta
                         </button>
                       </div>
                     </div>
@@ -912,20 +828,9 @@ Equipe Atlas Intelligence`;
             <div className="space-y-6">
               {/* Active Connection metrics header */}
               <div className="bg-[#121214]/30 border border-gray-900 rounded-2xl p-6 space-y-6">
-                {whatsappMetaConfig?.hasGraphErrors && (
-                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex gap-3 text-left">
-                    <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                    <div className="space-y-1">
-                      <h5 className="text-amber-500 text-xs font-bold font-sans">Aviso: Ajuste de IDs Requerido</h5>
-                      <p className="text-[11px] text-zinc-400 leading-relaxed font-light">
-                        A autorização com a Meta foi realizada, mas a busca automática falhou devido a restrições de permissões do seu aplicativo de desenvolvedor.
-                        <strong> Os IDs de telefone e WABA abaixo foram criados de forma temporária. </strong>
-                        Por favor, clique em <strong>"Configurar IDs"</strong> abaixo para substituir pelos seus dados reais obtidos no painel da Meta.
-                      </p>
-                    </div>
-                  </div>
+                {whatsappMetaConfig?.autoReplyEnabled === false && (
+                  <p className="text-sm text-zinc-300">Número validado na Meta. O atendimento automático está desativado para esta conexão.</p>
                 )}
-
                 {isEditingConfig && (
                   <div className="bg-zinc-950/60 border border-zinc-900 rounded-2xl p-6 space-y-5 text-left">
                     <div className="border-b border-zinc-900 pb-3 flex justify-between items-center">
@@ -935,7 +840,7 @@ Equipe Atlas Intelligence`;
                           Editar Configurações de IDs de WhatsApp
                         </h4>
                         <p className="text-[11px] text-zinc-500 font-light mt-0.5">
-                          Altere os IDs abaixo se a busca automática do Embedded Signup tiver retornado campos simulados ou incompletos.
+                          Atualize os IDs ou o token com os dados do mesmo número no painel da Meta.
                         </p>
                       </div>
                       <button
@@ -947,28 +852,6 @@ Equipe Atlas Intelligence`;
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">Nome do Canal / Nome Verificado</label>
-                        <input 
-                          type="text"
-                          value={formName}
-                          onChange={(e) => setFormName(e.target.value)}
-                          placeholder="Ex: WhatsApp Oficial"
-                          className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">Número do Telefone com DDI</label>
-                        <input 
-                          type="text"
-                          value={formPhoneNum}
-                          onChange={(e) => setFormPhoneNum(e.target.value)}
-                          placeholder="Ex: +55 11 99999-9999"
-                          className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
-                        />
-                      </div>
-
                       <div className="space-y-1">
                         <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">Phone Number ID (ID do Número na Meta)</label>
                         <input 
@@ -987,17 +870,6 @@ Equipe Atlas Intelligence`;
                           value={formWabaId}
                           onChange={(e) => setFormWabaId(e.target.value)}
                           placeholder="Ex: 204859684715"
-                          className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">Facebook Business ID (ID da Empresa)</label>
-                        <input 
-                          type="text"
-                          value={formBizId}
-                          onChange={(e) => setFormBizId(e.target.value)}
-                          placeholder="Ex: 105847259684"
                           className="w-full bg-zinc-950 border border-zinc-900 focus:border-[#E2B755] text-white rounded-lg p-2.5 text-xs outline-none font-mono"
                         />
                       </div>
@@ -1055,9 +927,6 @@ Equipe Atlas Intelligence`;
                         setIsEditingConfig(!isEditingConfig);
                         setFormPhoneId(whatsappMetaConfig?.phoneNumberId || '');
                         setFormWabaId(whatsappMetaConfig?.whatsappBusinessAccountId || '');
-                        setFormBizId(whatsappMetaConfig?.facebookBusinessId || '');
-                        setFormPhoneNum(whatsappMetaConfig?.displayPhoneNumber || '');
-                        setFormName(whatsappMetaConfig?.verifiedName || '');
                       }}
                       disabled={waActionLoading || showDisconnectConfirm}
                       className={`p-2.5 border rounded-xl transition-all font-mono text-xs flex items-center gap-2 ${
