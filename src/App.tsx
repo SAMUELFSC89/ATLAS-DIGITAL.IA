@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import {
   ZapOff,
   SearchCode,
@@ -70,7 +70,6 @@ import SaaSDocs from './components/SaaSDocs';
 import PrecosPlanos from './components/PrecosPlanos';
 import SegmentPages from './components/SegmentPages';
 import AuthPage from './components/AuthPage';
-import DemonstracaoGratuita from './components/DemonstracaoGratuita';
 import { Lead, LeadStatus, IntegrationConfig } from './types';
 
 export default function App() {
@@ -85,6 +84,7 @@ export default function App() {
   const [isPortalActive, setIsPortalActive] = useState(false);
   const [currentUser, setCurrentUser] = useState<string | null | undefined>(undefined);
   const [activePortalTab, setActivePortalTab] = useState<string>('dashboard');
+  const [auditLead, setAuditLead] = useState<Lead>();
   const [selectedLeadForCopilot, setSelectedLeadForCopilot] = useState<Lead | null>(null);
 
   useEffect(() => onAuthStateChanged(auth, (user) => {
@@ -96,6 +96,7 @@ export default function App() {
       await signOut(auth);
       setCrmLeads([]);
       setSelectedLeadForCopilot(null);
+      setAuditLead(undefined);
       setActivePortalTab('dashboard');
       setIsPortalActive(false);
     } catch {
@@ -112,78 +113,6 @@ export default function App() {
     { id: 'stripe', name: 'Stripe Payment Gateway', status: 'disconnected', category: 'Payment', icon: 'CreditCard', description: 'Gerencia o faturamento e renovação de mensalidades e planos SaaS de seus clientes.', requiresOAuth: false }
   ]);
 
-  const DEFAULT_MOCK_LEADS: Lead[] = [
-    {
-      id: 'l-1',
-      companyName: 'Marmoraria Imperial Ltda',
-      responsible: 'Carlos Alberto',
-      phone: '(11) 98765-4321',
-      whatsapp: '(11) 98765-4321',
-      email: 'carlos@marmorariaimperial.com.br',
-      city: 'São Paulo',
-      state: 'SP',
-      website: '',
-      instagram: 'instagram.com/marmorariaimperial',
-      facebook: '',
-      linkedin: '',
-      googleProfile: 'https://maps.google.com/?cid=123',
-      atlasScore: 32,
-      status: 'Novo',
-      lastContact: 'Não efetuado',
-      nextAction: 'Enviar Primeira Auditoria',
-      closeProbability: 65,
-      notes: 'Empresa sem site mapeada pelo radar de São Paulo. Tem grande presença local de mercado no Google Maps com 180 avaliações 5 estrelas.',
-      segment: 'Marmoraria',
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: 'l-2',
-      companyName: 'Solaris Eco Energia',
-      responsible: 'Renata Souza',
-      phone: '(11) 97777-8888',
-      whatsapp: '(11) 97777-8888',
-      email: 'renata@solariseconet.com.br',
-      city: 'Campinas',
-      state: 'SP',
-      website: 'www.solariseconet.com.br',
-      instagram: 'instagram.com/solariseconet',
-      facebook: '',
-      linkedin: '',
-      googleProfile: 'https://maps.google.com/?cid=456',
-      atlasScore: 48,
-      status: 'Contato',
-      lastContact: 'Ontem, 14:00',
-      nextAction: 'Reunião Técnica de Payback',
-      closeProbability: 40,
-      notes: 'Site atual é extremamente lento no celular (LCP de 5.2s). Demonstraram grande interesse na reestruturação e no sitemap acelerado.',
-      segment: 'Energia Solar',
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: 'l-3',
-      companyName: 'Vidraçaria Cristal Glass',
-      responsible: 'Samuel Ferreira',
-      phone: '(21) 96543-2109',
-      whatsapp: '(21) 96543-2109',
-      email: 'samuel@vidros-cristal.com.br',
-      city: 'Rio de Janeiro',
-      state: 'RJ',
-      website: '',
-      instagram: 'instagram.com/vidroscristal',
-      facebook: '',
-      linkedin: '',
-      googleProfile: 'https://maps.google.com/?cid=789',
-      atlasScore: 28,
-      status: 'Resposta',
-      lastContact: 'Hoje, 10:15',
-      nextAction: 'Desenvolver Esboço de Proposta',
-      closeProbability: 80,
-      notes: 'Sem site ativo. Samuel busca uma Landing Page para promover fechamentos de coberturas de vidro e esquadrias de alumínio em condomínios.',
-      segment: 'Vidraçaria',
-      createdAt: new Date().toISOString()
-    }
-  ];
-
   const [crmLeads, setCrmLeads] = useState<Lead[]>([]);
 
   // Load CRM Leads from Firebase Firestore on Mount/Login
@@ -195,28 +124,17 @@ export default function App() {
       try {
         const querySnapshot = await getDocs(collection(db, 'leads'));
         if (cancelled) return;
-        if (querySnapshot.empty) {
-          // Seed the 3 default mock leads to Firestore
-          const batch = writeBatch(db);
-          DEFAULT_MOCK_LEADS.forEach((lead) => {
-            const leadRef = doc(db, 'leads', lead.id);
-            batch.set(leadRef, lead);
-          });
-          await batch.commit();
-          if (!cancelled) setCrmLeads(DEFAULT_MOCK_LEADS);
-          console.log('[Firebase Seed] Successfully seeded CRM leads to Firestore');
-        } else {
-          const loadedLeads: Lead[] = [];
-          querySnapshot.forEach((doc) => {
-            loadedLeads.push(doc.data() as Lead);
-          });
-          setCrmLeads(loadedLeads);
-          console.log('[Firebase Sync] Loaded CRM leads from Firestore');
-        }
+        const loadedLeads: Lead[] = [];
+        querySnapshot.forEach((document) => {
+          const lead = document.data() as Lead;
+          if (['l-1', 'l-2', 'l-3'].includes(lead.id)) return;
+          loadedLeads.push({ ...lead, atlasScore: lead.positionQuery && lead.localPosition ? lead.atlasScore : null });
+        });
+        setCrmLeads(loadedLeads);
       } catch (err) {
         if (cancelled) return;
-        console.error('Failed to load leads from Firestore, using mock fallback:', err);
-        setCrmLeads(DEFAULT_MOCK_LEADS);
+        console.error('Failed to load leads from Firestore:', err);
+        setCrmLeads([]);
       }
     };
 
@@ -298,10 +216,11 @@ export default function App() {
     setActivePortalTab('copilot');
   };
 
-  const handleTriggerAuditForLead = (lead: Lead) => {
-    alert(`Iniciando Auditoria Atlas Score Completa para "${lead.companyName}"...\nO relatório executivo detalhado em PDF será gerado com o mecanismo técnico proprietário.`);
+  const openAtlasScore = (lead?: Lead) => {
+    setAuditLead(lead);
+    setActivePortalTab('atlas-score');
+    setIsPortalActive(true);
   };
-
 
   // Track header background on scroll
   useEffect(() => {
@@ -391,6 +310,7 @@ export default function App() {
               {[
                 { id: 'dashboard', label: 'Painel Executivo', icon: Layout },
                 { id: 'radar', label: 'Radar de Mercado', icon: Compass },
+                { id: 'atlas-score', label: 'Atlas Score', icon: Award },
                 { id: 'crm', label: 'CRM Inteligente', icon: ClipboardList },
                 { id: 'copilot', label: 'Atlas Copilot IA', icon: Bot },
                 { id: 'automacoes', label: 'APIs & Conexões', icon: Settings },
@@ -455,6 +375,7 @@ export default function App() {
               </button>
             </div>
 
+            {currentUser && <button type="button" onClick={() => openAtlasScore()} className="md:hidden px-2 text-xs font-semibold text-[#E2B755]">Atlas Score</button>}
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest hidden sm:inline">Status do Cluster: <strong className="text-emerald-400 font-bold">ONLINE</strong></span>
               <div className="h-4 w-px bg-zinc-900 hidden sm:inline" />
@@ -493,6 +414,10 @@ export default function App() {
                   />
                 )}
 
+                {activePortalTab === 'atlas-score' && (
+                  <div key={auditLead?.id || 'atlas-score'}><AtlasScoreModule lead={auditLead} /></div>
+                )}
+
                 {activePortalTab === 'crm' && (
                   <CrmInteligente 
                     leads={crmLeads} 
@@ -501,7 +426,7 @@ export default function App() {
                     onDeleteLead={handleDeleteLead} 
                     onAddLead={handleAddLeadToCrm}
                     onSelectLeadForCopilot={handleSelectLeadForCopilot}
-                    onTriggerAuditForLead={handleTriggerAuditForLead}
+                    onTriggerAuditForLead={openAtlasScore}
                   />
                 )}
 
@@ -921,20 +846,13 @@ export default function App() {
         </div>
       </section>
 
-      {/* ATLAS DIGITAL SCORE PREMIUM DIAGNOSTIC MODULE */}
-      <div id="diagnostico" className="scroll-mt-24 space-y-16 py-32 bg-zinc-950/20 border-y border-zinc-900/60">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <DemonstracaoGratuita 
-            onUnlockPremium={() => {
-              setIsPortalActive(true);
-              setActivePortalTab('dashboard');
-              scrollToSection('home');
-            }} 
-          />
-        </div>
-        
-        <AtlasScoreModule />
-      </div>
+      <section id="diagnostico" className="scroll-mt-24 border-y border-zinc-900/60 px-4 py-20 text-center">
+        <h2 className="font-display text-3xl font-black text-white">Atlas Score</h2>
+        <p className="mx-auto mt-3 max-w-lg text-sm text-zinc-400">Veja a posição da sua empresa nos resultados locais do Google para o termo e a cidade que você escolher.</p>
+        <button type="button" onClick={() => openAtlasScore()} className="mt-6 rounded-lg bg-[#E2B755] px-4 py-2.5 text-sm font-semibold text-black">
+          Consultar posicionamento
+        </button>
+      </section>
 
       {/* COMO FUNCIONA (TIMELINE) */}
       <section id="processo" className="py-32 bg-black border-y border-zinc-900/40 relative">
@@ -1197,7 +1115,7 @@ export default function App() {
               <li><button onClick={() => scrollToSection('home')} className="hover:text-white transition-colors text-left">Início</button></li>
               <li><button onClick={() => scrollToSection('solucoes')} className="hover:text-white transition-colors text-left">Nossas Soluções</button></li>
               <li><button onClick={() => scrollToSection('portfolio')} className="hover:text-white transition-colors text-left">Portfólio / Casos</button></li>
-              <li><button onClick={() => scrollToSection('diagnostico')} className="hover:text-white transition-colors text-left">Atlas Score IA</button></li>
+              <li><button onClick={() => scrollToSection('diagnostico')} className="hover:text-white transition-colors text-left">Atlas Score</button></li>
               <li><button onClick={() => scrollToSection('processo')} className="hover:text-white transition-colors text-left">Como Trabalhamos</button></li>
             </ul>
           </div>

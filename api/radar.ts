@@ -41,6 +41,9 @@ export interface RadarLead {
   reviewsCount: number;
   distanceKm: number | null;
   atlasScore: number;
+  localPosition: number;
+  positionQuery: string;
+  positionCheckedAt: string;
   closeProbability: number;
   notes: string;
 }
@@ -88,9 +91,10 @@ function getPlacesKey(): string {
   return key;
 }
 
-async function placesTextSearch(body: Record<string, unknown>, fieldMask: string): Promise<any> {
+export async function placesTextSearch(body: Record<string, unknown>, fieldMask: string): Promise<any> {
   const response = await fetch(PLACES_URL, {
     method: "POST",
+    signal: AbortSignal.timeout(10000),
     headers: {
       "Content-Type": "application/json",
       "X-Goog-Api-Key": getPlacesKey(),
@@ -136,7 +140,7 @@ const SOCIAL_HOSTS: Array<{ test: RegExp; kind: "instagram" | "facebook" | "what
   { test: /(^|\.)(linktr\.ee|linktree\.com|bio\.link|beacons\.ai|taplink\.cc)$/i, kind: "other" },
 ];
 
-function classifyUrl(rawUrl: string): { kind: "site" | "instagram" | "facebook" | "whatsapp" | "linkedin" | "other"; url: URL } | null {
+export function classifyUrl(rawUrl: string): { kind: "site" | "instagram" | "facebook" | "whatsapp" | "linkedin" | "other"; url: URL } | null {
   try {
     const url = new URL(/^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`);
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
@@ -243,31 +247,20 @@ async function runPool<T>(items: T[], limit: number, deadline: number, worker: (
   await Promise.all(runners);
 }
 
-function estimateScores(lead: RadarLead, siteIsHttps: boolean): { atlasScore: number; closeProbability: number } {
-  const rating = lead.rating ?? 0;
-  const reviews = lead.reviewsCount;
+export const LOCAL_SCORE_WINDOW = 20;
 
-  let score = 15;
-  if (lead.website) score += 30;
-  if (lead.website && siteIsHttps) score += 5;
-  if (rating >= 4.5) score += 10;
-  else if (rating >= 4) score += 6;
-  if (reviews >= 100) score += 15;
-  else if (reviews >= 50) score += 10;
-  else if (reviews >= 10) score += 5;
-  if (lead.instagram) score += 8;
-  if (lead.whatsappConfidence === "confirmado") score += 7;
-  if (lead.phone) score += 5;
-  if (lead.facebook) score += 3;
+/** Pontuação do Atlas calculada a partir da ordem observada, com 5 pontos por posição. */
+export function scoreForLocalPosition(position: number): number {
+  return Math.max(0, (LOCAL_SCORE_WINDOW + 1 - position) * 5);
+}
 
-  // Quem tem cliente (avaliações) mas presença digital fraca é a melhor oportunidade.
+function estimateCloseProbability(lead: RadarLead): number {
   let close = lead.website ? 25 : 50;
-  if (reviews >= 50) close += 15;
-  else if (reviews >= 10) close += 8;
-  if (rating >= 4) close += 5;
+  if (lead.reviewsCount >= 50) close += 15;
+  else if (lead.reviewsCount >= 10) close += 8;
+  if ((lead.rating ?? 0) >= 4) close += 5;
   if (lead.whatsapp) close += 5;
-
-  return { atlasScore: Math.min(score, 100), closeProbability: Math.min(close, 90) };
+  return Math.min(close, 90);
 }
 
 export async function searchRadar(params: RadarSearchParams): Promise<RadarSearchResult> {
@@ -312,8 +305,10 @@ export async function searchRadar(params: RadarSearchParams): Promise<RadarSearc
     "nextPageToken",
   ].join(",");
 
+  const positionQuery = `${segment}${keyword ? ` ${keyword}` : ""} em ${place}`;
   const baseBody: Record<string, unknown> = {
-    textQuery: `${segment}${keyword ? ` ${keyword}` : ""} em ${place}`,
+    textQuery: positionQuery,
+    rankPreference: "RELEVANCE",
     languageCode: "pt-BR",
     regionCode: "BR",
     pageSize: PLACES_PAGE_SIZE,
@@ -324,10 +319,12 @@ export async function searchRadar(params: RadarSearchParams): Promise<RadarSearc
     };
   }
 
+  const positionCheckedAt = new Date().toISOString();
   const leads: RadarLead[] = [];
   const siteUrls = new Map<string, URL>();
   const seen = new Set<string>();
   let scanned = 0;
+  let localPosition = 0;
   let pageToken: string | undefined;
 
   for (let page = 0; page < PLACES_MAX_PAGES && leads.length < quantity; page++) {
@@ -339,6 +336,7 @@ export async function searchRadar(params: RadarSearchParams): Promise<RadarSearc
       if (leads.length >= quantity) break;
       if (!item?.id || seen.has(item.id)) continue;
       seen.add(item.id);
+      localPosition++;
       if (item.businessStatus && item.businessStatus !== "OPERATIONAL") continue;
 
       const rating: number | null = typeof item.rating === "number" ? item.rating : null;
@@ -377,7 +375,10 @@ export async function searchRadar(params: RadarSearchParams): Promise<RadarSearc
         rating,
         reviewsCount,
         distanceKm: distanceKm === null ? null : Math.round(distanceKm * 10) / 10,
-        atlasScore: 0,
+        atlasScore: scoreForLocalPosition(localPosition),
+        localPosition,
+        positionQuery,
+        positionCheckedAt,
         closeProbability: 0,
         notes: "",
       };
@@ -419,10 +420,7 @@ export async function searchRadar(params: RadarSearchParams): Promise<RadarSearc
 
   for (const lead of leads) {
     lead.whatsappLink = lead.whatsapp ? `https://wa.me/${lead.whatsapp}` : "";
-    const siteUrl = siteUrls.get(lead.id);
-    const scores = estimateScores(lead, siteUrl?.protocol === "https:");
-    lead.atlasScore = scores.atlasScore;
-    lead.closeProbability = scores.closeProbability;
+    lead.closeProbability = estimateCloseProbability(lead);
     const ratingText = lead.rating !== null
       ? `Nota ${lead.rating.toFixed(1)} no Google com ${lead.reviewsCount} avaliações.`
       : "Ainda sem avaliações no Google.";
@@ -441,7 +439,7 @@ const FIREBASE_WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY || "AIzaSyCqIc_q1L
  * Confere o token de login do Firebase no serviço do Google e devolve o e-mail
  * do usuário. Usa apenas fetch, para não depender de nenhuma biblioteca no servidor.
  */
-async function getAuthenticatedEmail(req: any): Promise<string | null> {
+export async function getAuthenticatedEmail(req: any): Promise<string | null> {
   const header: string = req.headers?.authorization || "";
   const match = /^Bearer\s+(.+)$/i.exec(header);
   if (!match) return null;

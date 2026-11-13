@@ -72,7 +72,7 @@ export default function CrmInteligente({
       facebook: '',
       linkedin: '',
       googleProfile: '',
-      atlasScore: newWebsite.trim() ? 65 : null,
+      atlasScore: null,
       status: 'Novo',
       lastContact: 'Não efetuado',
       nextAction: 'Enviar Primeira Auditoria',
@@ -170,7 +170,7 @@ export default function CrmInteligente({
                           <span className={`text-[10px] font-mono font-bold ${
                             lead.atlasScore === null ? 'text-gray-600' : lead.atlasScore >= 70 ? 'text-emerald-400' : lead.atlasScore >= 50 ? 'text-amber-500' : 'text-red-400'
                           }`}>
-                            {lead.atlasScore === null ? 'N/A' : `${lead.atlasScore}%`}
+                            {lead.atlasScore === null ? 'Sem medição' : `${lead.atlasScore}/100`}
                           </span>
                         </div>
                       </div>

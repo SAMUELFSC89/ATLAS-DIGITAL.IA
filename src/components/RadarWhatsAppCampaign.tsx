@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircle, Check, ExternalLink, Loader2, MessageCircle, Send, Square, X } from 'lucide-react';
+import { AlertCircle, Check, Download, ExternalLink, Loader2, MessageCircle, Send, Square, X } from 'lucide-react';
 import { RadarLead } from '../types';
+import { createPositioningPdf, positioningFromLead } from '../lib/positioningPdf';
 import {
   ApiError,
   WhatsAppConnection,
@@ -20,7 +21,7 @@ type VariableSource = 'empresa' | 'cidade' | 'segmento' | 'fixo';
 type SendStatus = { state: 'enviando' | 'enviado' | 'simulado' | 'erro'; detail?: string };
 
 const DEFAULT_MESSAGE =
-  'Olá! Falo com o responsável pela {empresa}? Sou da Atlas Digital. Vi o perfil de vocês no Google e tenho uma sugestão rápida para trazer mais pedidos de orçamento aí em {cidade}. Posso te mostrar?';
+  'Oi, tudo bem? Sou da Atlas Digital. Dei uma olhada em como a {empresa} aparece no Google e preparei um resumo de uma página com o que já funciona e algumas melhorias simples. Posso te mandar?';
 
 const SEND_INTERVAL_MS = 4000;
 
@@ -38,34 +39,41 @@ export default function RadarWhatsAppCampaign({ leads, onClose }: RadarWhatsAppC
   const [connection, setConnection] = useState<WhatsAppConnection | null>(null);
   const [connectionError, setConnectionError] = useState('');
   const [loadingConnection, setLoadingConnection] = useState(false);
-  const [templateName, setTemplateName] = useState('');
+  const [templateKey, setTemplateKey] = useState('');
+  const [pdfError, setPdfError] = useState('');
   const [variableSources, setVariableSources] = useState<VariableSource[]>([]);
   const [fixedTexts, setFixedTexts] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<Record<string, SendStatus>>({});
   const [running, setRunning] = useState(false);
   const stopRequested = useRef(false);
 
-  const template: WhatsAppTemplate | undefined = connection?.templates.find((tpl) => tpl.name === templateName);
+  const supportedTemplates = (connection?.templates || []).filter(
+    canSendTemplate,
+  );
+  const template = supportedTemplates.find((item) => getTemplateKey(item) === templateKey);
+  const includePdf = template?.headerFormat === 'DOCUMENT' || Boolean(connection?.simulated);
 
   useEffect(() => {
-    if (mode !== 'api' || connection || loadingConnection) return;
+    if (mode !== 'api' || connection || connectionError || loadingConnection) return;
     setLoadingConnection(true);
     setConnectionError('');
     getWhatsAppConnection()
       .then((info) => {
         setConnection(info);
-        if (info.templates[0]) setTemplateName(info.templates[0].name);
+        const first = info.templates.find((item) => item.headerFormat === 'DOCUMENT')
+          || info.templates.find(canSendTemplate);
+        if (first) setTemplateKey(getTemplateKey(first));
       })
       .catch((err: ApiError) => setConnectionError(err.message))
       .finally(() => setLoadingConnection(false));
-  }, [mode, connection, loadingConnection]);
+  }, [mode, connection, connectionError, loadingConnection]);
 
   useEffect(() => {
     const count = template?.variableCount || 0;
     const defaults: VariableSource[] = ['empresa', 'cidade', 'segmento'];
     setVariableSources(Array.from({ length: count }, (_, i) => defaults[i] || 'fixo'));
     setFixedTexts(Array.from({ length: count }, () => ''));
-  }, [templateName, template?.variableCount]);
+  }, [templateKey, template?.variableCount]);
 
   useEffect(() => () => { stopRequested.current = true; }, []);
 
@@ -73,6 +81,16 @@ export default function RadarWhatsAppCampaign({ leads, onClose }: RadarWhatsAppC
     const url = `https://wa.me/${lead.whatsapp}?text=${encodeURIComponent(fillMessage(message, lead))}`;
     window.open(url, '_blank', 'noopener,noreferrer');
     setOpenedIds((prev) => (prev.includes(lead.id) ? prev : [...prev, lead.id]));
+  };
+
+  const downloadPdf = async (lead: RadarLead) => {
+    setPdfError('');
+    try {
+      const { doc, filename } = await createPositioningPdf(positioningFromLead(lead));
+      doc.save(filename);
+    } catch {
+      setPdfError(`Não foi possível gerar o PDF de ${lead.companyName}.`);
+    }
   };
 
   const nextUnopened = leads.find((lead) => !openedIds.includes(lead.id));
@@ -102,7 +120,8 @@ export default function RadarWhatsAppCampaign({ leads, onClose }: RadarWhatsAppC
       const lead = pending[i];
       setStatuses((prev) => ({ ...prev, [lead.id]: { state: 'enviando' } }));
       try {
-        const result = await sendWhatsAppTemplate(lead.whatsapp, chosen, resolveParams(lead));
+        const positioning = includePdf ? positioningFromLead(lead) : undefined;
+        const result = await sendWhatsAppTemplate(lead.whatsapp, chosen, resolveParams(lead), positioning);
         setStatuses((prev) => ({
           ...prev,
           [lead.id]: result.success
@@ -183,7 +202,7 @@ export default function RadarWhatsAppCampaign({ leads, onClose }: RadarWhatsAppC
               {nextUnopened ? `Abrir próxima conversa (${openedIds.length + 1} de ${leads.length})` : 'Todas as conversas foram abertas'}
             </button>
             <span className="text-[11px] text-gray-500">
-              A conversa abre com a mensagem pronta no WhatsApp em que você estiver logado; você só confirma o envio.
+              O WhatsApp abre com a mensagem pronta. Baixe o PDF da empresa abaixo para anexá-lo na conversa.
             </span>
           </div>
         </div>
@@ -196,7 +215,11 @@ export default function RadarWhatsAppCampaign({ leads, onClose }: RadarWhatsAppC
               <Loader2 className="w-4 h-4 animate-spin" /> Conferindo a conexão do WhatsApp...
             </div>
           )}
-          {connectionError && <Notice tone="error">{connectionError}</Notice>}
+          {connectionError && (
+            <Notice tone="error">{connectionError}{' '}
+              <button type="button" className="underline" onClick={() => setConnectionError('')}>Tentar novamente</button>
+            </Notice>
+          )}
 
           {connection && !connection.connected && (
             <Notice tone="warn">
@@ -227,23 +250,30 @@ export default function RadarWhatsAppCampaign({ leads, onClose }: RadarWhatsAppC
                 </Notice>
               )}
 
-              {connection.templates.length > 0 && (
+              {!connection.simulated && connection.templates.length > 0 && !supportedTemplates.length && (
+                <Notice tone="warn">Escolha no Gerenciador do WhatsApp um modelo aprovado com cabeçalho do tipo Documento para enviar o PDF.</Notice>
+              )}
+
+              {supportedTemplates.length > 0 && (
                 <div className="space-y-3">
                   <div className="space-y-1.5">
                     <label className="block text-[10px] uppercase font-mono font-bold text-gray-400">Modelo aprovado</label>
                     <select
-                      value={templateName}
-                      onChange={(e) => setTemplateName(e.target.value)}
+                      value={templateKey}
+                      onChange={(e) => setTemplateKey(e.target.value)}
                       disabled={running}
                       className="w-full sm:w-96 bg-gray-950 text-white border border-gray-800 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-[#E2B755]"
                     >
-                      {connection.templates.map((tpl) => (
-                        <option key={`${tpl.name}-${tpl.language}`} value={tpl.name}>
-                          {tpl.name} ({tpl.language})
+                      {supportedTemplates.map((tpl) => (
+                        <option key={getTemplateKey(tpl)} value={getTemplateKey(tpl)}>
+                          {tpl.name} ({tpl.language}){tpl.headerFormat === 'DOCUMENT' ? ' · Com PDF' : ''}
                         </option>
                       ))}
                     </select>
                     {template?.body && <p className="text-[11px] text-gray-500 whitespace-pre-line">{template.body}</p>}
+                    {template && <p className="text-[11px] text-gray-400">
+                      {includePdf ? 'Cada empresa recebe seu próprio PDF de posicionamento.' : 'Envio somente de texto. Para anexar o PDF, selecione um modelo aprovado com cabeçalho Documento.'}
+                    </p>}
                   </div>
 
                   {variableSources.map((source, i) => (
@@ -276,7 +306,7 @@ export default function RadarWhatsAppCampaign({ leads, onClose }: RadarWhatsAppC
                 </div>
               )}
 
-              {(connection.templates.length > 0 || connection.simulated) && (
+              {(supportedTemplates.length > 0 || connection.simulated) && (
                 <div className="flex flex-wrap items-center gap-3">
                   {!running ? (
                     <button
@@ -310,6 +340,7 @@ export default function RadarWhatsAppCampaign({ leads, onClose }: RadarWhatsAppC
         </div>
       )}
 
+      {pdfError && <Notice tone="error">{pdfError}</Notice>}
       <div className="border-t border-gray-900 pt-3 space-y-1.5 max-h-72 overflow-y-auto">
         {leads.map((lead) => {
           const status = statuses[lead.id];
@@ -321,42 +352,60 @@ export default function RadarWhatsAppCampaign({ leads, onClose }: RadarWhatsAppC
                 <span className="font-mono">{formatWhatsApp(lead.whatsapp)}</span>{' '}
                 <span className="text-gray-600">({CONFIDENCE_TEXT[lead.whatsappConfidence] || 'sem verificação'})</span>
               </div>
-              {mode === 'assistido' ? (
+              <div className="flex flex-wrap items-center gap-2">
                 <button
-                  onClick={() => openChat(lead)}
-                  disabled={!message.trim()}
-                  className={`px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 ${
-                    opened ? 'bg-gray-900 text-emerald-400 border border-gray-800' : 'bg-white text-black hover:bg-gray-200'
-                  }`}
+                  type="button"
+                  onClick={() => void downloadPdf(lead)}
+                  aria-label={`Baixar PDF de ${lead.companyName}`}
+                  className="px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 bg-gray-900 text-gray-200 hover:text-white border border-gray-800"
                 >
-                  {opened ? <Check className="w-3 h-3" /> : <ExternalLink className="w-3 h-3" />}
-                  {opened ? 'Aberta' : 'Abrir conversa'}
+                  <Download className="w-3 h-3" /> PDF
                 </button>
-              ) : (
-                <span
-                  className={
-                    status?.state === 'erro'
-                      ? 'text-red-400'
-                      : status?.state === 'enviado'
-                        ? 'text-emerald-400'
-                        : status?.state === 'simulado'
-                          ? 'text-amber-400'
-                          : 'text-gray-600'
-                  }
-                >
-                  {status?.state === 'enviando' && 'Enviando...'}
-                  {status?.state === 'enviado' && 'Enviado'}
-                  {status?.state === 'simulado' && 'Simulado (não enviado)'}
-                  {status?.state === 'erro' && `Falhou: ${status.detail || 'erro desconhecido'}`}
-                  {!status && 'Aguardando'}
-                </span>
-              )}
+                {mode === 'assistido' ? (
+                  <button
+                    onClick={() => openChat(lead)}
+                    disabled={!message.trim()}
+                    className={`px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 ${
+                      opened ? 'bg-gray-900 text-emerald-400 border border-gray-800' : 'bg-white text-black hover:bg-gray-200'
+                    }`}
+                  >
+                    {opened ? <Check className="w-3 h-3" /> : <ExternalLink className="w-3 h-3" />}
+                    {opened ? 'Aberta' : 'Abrir conversa'}
+                  </button>
+                ) : (
+                  <span
+                    className={
+                      status?.state === 'erro'
+                        ? 'text-red-400'
+                        : status?.state === 'enviado'
+                          ? 'text-emerald-400'
+                          : status?.state === 'simulado'
+                            ? 'text-amber-400'
+                            : 'text-gray-600'
+                    }
+                  >
+                    {status?.state === 'enviando' && 'Enviando...'}
+                    {status?.state === 'enviado' && 'Enviado'}
+                    {status?.state === 'simulado' && 'Simulado (não enviado)'}
+                    {status?.state === 'erro' && `Falhou: ${status.detail || 'erro desconhecido'}`}
+                    {!status && 'Aguardando'}
+                  </span>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
     </div>
   );
+}
+
+function canSendTemplate(template: WhatsAppTemplate): boolean {
+  return !template.headerFormat || template.headerFormat === 'TEXT' || template.headerFormat === 'DOCUMENT';
+}
+
+function getTemplateKey(template: WhatsAppTemplate): string {
+  return `${template.name}:${template.language}`;
 }
 
 function Notice({ tone, children }: { tone: 'info' | 'warn' | 'error'; children: React.ReactNode }) {

@@ -1,5 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { readDb, writeDb, decrypt } from "./db-helper.js";
+import { createPositioningPdf, type PositioningSnapshot } from "../src/lib/positioningPdf.js";
+
+const WHATSAPP_GRAPH_URL = "https://graph.facebook.com/v24.0";
 
 let aiClient: GoogleGenAI | null = null;
 
@@ -197,6 +200,7 @@ export interface WhatsAppTemplateSummary {
   category: string;
   body: string;
   variableCount: number;
+  headerFormat?: string;
 }
 
 export interface WhatsAppConnectionInfo {
@@ -242,7 +246,7 @@ export async function getWhatsAppConnectionInfo(empresaId: string): Promise<What
   }
 
   try {
-    const url = `https://graph.facebook.com/v18.0/${company.whatsappBusinessAccountId}/message_templates?fields=name,status,language,category,components&limit=100`;
+    const url = `${WHATSAPP_GRAPH_URL}/${company.whatsappBusinessAccountId}/message_templates?fields=name,status,language,category,components&limit=100`;
     const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     const data: any = await response.json();
     if (!response.ok) {
@@ -254,7 +258,8 @@ export async function getWhatsAppConnectionInfo(empresaId: string): Promise<What
       .map((tpl: any) => {
         const body: string = (tpl.components || []).find((c: any) => c.type === "BODY")?.text || "";
         const variables = new Set((body.match(/\{\{\d+\}\}/g) || []));
-        return { name: tpl.name, language: tpl.language, category: tpl.category, body, variableCount: variables.size };
+        const headerFormat = (tpl.components || []).find((c: any) => c.type === "HEADER")?.format;
+        return { name: tpl.name, language: tpl.language, category: tpl.category, body, variableCount: variables.size, headerFormat };
       });
   } catch (err: any) {
     info.templatesError = err.message || "Erro de rede ao consultar a Meta.";
@@ -271,7 +276,8 @@ export async function sendWhatsAppTemplate(
   telefoneDestino: string,
   templateName: string,
   languageCode: string,
-  bodyParams: string[]
+  bodyParams: string[],
+  positioning?: PositioningSnapshot,
 ): Promise<{ success: boolean; simulated?: boolean; messageId?: string; error?: string }> {
   const db = await readDb();
   const company = db[empresaId];
@@ -280,19 +286,44 @@ export async function sendWhatsAppTemplate(
   }
 
   const token = decrypt(company.accessToken);
-  if (isSimulatedToken(token)) {
-    return { success: true, simulated: true, messageId: `wmid.Simulated_${Date.now()}` };
-  }
-
-  const template: any = { name: templateName, language: { code: languageCode } };
-  if (bodyParams.length > 0) {
-    template.components = [
-      { type: "body", parameters: bodyParams.map((text) => ({ type: "text", text })) },
-    ];
-  }
-
   try {
-    const response = await fetch(`https://graph.facebook.com/v18.0/${company.phoneNumberId}/messages`, {
+    const pdf = positioning ? await createPositioningPdf(positioning) : undefined;
+    if (isSimulatedToken(token)) {
+      return { success: true, simulated: true, messageId: `wmid.Simulated_${Date.now()}` };
+    }
+
+    const phoneUrl = `${WHATSAPP_GRAPH_URL}/${company.phoneNumberId}`;
+    const components = [];
+    if (pdf) {
+      const media = new FormData();
+      media.set("messaging_product", "whatsapp");
+      media.set("type", "application/pdf");
+      media.set("file", new Blob([pdf.doc.output("arraybuffer")], { type: "application/pdf" }), pdf.filename);
+      const upload = await fetch(`${phoneUrl}/media`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: media,
+      });
+      const uploaded = await upload.json();
+      if (!upload.ok || typeof uploaded.id !== "string" || !uploaded.id) {
+        return { success: false, error: uploaded?.error?.message || "A Meta não aceitou o PDF." };
+      }
+      components.push({
+        type: "header",
+        parameters: [{ type: "document", document: { id: uploaded.id, filename: pdf.filename } }],
+      });
+    }
+
+    if (bodyParams.length > 0) {
+      components.push({ type: "body", parameters: bodyParams.map((text) => ({ type: "text", text })) });
+    }
+
+    const template = {
+      name: templateName,
+      language: { code: languageCode },
+      ...(components.length ? { components } : {}),
+    };
+    const response = await fetch(`${phoneUrl}/messages`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({

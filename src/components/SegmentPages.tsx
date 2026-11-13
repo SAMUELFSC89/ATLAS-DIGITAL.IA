@@ -147,7 +147,7 @@ export default function SegmentPages() {
                 <span className="text-white font-mono font-bold">&lt; 1.8 segundos</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-400 font-light font-sans">Maturidade digital ideal (Atlas Score):</span>
+                <span className="text-gray-400 font-light font-sans">Meta de maturidade digital:</span>
                 <span className="text-emerald-400 font-mono font-bold">&gt; 85/100</span>
               </div>
             </div>
@@ -158,7 +158,7 @@ export default function SegmentPages() {
             <div className="space-y-1 text-xs">
               <h5 className="text-white text-[10px] font-bold font-mono uppercase tracking-wide">Foco Geolocalizado</h5>
               <p className="text-[10px] text-gray-500 leading-relaxed font-sans font-light">
-                O motor do Atlas Score pondera os algoritmos de buscas comparando o site do cliente com as marcas concorrentes que atuam num raio geográfico de até 25km na mesma cidade.
+                O Atlas Score local usa a posição da empresa nos resultados do Google Places para o termo e a cidade escolhidos.
               </p>
             </div>
           </div>

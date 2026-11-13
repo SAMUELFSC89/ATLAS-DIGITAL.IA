@@ -42,7 +42,9 @@ export default function AtlasCopilot({ leads, selectedLead, onSelectLead }: Atla
     const name = selectedLead.companyName;
     const resp = selectedLead.responsible;
     const city = selectedLead.city;
-    const score = selectedLead.atlasScore || 42;
+    const measuredPosition = selectedLead.localPosition && selectedLead.positionQuery
+      ? `Na busca local por “${selectedLead.positionQuery}”, a empresa apareceu em ${selectedLead.localPosition}º lugar no Google Places.`
+      : '';
     const segment = selectedLead.segment;
 
     await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -52,7 +54,7 @@ export default function AtlasCopilot({ leads, selectedLead, onSelectLead }: Atla
 
 Aqui é a equipe da *Atlas Intelligence*. Estávamos fazendo um mapeamento técnico da presença digital de empresas do segmento de *${segment}* em *${city}*, e analisamos a ficha da *${name}*.
 
-Geramos um relatório executivo automático (Atlas Score) e notamos que há algumas oportunidades críticas de melhoria na velocidade de resposta e otimização móvel do seu canal digital que podem estar impactando o seu volume diário de orçamentos.
+${measuredPosition || "Posso consultar como a empresa aparece no Google para buscas da sua região."}
 
 Você tem 5 minutos amanhã às 14h para darmos uma olhada rápida nesse diagnóstico técnico sem qualquer compromisso?
 
@@ -64,13 +66,9 @@ Prezado(a) ${resp}, espero que este e-mail o(a) encontre bem.
 
 Meu nome é consultor de inteligência de dados na Atlas Intelligence. Recentemente, realizamos uma auditoria técnica de conformidade nos canais digitais de marcas atuantes no nicho de ${segment} na região de ${city}.
 
-A ${name} foi incluída neste lote analítico, registrando uma pontuação global de ${score}/100 em nosso índice proprietário Atlas Score. Identificamos indicadores importantes relacionados a:
+${measuredPosition || `Podemos consultar como a ${name} aparece no Google para buscas na região de ${city}.`}
 
-1. Otimização Móvel (Tempo de carregamento em redes celulares locais).
-2. Semântica de Indexação SEO (Marcações Schema.org e cabeçalhos técnicos).
-3. Cobertura de autoridade competitiva frente aos principais concorrentes da região.
-
-Anexamos a este e-mail uma versão simplificada do diagnóstico digital corporativo. Gostaríamos de agendar uma breve chamada de 10 minutos para compartilhar as recomendações da nossa IA de prospecção comercial para otimizar estes canais e ampliar a sua atração local.
+Gostaríamos de agendar uma breve chamada para conversar sobre a presença digital da empresa.
 
 Qual o melhor horário de contato para você nesta semana?
 
@@ -221,7 +219,7 @@ Para a devida conformidade das partes, segue o termo assinado eletronicamente.`;
               <div className="bg-gray-950/40 border border-gray-900 rounded-xl p-3.5 space-y-1.5 text-xs">
                 <div className="flex items-center justify-between font-bold">
                   <span className="text-white truncate">{selectedLead.companyName}</span>
-                  <span className="text-emerald-400 font-mono">{selectedLead.atlasScore || 42}%</span>
+                  <span className="text-emerald-400 font-mono">{selectedLead.atlasScore === null ? 'Sem medição' : `${selectedLead.atlasScore}/100`}</span>
                 </div>
                 <p className="text-[10px] text-gray-500 font-mono">Contato: {selectedLead.responsible}</p>
                 <p className="text-[10px] text-gray-400 line-clamp-2">{selectedLead.notes}</p>

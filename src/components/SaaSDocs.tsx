@@ -69,60 +69,11 @@ export default function SaaSDocs() {
         <div className="lg:col-span-8 bg-gray-950/40 border border-gray-900 rounded-2xl p-6 sm:p-8 space-y-6">
           
           {selectedTopic === 'score' && (
-            <div className="space-y-4">
-              <h3 className="text-white text-lg font-bold font-display tracking-tight border-b border-gray-900 pb-2">
-                Fórmula de Ponderação do Atlas Score
-              </h3>
-              
-              <p className="text-xs text-gray-300 leading-relaxed font-sans font-light">
-                O Atlas Score representa um índice matemático ponderado que reflete a maturidade digital de canais comerciais locais. A pontuação varia de <strong className="text-white">0 a 100</strong>, estruturada sobre cinco vertentes de conformidade técnica:
-              </p>
-
-              {/* Formula Table Box */}
-              <div className="bg-black/40 border border-gray-900 rounded-xl p-4 font-mono text-[11px] text-gray-400 space-y-2">
-                <div className="text-emerald-400 font-bold border-b border-gray-900 pb-1.5 flex justify-between uppercase text-[10px]">
-                  <span>Componente Técnico</span>
-                  <span>Peso Científico</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>1. SEO Técnico & Semântica Google</span>
-                  <span className="text-white font-bold">25% (Peso: 0.25)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>2. Core Web Vitals (Velocidade & Resposta)</span>
-                  <span className="text-white font-bold">25% (Peso: 0.25)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>3. Conversão & Chamadas Comerciais (WhatsApp)</span>
-                  <span className="text-white font-bold">20% (Peso: 0.20)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>4. Presença Local (Google Perfil de Empresa)</span>
-                  <span className="text-white font-bold">20% (Peso: 0.20)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>5. Inteligência Conversacional & Automações</span>
-                  <span className="text-white font-bold">10% (Peso: 0.10)</span>
-                </div>
-              </div>
-
-              <div className="space-y-2.5 pt-2">
-                <h4 className="text-white text-xs font-bold uppercase font-mono tracking-wide">Graduação de Maturidade:</h4>
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-start gap-2">
-                    <span className="px-1.5 py-0.5 bg-red-500/10 text-red-400 font-mono font-bold rounded border border-red-900/20 text-[9px]">0 - 49%</span>
-                    <p className="text-gray-400 leading-relaxed font-light"><strong className="text-white">Fase Crítica:</strong> Presença digital deficiente ou nula. Sem otimizações de indexação, velocidade lenta que afasta prospects, necessitando de reestruturação imediata.</p>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="px-1.5 py-0.5 bg-amber-500/10 text-amber-400 font-mono font-bold rounded border border-amber-900/20 text-[9px]">50 - 79%</span>
-                    <p className="text-gray-400 leading-relaxed font-light"><strong className="text-white">Fase de Alerta:</strong> Possui sitemap basilar, mas peca em responsividade celular e peca no funil de atendimento. Razoavelmente visível, mas desperdiça cliques diários.</p>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 font-mono font-bold rounded border border-emerald-900/20 text-[9px]">80 - 100%</span>
-                    <p className="text-gray-400 leading-relaxed font-light"><strong className="text-white">Fase Corporativa:</strong> Alta eficiência técnica. Código limpo, carregamento abaixo de 2 segundos, funil comercial integrado, excelente autoridade de pesquisa local.</p>
-                  </div>
-                </div>
-              </div>
+            <div className="space-y-4 text-sm text-gray-300">
+              <h3 className="text-lg font-bold text-white">Como o Atlas Score local é calculado</h3>
+              <p>A posição é a ordem em que o perfil aparece nos resultados do Google Places para o termo e a cidade da consulta.</p>
+              <p>O índice Atlas começa em 100 para o 1º lugar e diminui 5 pontos por posição até o 20º lugar. O índice é 0 quando o perfil fica fora dos 20 primeiros e a consulta cobre esse limite.</p>
+              <p>Se o perfil foi confirmado, mas a busca retornou menos de 20 resultados e a empresa não apareceu, o índice fica indisponível.</p>
             </div>
           )}
 
