@@ -104,15 +104,15 @@ export default async function handler(req: any, res: any) {
 
   try {
     if (req.method === "GET") {
-      const connection = await getWhatsAppConnectionInfo(email);
       const refs = campaignRefs(email);
       const [settings, day] = await Promise.all([refs.settings.get(), refs.day.get()]);
-      return res.status(200).json({
-        ...connection,
+      const preferences = {
         dailyLimit: settings.get("dailyLimit") ?? DEFAULT_DAILY_LIMIT,
         dailyUsed: day.get("count") ?? 0,
         schedule: parseProspectingSchedule(settings.get("schedule")) ?? DEFAULT_PROSPECTING_SCHEDULE,
-      });
+      };
+      if (req.query?.view === "prospecting-settings") return res.status(200).json(preferences);
+      return res.status(200).json({ ...(await getWhatsAppConnectionInfo(email)), ...preferences });
     }
 
     if (req.method === "POST") {

@@ -1,3 +1,4 @@
+import ProspectingQueuePreview from './ProspectingQueuePreview';
 import { DEFAULT_PROSPECTING_SCHEDULE, parseProspectingSchedule, withinProspectingSchedule } from "../lib/prospectingSchedule";
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, Check, Download, ExternalLink, Loader2, MessageCircle, Send, Square, X } from 'lucide-react';
@@ -36,7 +37,7 @@ const CONFIDENCE_TEXT: Record<string, string> = {
 };
 
 export default function RadarWhatsAppCampaign({ leads, message, onMessageChange, onClose }: RadarWhatsAppCampaignProps) {
-  const [mode, setMode] = useState<'assistido' | 'api'>('assistido');
+  const [mode, setMode] = useState<'assistido' | 'api' | 'preview'>('assistido');
   const [openedIds, setOpenedIds] = useState<string[]>([]);
 
   const [connection, setConnection] = useState<WhatsAppConnection | null>(null);
@@ -223,7 +224,7 @@ export default function RadarWhatsAppCampaign({ leads, message, onMessageChange,
         </button>
       </div>
 
-      <div className="inline-flex bg-gray-950 border border-gray-800 rounded-xl p-1 text-xs font-semibold">
+      <div className="inline-flex flex-wrap bg-gray-950 border border-gray-800 rounded-xl p-1 text-xs font-semibold">
         <button
           onClick={() => setMode('assistido')}
           disabled={running}
@@ -238,7 +239,13 @@ export default function RadarWhatsAppCampaign({ leads, message, onMessageChange,
         >
           Envio automático (API oficial)
         </button>
+        <button type="button" onClick={() => setMode('preview')} disabled={running}
+          className={`px-3 py-1.5 rounded-lg ${mode === 'preview' ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}>
+          Fila simulada
+        </button>
       </div>
+
+      {mode === 'preview' && <ProspectingQueuePreview leads={leads} message={message} />}
 
       {mode === 'assistido' && (
         <div className="space-y-4">
@@ -467,7 +474,7 @@ export default function RadarWhatsAppCampaign({ leads, message, onMessageChange,
       )}
 
       {pdfError && <Notice tone="error">{pdfError}</Notice>}
-      <div className="border-t border-gray-900 pt-3 space-y-1.5 max-h-72 overflow-y-auto">
+      {mode !== 'preview' && <div className="border-t border-gray-900 pt-3 space-y-1.5 max-h-72 overflow-y-auto">
         {leads.map((lead) => {
           const status = statuses[lead.id];
           const opened = openedIds.includes(lead.id);
@@ -530,7 +537,7 @@ export default function RadarWhatsAppCampaign({ leads, message, onMessageChange,
             </div>
           );
         })}
-      </div>
+      </div>}
     </div>
   );
 }
