@@ -1,3 +1,4 @@
+import type { ProspectingSchedule } from "./prospectingSchedule";
 import { auth } from './firebase';
 import type { AtlasScoreReport, Lead, LeadStatus, LocalSearchPosition, RadarLead } from '../types';
 import type { SiteContact } from './contact';
@@ -99,6 +100,7 @@ export interface WhatsAppTemplate {
 }
 
 export interface WhatsAppConnection {
+  schedule: ProspectingSchedule;
   dailyLimit: number;
   dailyUsed: number;
   connected: boolean;
@@ -117,6 +119,13 @@ export function saveWhatsAppDailyLimit(dailyLimit: number): Promise<Pick<WhatsAp
   return request('/api/whatsapp-send', {
     method: 'POST',
     body: JSON.stringify({ action: 'saveDailyLimit', dailyLimit }),
+  });
+}
+
+export function saveWhatsAppSchedule(schedule: ProspectingSchedule): Promise<{ schedule: ProspectingSchedule }> {
+  return request('/api/whatsapp-send', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'saveSchedule', schedule }),
   });
 }
 
