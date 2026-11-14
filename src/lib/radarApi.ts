@@ -1,3 +1,4 @@
+import type { AiSimulation, AiTraining } from './aiTraining';
 import type { ProspectingSchedule } from "./prospectingSchedule";
 import { auth } from './firebase';
 import type { AtlasScoreReport, Lead, LeadStatus, LocalSearchPosition, RadarLead } from '../types';
@@ -186,4 +187,16 @@ export function formatWhatsApp(digits: string): string {
   if (local.length === 11) return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
   if (local.length === 10) return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
   return digits;
+}
+
+export function getAiTraining(signal?: AbortSignal): Promise<{ training: AiTraining }> {
+  return request('/api/ai-training', { method: 'GET', signal });
+}
+
+export function saveAiTraining(training: AiTraining): Promise<{ training: AiTraining }> {
+  return request('/api/ai-training', { method: 'POST', body: JSON.stringify({ action: 'save', training }) });
+}
+
+export function simulateAiTraining(message: string, memory: string): Promise<AiSimulation> {
+  return request('/api/ai-training', { method: 'POST', body: JSON.stringify({ action: 'simulate', message, memory }) });
 }

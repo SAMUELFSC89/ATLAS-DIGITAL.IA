@@ -60,6 +60,7 @@ import AtlasLogo from './components/AtlasLogo';
 import FAQSection from './components/FAQSection';
 import LegalModals, { LegalDocType } from './components/LegalModals';
 import AtlasScoreModule from './components/AtlasScoreModule';
+import AiTrainingPanel from './components/AiTrainingPanel';
 import ExecutiveDashboard from './components/ExecutiveDashboard';
 import RadarDeMercado from './components/RadarDeMercado';
 import CrmInteligente from './components/CrmInteligente';
@@ -291,6 +292,7 @@ export default function App() {
                 { id: 'atlas-score', label: 'Atlas Score', icon: Award },
                 { id: 'crm', label: 'CRM Inteligente', icon: ClipboardList },
                 { id: 'copilot', label: 'Atlas Copilot IA', icon: Bot },
+                { id: 'ai-training', label: 'Treinar IA', icon: Bot },
                 { id: 'automacoes', label: 'APIs & Conexões', icon: Settings },
                 { id: 'segments', label: 'Foco por Nicho', icon: Layers },
                 { id: 'blog', label: 'Editorial & Blog', icon: FileText },
@@ -369,6 +371,11 @@ export default function App() {
             </div>
           </header>
 
+          {currentUser && <div className="border-b border-zinc-900 px-6 py-2 md:hidden">
+            <button type="button" onClick={() => setActivePortalTab('ai-training')}
+              className="rounded-lg px-2 py-2 text-xs font-semibold text-[#E2B755]">Treinar IA</button>
+          </div>}
+
           {/* Main workspace scrollable container */}
           <main className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8">
             
@@ -413,6 +420,8 @@ export default function App() {
                     onTriggerAuditForLead={openAtlasScore}
                   />
                 )}
+
+                {activePortalTab === 'ai-training' && <AiTrainingPanel key={currentUser} />}
 
                 {activePortalTab === 'copilot' && (
                   <AtlasCopilot 
