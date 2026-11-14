@@ -380,7 +380,10 @@ export default function App() {
               <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
                 {activePortalTab === 'dashboard' && (
                   <ExecutiveDashboard 
-                    leads={crmLeads} 
+                    leads={crmLeads}
+                    loading={crmLoading}
+                    error={crmError}
+                    onOpenAudit={openAtlasScore}
                     onNavigateToTab={(tab) => setActivePortalTab(tab)} 
                   />
                 )}
