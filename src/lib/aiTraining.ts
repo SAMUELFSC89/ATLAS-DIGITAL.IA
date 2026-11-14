@@ -12,3 +12,5 @@ export interface AiSimulation {
   reply: string;
   memory: string;
 }
+
+export const AI_MEMORY_LIMIT = 2000;

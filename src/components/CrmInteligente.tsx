@@ -4,6 +4,7 @@ import {
   PlusCircle, Mail, Phone, Globe, DollarSign, X, Check, ArrowRight, TrendingUp 
 } from 'lucide-react';
 import { Lead, LeadStatus } from '../types';
+import { AI_MEMORY_LIMIT } from '../lib/aiTraining';
 import SiteContacts from './SiteContacts';
 
 interface CrmInteligenteProps {
@@ -13,6 +14,7 @@ interface CrmInteligenteProps {
   loading: boolean;
   onUpdateLeadStatus: (leadId: string, newStatus: LeadStatus) => Promise<void>;
   onUpdateLead: (updatedLead: Lead) => Promise<void>;
+  onSaveAiMemory: (id: string, memory: string, previousMemory: string) => Promise<void>;
   onDeleteLead: (leadId: string) => Promise<void>;
   onAddLead: (lead: Omit<Lead, 'id' | 'createdAt'>) => Promise<void>;
   onSelectLeadForCopilot: (lead: Lead) => void;
@@ -26,6 +28,7 @@ export default function CrmInteligente({
   loading,
   onUpdateLeadStatus,
   onUpdateLead,
+  onSaveAiMemory,
   onDeleteLead,
   onAddLead,
   onSelectLeadForCopilot,
@@ -33,6 +36,8 @@ export default function CrmInteligente({
 }: CrmInteligenteProps) {
   
   const [selectedLeadForEdit, setSelectedLeadForEdit] = useState<Lead | null>(null);
+  const [memoryDraft, setMemoryDraft] = useState('');
+  const [memoryNotice, setMemoryNotice] = useState('');
   const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -241,7 +246,11 @@ export default function CrmInteligente({
 
                           {/* Quick Edit */}
                           <button
-                            onClick={() => setSelectedLeadForEdit(lead)}
+                            onClick={() => {
+                          setSelectedLeadForEdit(lead);
+                          setMemoryDraft(lead.aiMemory ?? '');
+                          setMemoryNotice('');
+                        }}
                             className="p-1 rounded bg-gray-900 hover:bg-white hover:text-black transition-colors"
                             title="Editar Lead"
                           >
@@ -405,6 +414,30 @@ export default function CrmInteligente({
                   rows={3}
                   className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E2B755] resize-none"
                 />
+              </div>
+
+              <div className="space-y-2 rounded-xl border border-gray-800 p-3">
+                <label className="block space-y-1 text-xs text-white">
+                  <span>Memória da IA</span>
+                  <span className="block text-gray-400">Registre o que o lead já informou e o próximo passo. Para apagar, limpe o campo e salve a memória.</span>
+                  <textarea rows={3} value={memoryDraft} maxLength={AI_MEMORY_LIMIT} disabled={saving}
+                    onChange={event => { setMemoryDraft(event.target.value); setMemoryNotice(''); }}
+                    className="block w-full rounded-lg border border-gray-800 bg-gray-900 p-2 text-white" />
+                </label>
+                <button type="button" disabled={saving || memoryDraft.trim() === (selectedLeadForEdit.aiMemory ?? '')}
+                  onClick={() => void save(async () => {
+                    setMemoryNotice('');
+                    try {
+                      await onSaveAiMemory(selectedLeadForEdit.id, memoryDraft.trim(), selectedLeadForEdit.aiMemory ?? '');
+                      setSelectedLeadForEdit(current => current?.id === selectedLeadForEdit.id
+                        ? { ...current, aiMemory: memoryDraft.trim() } : current);
+                      setMemoryNotice(memoryDraft.trim() ? 'Memória salva.' : 'Memória apagada.');
+                    } catch (err) {
+                      setMemoryNotice((err as Error).message);
+                    }
+                  })}
+                  className="rounded-lg bg-emerald-400 px-3 py-2 text-xs font-semibold text-black disabled:opacity-40">Salvar memória</button>
+                {memoryNotice && <p role="status" className="text-xs text-gray-300">{memoryNotice}</p>}
               </div>
 
               <div className="pt-4 border-t border-gray-900 flex items-center justify-between">

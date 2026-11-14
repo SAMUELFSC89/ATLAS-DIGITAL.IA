@@ -183,6 +183,8 @@ export default function App() {
   const handleAddLeadToCrm = (lead: Omit<Lead, 'id' | 'createdAt'>) => saveCrm({ action: 'create', lead });
   const handleUpdateLeadStatus = (id: string, status: LeadStatus) => saveCrm({ action: 'stage', id, status });
   const handleUpdateLead = (lead: Lead) => saveCrm({ action: 'edit', id: lead.id, lead });
+  const handleSaveAiMemory = (id: string, memory: string, previousMemory: string) =>
+    saveCrm({ action: 'ai-memory', id, memory, previousMemory });
   const handleDeleteLead = (id: string) => saveCrm({ action: 'delete', id });
   const handleSaveLeadPosition = (id: string, localSearch: LocalSearchPosition) => saveCrm({ action: 'position', id, localSearch });
 
@@ -413,7 +415,8 @@ export default function App() {
                     error={crmError}
                     loading={crmLoading}
                     onUpdateLeadStatus={handleUpdateLeadStatus} 
-                    onUpdateLead={handleUpdateLead} 
+                    onUpdateLead={handleUpdateLead}
+                    onSaveAiMemory={handleSaveAiMemory}
                     onDeleteLead={handleDeleteLead} 
                     onAddLead={handleAddLeadToCrm}
                     onSelectLeadForCopilot={handleSelectLeadForCopilot}
@@ -421,7 +424,7 @@ export default function App() {
                   />
                 )}
 
-                {activePortalTab === 'ai-training' && <AiTrainingPanel key={currentUser} />}
+                {activePortalTab === 'ai-training' && <div key={currentUser}><AiTrainingPanel leads={crmLeads} onSaveAiMemory={handleSaveAiMemory} /></div>}
 
                 {activePortalTab === 'copilot' && (
                   <AtlasCopilot 

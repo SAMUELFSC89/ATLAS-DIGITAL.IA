@@ -3,6 +3,7 @@ import { crmAccount, crmHash, leadContactKeys, leadContactQuery } from './crm-st
 import { getAuthenticatedEmail } from './radar.js';
 import { CRM_NEXT_ACTION, CRM_STAGES } from '../src/lib/crmPipeline.js';
 import type { Lead, LeadStatus } from '../src/types.js';
+import { AI_MEMORY_LIMIT } from '../src/lib/aiTraining.js';
 import type { SiteContact } from '../src/lib/contact.js';
 
 const editableText = ['companyName', 'responsible', 'phone', 'whatsapp', 'email', 'city', 'state', 'website',
@@ -43,7 +44,7 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ leads: snapshot.docs.map(doc => publicLead(doc.id, doc.data())), canAccessSiteContacts });
     }
 
-    const { action, id, lead = {}, status, localSearch } = req.body || {};
+    const { action, id, lead = {}, status, localSearch, memory, previousMemory } = req.body || {};
     const now = new Date().toISOString();
     if (action === 'create') {
       const text = Object.fromEntries(editableText.map(key => [key, cleanText(lead?.[key])])) as Pick<Lead, typeof editableText[number]>;
@@ -101,6 +102,12 @@ export default async function handler(req: any, res: any) {
       const text = Object.fromEntries(formFields.map(key => [key, cleanText(lead?.[key])])) as Pick<Lead, typeof formFields[number]>;
       if (!text.companyName) return res.status(400).json({ error: 'Informe o nome da empresa.' });
       patch = { ...text, contactKeys: leadContactKeys(text), closeProbability: probability(lead.closeProbability) };
+    } else if (action === 'ai-memory') {
+      if (typeof memory !== 'string' || typeof previousMemory !== 'string' ||
+          memory.length > AI_MEMORY_LIMIT || previousMemory.length > AI_MEMORY_LIMIT) {
+        return res.status(400).json({ error: 'Memória do lead inválida.' });
+      }
+      patch = { aiMemory: memory.trim() };
     } else if (action === 'position' && cleanText(localSearch?.query)) {
       patch = positionPatch(localSearch);
     } else {
@@ -109,6 +116,7 @@ export default async function handler(req: any, res: any) {
     const saved = await getFirestoreAdmin().runTransaction(async tx => {
       const existing = (await tx.get(ref)).data();
       if (!existing) return null;
+      if (action === 'ai-memory' && (existing.aiMemory ?? '') !== previousMemory) return 'memory_conflict' as const;
       if (action === 'edit' && Array.isArray(patch.contactKeys) && patch.contactKeys.length) {
         const matches = await tx.get(leadContactQuery(account, patch.contactKeys));
         if (matches.docs.some(doc => doc.id !== id)) return false;
@@ -116,6 +124,7 @@ export default async function handler(req: any, res: any) {
       tx.update(ref, patch);
       return publicLead(id, { ...existing, ...patch });
     });
+    if (saved === 'memory_conflict') return res.status(409).json({ error: 'A memória mudou em outra sessão. Reabra o lead para conferir a versão atual.' });
     if (saved === false) return res.status(409).json({ error: 'Já existe outro lead com este telefone no CRM.' });
     return saved ? res.status(200).json({ lead: saved }) : res.status(404).json({ error: 'Lead não encontrado.' });
   } catch (err) {

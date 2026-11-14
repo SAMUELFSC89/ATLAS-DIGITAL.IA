@@ -76,6 +76,7 @@ type CrmMutation =
   | { action: 'edit'; id: string; lead: Lead }
   | { action: 'stage'; id: string; status: LeadStatus }
   | { action: 'position'; id: string; localSearch: LocalSearchPosition }
+  | { action: 'ai-memory'; id: string; memory: string; previousMemory: string }
   | { action: 'delete'; id: string };
 
 export function getCrmLeads(signal?: AbortSignal): Promise<{ leads: Lead[]; canAccessSiteContacts: boolean }> {
