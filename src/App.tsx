@@ -89,6 +89,7 @@ export default function App() {
 
   useEffect(() => onAuthStateChanged(auth, (user) => {
     setCrmLeads([]);
+    setCanAccessSiteContacts(false);
     setCrmError('');
     setCurrentUser(user && !user.isAnonymous ? user.email : null);
   }), []);
@@ -97,6 +98,7 @@ export default function App() {
     try {
       await signOut(auth);
       setCrmLeads([]);
+      setCanAccessSiteContacts(false);
       setSelectedLeadForCopilot(null);
       setAuditLead(undefined);
       setActivePortalTab('dashboard');
@@ -117,6 +119,7 @@ export default function App() {
 
   const [crmLeads, setCrmLeads] = useState<Lead[]>([]);
 
+  const [canAccessSiteContacts, setCanAccessSiteContacts] = useState(false);
   const [crmError, setCrmError] = useState('');
   const [crmLoading, setCrmLoading] = useState(false);
   const crmRevision = useRef(0);
@@ -131,9 +134,10 @@ export default function App() {
       loading = true;
       const revision = crmRevision.current;
       try {
-        const { leads } = await getCrmLeads(controller.signal);
+        const { leads, canAccessSiteContacts } = await getCrmLeads(controller.signal);
         if (!controller.signal.aborted && revision === crmRevision.current) {
           setCrmLeads(leads);
+          setCanAccessSiteContacts(canAccessSiteContacts);
           setCrmError('');
         }
       } catch (err) {
@@ -395,6 +399,7 @@ export default function App() {
                 {activePortalTab === 'crm' && (
                   <CrmInteligente 
                     leads={crmLeads} 
+                    canAccessSiteContacts={canAccessSiteContacts}
                     error={crmError}
                     loading={crmLoading}
                     onUpdateLeadStatus={handleUpdateLeadStatus} 
@@ -1079,7 +1084,7 @@ export default function App() {
             <h4 className="text-white font-semibold uppercase tracking-widest text-[10px]">Institucional</h4>
             <ul className="space-y-2 text-[11px] font-light">
               <li><button onClick={() => setActiveLegalDoc('sobre')} className="hover:text-white transition-colors text-left">Sobre Nós</button></li>
-              <li><button onClick={() => setIsContactModalOpen(true)} className="hover:text-white transition-colors text-left">Contato</button></li>
+              <li><a href="/contato" className="hover:text-white transition-colors">Contato</a></li>
               <li><button onClick={() => scrollToSection('faq')} className="hover:text-white transition-colors text-left">Perguntas Frequentes</button></li>
             </ul>
           </div>

@@ -1,5 +1,6 @@
 import { auth } from './firebase';
 import type { AtlasScoreReport, Lead, LeadStatus, LocalSearchPosition, RadarLead } from '../types';
+import type { SiteContact } from './contact';
 import type { PositioningSnapshot } from './positioningPdf';
 
 export class ApiError extends Error {
@@ -75,9 +76,13 @@ type CrmMutation =
   | { action: 'position'; id: string; localSearch: LocalSearchPosition }
   | { action: 'delete'; id: string };
 
-export function getCrmLeads(signal?: AbortSignal): Promise<{ leads: Lead[] }> {
+export function getCrmLeads(signal?: AbortSignal): Promise<{ leads: Lead[]; canAccessSiteContacts: boolean }> {
   const timeout = AbortSignal.timeout(15000);
   return request('/api/crm', { method: 'GET', signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
+}
+
+export function getSiteContacts(signal: AbortSignal): Promise<{ contacts: SiteContact[] }> {
+  return request('/api/crm?view=site-contacts', { method: 'GET', signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]) });
 }
 
 export function updateCrm(mutation: CrmMutation): Promise<{ lead?: Lead }> {

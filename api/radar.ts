@@ -438,7 +438,7 @@ const FIREBASE_WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY || "AIzaSyCqIc_q1L
  * Confere o token de login do Firebase no serviço do Google e devolve o e-mail
  * do usuário. Usa apenas fetch, para não depender de nenhuma biblioteca no servidor.
  */
-export async function getAuthenticatedEmail(req: any): Promise<string | null> {
+export async function getAuthenticatedEmail(req: any, requireVerifiedEmail = false): Promise<string | null> {
   const header: string = req.headers?.authorization || "";
   const match = /^Bearer\s+(.+)$/i.exec(header);
   if (!match) return null;
@@ -451,7 +451,9 @@ export async function getAuthenticatedEmail(req: any): Promise<string | null> {
     });
     if (!response.ok) return null;
     const data: any = await response.json();
-    return data?.users?.[0]?.email || null;
+    const user = data?.users?.[0];
+    if (requireVerifiedEmail && user?.emailVerified !== true) return null;
+    return user?.email || null;
   } catch (err) {
     console.warn("[Auth] Não foi possível conferir o login:", (err as Error).message);
     return null;

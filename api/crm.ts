@@ -3,6 +3,7 @@ import { crmAccount, crmHash, leadContactKeys, leadContactQuery } from './crm-st
 import { getAuthenticatedEmail } from './radar.js';
 import { CRM_NEXT_ACTION, CRM_STAGES } from '../src/lib/crmPipeline.js';
 import type { Lead, LeadStatus } from '../src/types.js';
+import type { SiteContact } from '../src/lib/contact.js';
 
 const editableText = ['companyName', 'responsible', 'phone', 'whatsapp', 'email', 'city', 'state', 'website',
   'instagram', 'facebook', 'linkedin', 'googleProfile', 'nextAction', 'notes', 'segment'] as const;
@@ -27,8 +28,19 @@ export default async function handler(req: any, res: any) {
     const account = crmAccount(email);
     const leads = account.collection('leads');
     if (req.method === 'GET') {
+      const contactOwner = (process.env.ATLAS_CONTACT_OWNER_EMAIL || 'samuelfsc89@gmail.com').trim().toLowerCase();
+      const canAccessSiteContacts = email.toLowerCase() === contactOwner;
+      if (req.query?.view === 'site-contacts') {
+        if (!canAccessSiteContacts) return res.status(403).json({ error: 'Acesso restrito à conta da Atlas.' });
+        if (!(await getAuthenticatedEmail(req, true))) {
+          return res.status(403).json({ code: 'email_unverified', error: 'Confirme o e-mail da conta para acessar os contatos do site.' });
+        }
+        const snapshot = await getFirestoreAdmin().collection('siteContacts').orderBy('createdAt', 'desc').limit(200).get();
+        const contacts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as SiteContact);
+        return res.status(200).json({ contacts });
+      }
       const snapshot = await leads.orderBy('createdAt', 'desc').get();
-      return res.status(200).json({ leads: snapshot.docs.map(doc => publicLead(doc.id, doc.data())) });
+      return res.status(200).json({ leads: snapshot.docs.map(doc => publicLead(doc.id, doc.data())), canAccessSiteContacts });
     }
 
     const { action, id, lead = {}, status, localSearch } = req.body || {};
