@@ -17,6 +17,19 @@ async function graph(path: string, token?: string) {
   return response.json();
 }
 
+async function subscribeWhatsAppEvents(wabaId: string, token: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${GRAPH}/${wabaId}/subscribed_apps`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    return response.ok && (await response.json()).success === true;
+  } catch {
+    return false;
+  }
+}
+
 function publicRecord(record: any) {
   const { accessToken, ...safe } = record;
   return { ...safe, status: isRealRecord(record) ? "connected" : "disconnected" };
@@ -61,9 +74,10 @@ export default async function handler(req: any, res: any) {
         return res.status(400).json({ error: "Conecte um número na Meta antes de sincronizar." });
       }
       const input = req.body || {};
+      const coexistence = action === "connect" && input.coexistence === true;
       const whatsappBusinessAccountId = action === "refresh" ? existing.whatsappBusinessAccountId : input.whatsappBusinessAccountId;
-      const phoneNumberId = action === "refresh" ? existing.phoneNumberId : input.phoneNumberId;
-      if (!isId(whatsappBusinessAccountId) || !isId(phoneNumberId)) {
+      const requestedPhoneId = action === "refresh" ? existing.phoneNumberId : input.phoneNumberId;
+      if (!isId(whatsappBusinessAccountId) || (!isId(requestedPhoneId) && (!coexistence || requestedPhoneId !== undefined))) {
         return res.status(400).json({ error: "Informe os IDs da conta do WhatsApp Business e do telefone exibidos pela Meta." });
       }
 
@@ -86,26 +100,40 @@ export default async function handler(req: any, res: any) {
       }
 
       // Read the phone through its WABA so the submitted IDs must match the same authorized account.
-      const fields = "id,display_phone_number,verified_name,quality_rating";
+      const fields = "id,display_phone_number,verified_name,quality_rating" + (coexistence ? ",is_on_biz_app,platform_type" : "");
       let after = "";
       let phone: any;
+      const coexistencePhones = [];
       for (let page = 0; page < 10 && !phone; page++) {
         const params = new URLSearchParams({ fields, limit: "100" });
         if (after) params.set("after", after);
         const list = await graph(`${whatsappBusinessAccountId}/phone_numbers?${params}`, token);
-        phone = Array.isArray(list.data) && list.data.find((item: any) => item.id === phoneNumberId);
+        const phones = Array.isArray(list.data) ? list.data : [];
+        if (requestedPhoneId) {
+          phone = phones.find((item: any) => item.id === requestedPhoneId);
+        } else {
+          coexistencePhones.push(...phones.filter((item: any) =>
+            isId(item.id) && item.is_on_biz_app === true && item.platform_type === "CLOUD_API"
+          ));
+        }
         after = list.paging?.next ? list.paging?.cursors?.after : "";
         if (!after) break;
+      }
+      if (!requestedPhoneId && !after && coexistencePhones.length === 1) phone = coexistencePhones[0];
+      if (coexistence && (phone?.is_on_biz_app !== true || phone.platform_type !== "CLOUD_API")) {
+        return res.status(422).json({ error: "A Meta não confirmou um único número ativo no WhatsApp Business e na Cloud API. Confira a conta escolhida na autorização." });
       }
       if (!phone || !phone.display_phone_number) {
         return res.status(422).json({ error: "A Meta não retornou esse telefone na conta informada. Confira o número e a conta selecionados." });
       }
+      const phoneNumberId = phone.id;
 
       if (action === "refresh") {
+        const webhookSubscribed = await subscribeWhatsAppEvents(whatsappBusinessAccountId, token);
         const record = { ...existing, displayPhoneNumber: phone.display_phone_number,
-          verifiedName: phone.verified_name || "", qualityRating: phone.quality_rating || "" };
+          verifiedName: phone.verified_name || "", qualityRating: phone.quality_rating || "", webhookSubscribed };
         await ref.update({ displayPhoneNumber: record.displayPhoneNumber,
-          verifiedName: record.verifiedName, qualityRating: record.qualityRating });
+          verifiedName: record.verifiedName, qualityRating: record.qualityRating, webhookSubscribed });
         return res.status(200).json({ success: true, record: publicRecord(record) });
       }
 
@@ -124,11 +152,14 @@ export default async function handler(req: any, res: any) {
         connectedAt: existing.phoneNumberId === phoneNumberId && existing.connectedAt ? existing.connectedAt : now,
         updatedAt: now,
         hasGraphErrors: false,
+        ...(coexistence ? { coexistence: true } : existing.phoneNumberId !== phoneNumberId ? { coexistence: false } : {}),
         ...(existing.phoneNumberId !== phoneNumberId || existing.status !== "connected" ? { autoReplyEnabled: false } : {}),
         fallbackWarning: "",
       };
       await ref.set(record, { merge: true });
-      return res.status(200).json({ success: true, record: publicRecord({ ...existing, ...record }) });
+      const webhookSubscribed = await subscribeWhatsAppEvents(whatsappBusinessAccountId, token);
+      await ref.update({ webhookSubscribed });
+      return res.status(200).json({ success: true, record: publicRecord({ ...existing, ...record, webhookSubscribed }) });
     }
 
     return res.status(405).json({ error: "Ação não suportada." });

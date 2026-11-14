@@ -1,6 +1,7 @@
 import { getWhatsAppConnectionInfo, sendWhatsAppTemplate } from "./whatsapp-service.js";
 import type { PositioningSnapshot } from "../src/lib/positioningPdf.js";
 import { scoreForLocalPosition } from "./radar.js";
+import { recordCrmInteraction } from "./crm-store.js";
 
 const MAX_PARAM_LENGTH = 300;
 
@@ -93,7 +94,7 @@ export default async function handler(req: any, res: any) {
     }
 
     if (req.method === "POST") {
-      const { to, templateName, languageCode, bodyParams, positioning } = req.body || {};
+      const { to, templateName, languageCode, bodyParams, positioning, companyName } = req.body || {};
       const digits = String(to || "").replace(/\D/g, "");
       if (digits.length < 12 || digits.length > 15) {
         return res.status(400).json({ success: false, error: "Número de destino inválido." });
@@ -111,6 +112,17 @@ export default async function handler(req: any, res: any) {
       }
 
       const result = await sendWhatsAppTemplate(email, digits, templateName, String(languageCode || "pt_BR"), params, snapshot);
+      if (result.success && !result.simulated && result.messageId) {
+        try {
+          await recordCrmInteraction(email, {
+            id: result.messageId, phone: digits, direction: "outbound",
+            company: typeof companyName === "string" ? companyName : undefined,
+          });
+        } catch (err) {
+          console.error("[CRM] Falha ao registrar envio:", err instanceof Error ? err.name : "unknown");
+          return res.status(200).json({ ...result, crmWarning: "Mensagem enviada. O CRM não conseguiu registrar o contato." });
+        }
+      }
       return res.status(result.success ? 200 : 502).json(result);
     }
 

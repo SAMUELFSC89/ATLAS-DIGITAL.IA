@@ -9,7 +9,7 @@ import { exportLeadsToExcel, exportLeadsToPdf } from '../lib/radarExport';
 import RadarWhatsAppCampaign from './RadarWhatsAppCampaign';
 
 interface RadarDeMercadoProps {
-  onAddLeadToCrm: (lead: Omit<Lead, 'id' | 'createdAt'>) => void;
+  onAddLeadToCrm: (lead: Omit<Lead, 'id' | 'createdAt'>) => Promise<void>;
   crmLeads: Lead[];
 }
 
@@ -110,37 +110,41 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
   const isInCrm = (lead: RadarLead) =>
     notifiedLeadIds.includes(lead.id) || crmLeads.some(l => l.companyName.toLowerCase() === lead.companyName.toLowerCase());
 
-  const handlePushToCrm = (lead: RadarLead, silent = false) => {
+  const handlePushToCrm = async (lead: RadarLead, silent = false) => {
     if (isInCrm(lead)) {
       if (!silent) alert("Esta empresa já está cadastrada no seu CRM Inteligente!");
       return;
     }
 
-    onAddLeadToCrm({
-      companyName: lead.companyName,
-      responsible: 'Não identificado',
-      phone: lead.phone,
-      whatsapp: lead.whatsapp ? formatWhatsApp(lead.whatsapp) : '',
-      email: lead.email,
-      city: lead.city,
-      state: lead.state,
-      website: lead.website,
-      instagram: lead.instagram,
-      facebook: lead.facebook,
-      linkedin: lead.linkedin,
-      googleProfile: lead.googleProfile,
-      atlasScore: lead.atlasScore,
-      localPosition: lead.localPosition,
-      positionQuery: lead.positionQuery,
-      status: 'Novo',
-      lastContact: 'Não efetuado',
-      nextAction: 'Enviar Primeira Auditoria',
-      closeProbability: lead.closeProbability,
-      notes: lead.notes,
-      segment: lead.segment
-    });
-
-    setNotifiedLeadIds((prev) => [...prev, lead.id]);
+    try {
+      await onAddLeadToCrm({
+        companyName: lead.companyName,
+        responsible: 'Não identificado',
+        phone: lead.phone,
+        whatsapp: lead.whatsapp ? formatWhatsApp(lead.whatsapp) : '',
+        email: lead.email,
+        city: lead.city,
+        state: lead.state,
+        website: lead.website,
+        instagram: lead.instagram,
+        facebook: lead.facebook,
+        linkedin: lead.linkedin,
+        googleProfile: lead.googleProfile,
+        atlasScore: lead.atlasScore,
+        localPosition: lead.localPosition,
+        positionQuery: lead.positionQuery,
+        positionCheckedAt: lead.positionCheckedAt,
+        status: 'Novo',
+        lastContact: 'Não efetuado',
+        nextAction: 'Enviar Primeira Auditoria',
+        closeProbability: lead.closeProbability,
+        notes: lead.notes,
+        segment: lead.segment
+      });
+      setNotifiedLeadIds((prev) => [...prev, lead.id]);
+    } catch (error) {
+      setSearchError({ code: 'crm', message: (error as Error).message });
+    }
   };
 
   // Sem nada marcado, as ações em lote valem para a lista inteira.
@@ -167,7 +171,9 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
     }
   };
 
-  const handlePushManyToCrm = () => targetLeads.forEach((lead) => handlePushToCrm(lead, true));
+  const handlePushManyToCrm = async () => {
+    for (const lead of targetLeads) await handlePushToCrm(lead, true);
+  };
 
   return (
     <div className="space-y-8 text-left">

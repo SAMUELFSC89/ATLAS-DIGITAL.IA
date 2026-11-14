@@ -1,34 +1,53 @@
 import { useState, type FormEvent } from 'react';
 import { AlertCircle, Download, Loader2 } from 'lucide-react';
-import type { AtlasScoreReport, Lead } from '../types';
+import type { AtlasScoreReport, Lead, LocalSearchPosition } from '../types';
 import { getAtlasScore } from '../lib/radarApi';
 import { createPositioningPdf } from '../lib/positioningPdf';
 
 interface AtlasScoreModuleProps {
   lead?: Lead;
+  onSavePosition: (id: string, result: LocalSearchPosition) => Promise<void>;
 }
 
-export default function AtlasScoreModule({ lead }: AtlasScoreModuleProps) {
+export default function AtlasScoreModule({ lead, onSavePosition }: AtlasScoreModuleProps) {
   const [companyName, setCompanyName] = useState(lead?.companyName || '');
   const [city, setCity] = useState([lead?.city, lead?.state].filter(Boolean).join(', '));
   const [term, setTerm] = useState(lead?.segment || '');
   const [website, setWebsite] = useState(lead?.website || '');
   const [googleMapsUrl, setGoogleMapsUrl] = useState(lead?.googleProfile || '');
+  const [radius, setRadius] = useState('10');
   const [report, setReport] = useState<AtlasScoreReport | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [savedToCrm, setSavedToCrm] = useState(false);
+  const [savingPosition, setSavingPosition] = useState(false);
 
   async function measure(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError('');
     setReport(null);
+    setSavedToCrm(false);
     try {
-      setReport(await getAtlasScore({ companyName, city, segment: term, website, googleMapsUrl }));
+      setReport(await getAtlasScore({ companyName, city, segment: term, website, googleMapsUrl, radiusKm: Number(radius) }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível consultar a posição agora.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function savePosition() {
+    if (!lead || !report) return;
+    setError('');
+    setSavingPosition(true);
+    try {
+      await onSavePosition(lead.id, report.localSearch);
+      setSavedToCrm(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível salvar a medição no CRM.');
+    } finally {
+      setSavingPosition(false);
     }
   }
 
@@ -78,8 +97,13 @@ export default function AtlasScoreModule({ lead }: AtlasScoreModuleProps) {
                 placeholder={field.placeholder} className="w-full rounded-lg border border-zinc-800 bg-black px-3 py-2.5 text-sm focus:border-[#E2B755] focus:outline-none" />
             </label>
           ))}
+          <label className="grid gap-1.5 text-sm text-zinc-200">
+            Raio de referência (km)
+            <input type="number" min="1" max="100" required value={radius} onChange={(event) => setRadius(event.target.value)}
+              className="w-full rounded-lg border border-zinc-800 bg-black px-3 py-2.5 text-sm focus:border-[#E2B755] focus:outline-none" />
+          </label>
         </div>
-        <button disabled={loading} className="inline-flex items-center gap-2 rounded-lg bg-[#E2B755] px-4 py-2.5 text-sm font-semibold text-black disabled:opacity-50">
+        <button disabled={loading || savingPosition} className="inline-flex items-center gap-2 rounded-lg bg-[#E2B755] px-4 py-2.5 text-sm font-semibold text-black disabled:opacity-50">
           {loading && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
           {loading ? 'Consultando Google Places…' : 'Consultar posição'}
         </button>
@@ -92,9 +116,15 @@ export default function AtlasScoreModule({ lead }: AtlasScoreModuleProps) {
               <h3 className="text-lg font-bold text-white">{report.companyName}</h3>
               <p className="text-sm text-zinc-400">{report.city}</p>
             </div>
-            <button type="button" onClick={() => void downloadReport()} className="inline-flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-2 text-sm text-white hover:bg-zinc-800">
-              <Download className="h-4 w-4" /> Baixar PDF
-            </button>
+            <div className="flex flex-wrap gap-2">
+              {lead && <button type="button" onClick={() => void savePosition()} disabled={savedToCrm || savingPosition}
+                className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-white hover:bg-zinc-800 disabled:opacity-50">
+                {savedToCrm ? 'Posição salva no CRM' : savingPosition ? 'Salvando posição…' : 'Salvar posição no CRM'}
+              </button>}
+              <button type="button" onClick={() => void downloadReport()} className="inline-flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-2 text-sm text-white hover:bg-zinc-800">
+                <Download className="h-4 w-4" /> Baixar PDF
+              </button>
+            </div>
           </div>
           <dl className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl bg-black p-4">
