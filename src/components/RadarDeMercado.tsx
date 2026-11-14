@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Search, MapPin, Globe, Star, Phone, Mail, Instagram, Facebook, Compass, Check,
-  AlertCircle, Plus, Loader2, MessageCircle, FileSpreadsheet, FileText, ExternalLink
+  AlertCircle, Plus, Loader2, MessageCircle, FileSpreadsheet, FileText, ExternalLink, Pencil, Send
 } from 'lucide-react';
 import { Lead, RadarLead } from '../types';
-import { ApiError, formatWhatsApp, searchRadar } from '../lib/radarApi';
+import { ApiError, DEFAULT_APPROACH, fillMessage, formatWhatsApp, searchRadar } from '../lib/radarApi';
+import { createPositioningPdf, positioningFromLead } from '../lib/positioningPdf';
 import { exportLeadsToExcel, exportLeadsToPdf } from '../lib/radarExport';
 import RadarWhatsAppCampaign from './RadarWhatsAppCampaign';
 
@@ -33,6 +34,26 @@ const WHATSAPP_BADGE: Record<string, { label: string; className: string }> = {
   incerto: { label: 'WhatsApp não confirmado', className: 'bg-gray-900 text-gray-400 border-gray-800' },
 };
 
+const APPROACH_STORAGE_KEY = 'atlas.radar.abordagem';
+const ATTACH_PDF_STORAGE_KEY = 'atlas.radar.anexarPdf';
+
+// O armazenamento do navegador pode estar bloqueado (aba anônima); a tela funciona sem ele.
+function readStored(key: string): string {
+  try {
+    return window.localStorage.getItem(key) || '';
+  } catch {
+    return '';
+  }
+}
+
+function writeStored(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Sem armazenamento, a preferência vale só até recarregar a página.
+  }
+}
+
 function displayUrl(url: string): string {
   return url.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, '');
 }
@@ -59,6 +80,39 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showCampaign, setShowCampaign] = useState(false);
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
+
+  // Abordagem usada no botão de cada empresa e no envio em lote; fica salva neste navegador.
+  const [approach, setApproach] = useState(() => readStored(APPROACH_STORAGE_KEY) || DEFAULT_APPROACH);
+  const [attachPdf, setAttachPdf] = useState(() => readStored(ATTACH_PDF_STORAGE_KEY) !== 'nao');
+  const [editingApproach, setEditingApproach] = useState(false);
+  const [approachedIds, setApproachedIds] = useState<string[]>([]);
+  const [approachNotice, setApproachNotice] = useState('');
+
+  const updateApproach = (value: string) => {
+    setApproach(value);
+    writeStored(APPROACH_STORAGE_KEY, value);
+  };
+
+  const updateAttachPdf = (value: boolean) => {
+    setAttachPdf(value);
+    writeStored(ATTACH_PDF_STORAGE_KEY, value ? 'sim' : 'nao');
+  };
+
+  // Abre a conversa com a abordagem pronta e baixa o PDF da empresa para anexar.
+  const sendApproach = (lead: RadarLead) => {
+    // A janela precisa abrir dentro do clique; o PDF é gerado em seguida.
+    const url = `https://wa.me/${lead.whatsapp}?text=${encodeURIComponent(fillMessage(approach, lead))}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+    setApproachedIds((prev) => (prev.includes(lead.id) ? prev : [...prev, lead.id]));
+    setApproachNotice('');
+    if (!attachPdf) return;
+    createPositioningPdf(positioningFromLead(lead))
+      .then(({ doc, filename }) => {
+        doc.save(filename);
+        setApproachNotice(`PDF de ${lead.companyName} baixado (${filename}). Na conversa, toque no clipe, escolha Documento e anexe esse arquivo.`);
+      })
+      .catch(() => setApproachNotice(`A conversa com ${lead.companyName} abriu, mas não foi possível gerar o PDF.`));
+  };
 
   // Mostra em que etapa a busca está enquanto o servidor responde.
   useEffect(() => {
@@ -453,8 +507,72 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
           </div>
 
           {showCampaign && whatsappLeads.length > 0 && (
-            <RadarWhatsAppCampaign leads={whatsappLeads} onClose={() => setShowCampaign(false)} />
+            <RadarWhatsAppCampaign
+              leads={whatsappLeads}
+              message={approach}
+              onMessageChange={updateApproach}
+              onClose={() => setShowCampaign(false)}
+            />
           )}
+
+          {/* Abordagem do botão "Enviar abordagem" de cada empresa */}
+          <div className="bg-gray-950/40 border border-gray-900 rounded-2xl p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-[11px] text-gray-400">
+                O botão <strong className="text-gray-200">Enviar abordagem</strong> de cada empresa abre o WhatsApp com a mensagem pronta.
+              </p>
+              <div className="flex flex-wrap items-center gap-4">
+                <label className="flex items-center gap-2 text-[11px] text-gray-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={attachPdf}
+                    onChange={(e) => updateAttachPdf(e.target.checked)}
+                    className="accent-[#E2B755] w-3.5 h-3.5"
+                  />
+                  Baixar o PDF de posicionamento junto
+                </label>
+                {!showCampaign && <button
+                  type="button"
+                  onClick={() => setEditingApproach((open) => !open)}
+                  className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-gray-900 border border-gray-800 text-gray-200 hover:border-gray-600 flex items-center gap-1.5"
+                >
+                  <Pencil className="w-3 h-3" />
+                  {editingApproach ? 'Fechar edição' : 'Editar abordagem'}
+                </button>}
+              </div>
+            </div>
+
+            {editingApproach && !showCampaign && (
+              <div className="space-y-2">
+                <textarea
+                  value={approach}
+                  onChange={(e) => updateApproach(e.target.value)}
+                  rows={6}
+                  aria-label="Texto da abordagem"
+                  className="w-full bg-gray-950 text-white border border-gray-800 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-[#E2B755]"
+                />
+                <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-gray-500">
+                  <span>
+                    Variáveis: {'{empresa}'}, {'{cidade}'}, {'{segmento}'}, {'{diagnostico}'}, {'{posicao}'}, {'{nota}'}, {'{avaliacoes}'}.
+                    {' '}{'{diagnostico}'} vira o principal problema medido de cada empresa.
+                  </span>
+                  <button type="button" onClick={() => updateApproach(DEFAULT_APPROACH)} className="underline hover:text-white">
+                    Restaurar abordagem padrão
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!showCampaign && <p className="text-[11px] text-gray-500">
+              Prévia para {results[0].companyName}: <span className="text-gray-300">{fillMessage(approach, results[0])}</span>
+            </p>}
+            {attachPdf && (
+              <p className="text-[10px] text-gray-500">
+                O WhatsApp não aceita anexo por link: o PDF é baixado no seu aparelho e você o anexa na conversa aberta.
+              </p>
+            )}
+            {approachNotice && <p role="status" className="text-[11px] text-emerald-400">{approachNotice}</p>}
+          </div>
 
           <div className="grid grid-cols-1 gap-4">
             {results.map((lead) => {
@@ -574,16 +692,16 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
                       )}
                     </button>
 
-                    {lead.whatsappLink && (
-                      <a
-                        href={lead.whatsappLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-5 py-2.5 rounded-xl text-xs font-semibold tracking-wider bg-emerald-500/10 border border-emerald-900/40 text-emerald-400 hover:bg-emerald-500/20 flex items-center justify-center gap-1.5"
+                    {lead.whatsapp && (
+                      <button
+                        type="button"
+                        onClick={() => sendApproach(lead)}
+                        disabled={!approach.trim()}
+                        className="px-5 py-2.5 rounded-xl text-xs font-semibold tracking-wider bg-emerald-500 hover:bg-emerald-400 text-black disabled:opacity-40 flex items-center justify-center gap-1.5"
                       >
-                        <MessageCircle className="w-3.5 h-3.5" />
-                        Abrir WhatsApp
-                      </a>
+                        {approachedIds.includes(lead.id) ? <Check className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
+                        {approachedIds.includes(lead.id) ? 'Abordagem aberta' : 'Enviar abordagem'}
+                      </button>
                     )}
                   </div>
                 </div>

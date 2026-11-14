@@ -14,14 +14,14 @@ import {
 
 interface RadarWhatsAppCampaignProps {
   leads: RadarLead[];
+  /** Abordagem compartilhada com o botão de envio de cada empresa. */
+  message: string;
+  onMessageChange: (message: string) => void;
   onClose: () => void;
 }
 
 type VariableSource = 'empresa' | 'cidade' | 'segmento' | 'fixo';
 type SendStatus = { state: 'enviando' | 'enviado' | 'simulado' | 'erro'; detail?: string };
-
-const DEFAULT_MESSAGE =
-  'Oi, tudo bem? Sou da Atlas Digital. Dei uma olhada em como a {empresa} aparece no Google e preparei um resumo de uma página com o que já funciona e algumas melhorias simples. Posso te mandar?';
 
 const SEND_INTERVAL_MS = 4000;
 
@@ -31,9 +31,8 @@ const CONFIDENCE_TEXT: Record<string, string> = {
   incerto: 'não confirmado (fixo)',
 };
 
-export default function RadarWhatsAppCampaign({ leads, onClose }: RadarWhatsAppCampaignProps) {
+export default function RadarWhatsAppCampaign({ leads, message, onMessageChange, onClose }: RadarWhatsAppCampaignProps) {
   const [mode, setMode] = useState<'assistido' | 'api'>('assistido');
-  const [message, setMessage] = useState(DEFAULT_MESSAGE);
   const [openedIds, setOpenedIds] = useState<string[]>([]);
 
   const [connection, setConnection] = useState<WhatsAppConnection | null>(null);
@@ -177,12 +176,12 @@ export default function RadarWhatsAppCampaign({ leads, onClose }: RadarWhatsAppC
         <div className="space-y-4">
           <div className="space-y-1.5">
             <label className="block text-[10px] uppercase font-mono font-bold text-gray-400">
-              Mensagem (use {'{empresa}'}, {'{cidade}'} e {'{segmento}'})
+              Abordagem (variáveis: {'{empresa}'}, {'{cidade}'}, {'{segmento}'}, {'{diagnostico}'}, {'{posicao}'}, {'{nota}'})
             </label>
             <textarea
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              rows={4}
+              onChange={(e) => onMessageChange(e.target.value)}
+              rows={6}
               className="w-full bg-gray-950 text-white border border-gray-800 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-[#E2B755]"
             />
             {leads[0] && (

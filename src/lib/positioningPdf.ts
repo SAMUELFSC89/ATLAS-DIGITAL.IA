@@ -38,10 +38,43 @@ export function positioningFromLead(lead: RadarLead): PositioningSnapshot {
   };
 }
 
+/** O que a Atlas oferece para cada problema encontrado, do mais importante para o menos. */
+function getSolutions(snapshot: PositioningSnapshot): string[] {
+  const solutions: string[] = [];
+  const position = snapshot.localSearch ? snapshot.localSearch.position : undefined;
+
+  if (!snapshot.hasWebsite) solutions.push('Site profissional da empresa, com serviços, fotos e botão de WhatsApp para pedir orçamento.');
+  else if (!snapshot.hasHttpsWebsite) solutions.push('Ajuste do site: conexão segura (HTTPS), velocidade e botão de contato visível.');
+  if (position === null || (typeof position === 'number' && position > 3)) {
+    solutions.push('Otimização do perfil no Google para subir na busca local e aparecer antes dos concorrentes.');
+  }
+  if (snapshot.rating === null || snapshot.rating < 4.5 || snapshot.reviewsCount < 50) {
+    solutions.push('Rotina de avaliações: pedido enviado ao cliente por WhatsApp ao fim de cada serviço.');
+  }
+  if (snapshot.hasConfirmedWhatsApp === false) {
+    solutions.push('Atendimento pelo WhatsApp com resposta imediata a quem pede orçamento.');
+  }
+  solutions.push('Acompanhamento mensal da posição no Google e dos concorrentes, com relatório.');
+  return solutions.slice(0, 3);
+}
+
 function getHighlights(snapshot: PositioningSnapshot) {
   const strengths: string[] = [];
   const gaps: string[] = [];
-  const actions: string[] = [];
+
+  // A posição na busca é o primeiro motivo da nota.
+  const local = snapshot.localSearch;
+  if (local) {
+    if (local.position === 1) strengths.push('1º lugar na busca local consultada.');
+    else if (local.position !== null && local.position <= 3) {
+      strengths.push(`${local.position}º lugar na busca local consultada.`);
+    } else if (local.position !== null) {
+      const ahead = local.position - 1;
+      gaps.push(`Está em ${local.position}º lugar na busca local, com ${ahead} concorrentes à frente.`);
+    } else {
+      gaps.push('Não aparece entre os primeiros resultados da busca local consultada.');
+    }
+  }
 
   if (snapshot.hasGoogleProfile) {
     const { rating, reviewsCount } = snapshot;
@@ -51,16 +84,13 @@ function getHighlights(snapshot: PositioningSnapshot) {
       if (rating >= 4) strengths.push(reviewText);
       else {
         gaps.push(reviewText);
-        actions.push('Responder às avaliações e acompanhar os temas que mais aparecem.');
       }
     } else {
       strengths.push('Perfil encontrado no Google Maps.');
       gaps.push('A consulta não retornou avaliações para o perfil.');
-      actions.push('Convidar clientes a deixarem avaliações sobre a experiência.');
     }
   } else {
     gaps.push('O perfil no Google Maps não foi identificado na consulta.');
-    actions.push('Conferir se o perfil está publicado e com os dados atualizados.');
   }
 
   if (snapshot.hasWebsite) {
@@ -68,26 +98,23 @@ function getHighlights(snapshot: PositioningSnapshot) {
     else {
       strengths.push('Site próprio vinculado ao perfil.');
       gaps.push('O link do site cadastrado usa HTTP.');
-      actions.push('Conferir o HTTPS e atualizar o link cadastrado no Google.');
     }
   } else {
     gaps.push('A consulta não encontrou um site próprio vinculado ao perfil.');
-    actions.push('Vincular o site ao perfil ou criar uma página com serviços e contato.');
   }
 
   if (snapshot.hasConfirmedWhatsApp) strengths.push('Link de WhatsApp localizado.');
   else if (snapshot.hasPublicPhone) strengths.push('Telefone disponível no perfil.');
   if (snapshot.hasConfirmedWhatsApp === false) {
     gaps.push('A consulta não confirmou um link direto de WhatsApp.');
-    actions.push('Disponibilizar um link direto de WhatsApp para facilitar o contato.');
   }
 
   if (snapshot.hasSocialProfile) strengths.push('Rede social da empresa identificada.');
 
   return [
-    { label: 'O que já funciona', color: '#176249', points: strengths.length ? strengths : ['A consulta trouxe poucos dados para destacar pontos fortes.'] },
-    { label: 'O que merece atenção', color: '#8B4A1C', points: gaps.length ? gaps : ['Nenhuma falha aparente nos itens consultados.'] },
-    { label: 'Por onde começar', color: '#42396C', points: actions.length ? actions : ['Revisar periodicamente os horários, os serviços e os links de contato no Google.'] },
+    { label: 'O que já funciona', color: '#176249', points: strengths.length ? strengths.slice(0, 2) : ['A consulta trouxe poucos dados para destacar pontos fortes.'] },
+    { label: 'Por que a nota é essa', color: '#8B4A1C', points: gaps.length ? gaps : ['Nenhuma falha aparente nos itens consultados.'] },
+    { label: 'Como a Atlas resolve', color: '#42396C', points: getSolutions(snapshot) },
   ];
 }
 
@@ -115,8 +142,22 @@ export async function createPositioningPdf(snapshot: PositioningSnapshot) {
   doc.setFontSize(19);
   doc.setTextColor('#FFFFFF');
   doc.text('Seu posicionamento digital', margin, 25);
+  // Nota em destaque no cabeçalho, quando a posição foi medida.
+  const headerScore = snapshot.localSearch?.score ?? null;
+  if (headerScore !== null) {
+    doc.setFontSize(7);
+    doc.setTextColor('#E8C577');
+    doc.text('ATLAS SCORE LOCAL', width - margin, 33, { align: 'right' });
+    doc.setFontSize(26);
+    doc.setTextColor(headerScore >= 70 ? '#6EE7A8' : headerScore >= 50 ? '#F5C451' : '#F58A8A');
+    doc.text(String(headerScore), width - margin - 11, 45, { align: 'right' });
+    doc.setFontSize(10);
+    doc.setTextColor('#D4D7DF');
+    doc.text('/100', width - margin, 45, { align: 'right' });
+    doc.setTextColor('#FFFFFF');
+  }
   doc.setFontSize(12);
-  const companyLines = doc.splitTextToSize(company, contentWidth) as string[];
+  const companyLines = doc.splitTextToSize(company, headerScore !== null ? contentWidth - 40 : contentWidth) as string[];
   const name = companyLines.slice(0, 2);
   if (companyLines.length > 2) name[1] = name[1].trimEnd() + '…';
   doc.text(name, margin, 36);
@@ -173,6 +214,7 @@ export async function createPositioningPdf(snapshot: PositioningSnapshot) {
   doc.setFontSize(8);
   doc.setTextColor('#4B505C');
   doc.text('Dados do Google Maps e dos links associados ao perfil.', margin, height - 12);
-  doc.text('atlasdigital.ia.br', margin, height - 7);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Atlas Digital: mais vendas pela internet. atlasdigital.ia.br', margin, height - 7);
   return { filename, doc };
 }
