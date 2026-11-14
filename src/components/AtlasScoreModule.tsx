@@ -3,6 +3,7 @@ import { AlertCircle, Download, Loader2 } from 'lucide-react';
 import type { AtlasScoreReport, Lead, LocalSearchPosition } from '../types';
 import { getAtlasScore } from '../lib/radarApi';
 import { createPositioningPdf } from '../lib/positioningPdf';
+import AtlasAuditPanel from './AtlasAuditPanel';
 
 interface AtlasScoreModuleProps {
   lead?: Lead;
@@ -86,7 +87,7 @@ export default function AtlasScoreModule({ lead, onSavePosition }: AtlasScoreMod
     <section className="mx-auto max-w-4xl space-y-6">
       <header className="space-y-2">
         <h2 className="font-display text-3xl font-black text-white">Atlas Score</h2>
-        <p className="text-sm text-zinc-400">Consulte em que posição a empresa aparece nos resultados locais do Google Places.</p>
+        <p className="text-sm text-zinc-400">Mede a presença digital da empresa com dados conferidos na hora: posição na busca local, reputação, perfil no Google e site. Cada ponto mostra o dado que o justifica.</p>
       </header>
       <form onSubmit={measure} className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-950 p-5 sm:p-7">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -105,7 +106,7 @@ export default function AtlasScoreModule({ lead, onSavePosition }: AtlasScoreMod
         </div>
         <button disabled={loading || savingPosition} className="inline-flex items-center gap-2 rounded-lg bg-[#E2B755] px-4 py-2.5 text-sm font-semibold text-black disabled:opacity-50">
           {loading && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
-          {loading ? 'Consultando Google Places…' : 'Consultar posição'}
+          {loading ? 'Medindo no Google e no site…' : 'Medir Atlas Score'}
         </button>
       </form>
       {error && <p role="alert" className="flex items-center gap-2 text-sm text-red-300"><AlertCircle className="h-4 w-4 shrink-0" />{error}</p>}
@@ -132,17 +133,18 @@ export default function AtlasScoreModule({ lead, onSavePosition }: AtlasScoreMod
               <dd className="mt-1 text-lg font-bold text-white">{local.position === null ? 'Fora dos resultados retornados' : `${local.position}º lugar`}</dd>
             </div>
             <div className="rounded-xl bg-black p-4">
-              <dt className="text-sm text-zinc-400">Atlas Score local</dt>
+              <dt className="text-sm text-zinc-400">Índice de posição local</dt>
               <dd className="mt-1 text-lg font-bold text-[#E2B755]">{local.score === null ? 'Dados insuficientes' : `${local.score}/100`}</dd>
             </div>
           </dl>
           <p className="text-sm text-zinc-300">Busca por <strong>{local.query}</strong> em {new Date(local.checkedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} · {local.resultsChecked} resultados consultados.</p>
-          <p className="text-xs text-zinc-400">Fonte Google Maps, via Google Places. A posição vale para esta consulta local. O índice Atlas vai de 100 no 1º lugar a 5 no 20º. Fora dos 20 primeiros, o índice é 0 quando a consulta retorna os 20 resultados.</p>
+          <p className="text-xs text-zinc-400">Fonte Google Maps, via Google Places. A posição vale para esta consulta local. O índice de posição vai de 100 no 1º lugar a 5 no 20º. Fora dos 20 primeiros, o índice é 0 quando a consulta retorna os 20 resultados.</p>
           <dl className="space-y-2 border-t border-zinc-800 pt-3 text-sm text-zinc-300">
             <div><dt className="inline font-semibold">Avaliações no Google</dt>{' '}<dd className="inline">{report.rating === null ? 'Sem nota retornada' : `${report.rating.toLocaleString('pt-BR')}/5 · ${report.reviewsCount} avaliações`}</dd></div>
             <div><dt className="inline font-semibold">Site no perfil</dt>{' '}<dd className="inline">{report.website ? <a className="break-all underline" href={report.website} target="_blank" rel="noopener noreferrer">{report.website}</a> : 'Sem site próprio vinculado na consulta'}</dd></div>
             {report.profileUrl && <div><a className="underline" href={report.profileUrl} target="_blank" rel="noopener noreferrer">Abrir perfil no Google Maps</a></div>}
           </dl>
+          {report.audit && <AtlasAuditPanel audit={report.audit} />}
         </article>
       )}
     </section>

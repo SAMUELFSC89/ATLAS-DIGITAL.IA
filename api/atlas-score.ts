@@ -1,5 +1,6 @@
 import { classifyUrl, findCityCenter, getAuthenticatedEmail, localRankingQuery, LOCAL_SCORE_WINDOW, placesTextSearch, RadarError, scoreForLocalPosition } from "./radar.js";
 import type { AtlasScoreReport } from "../src/types.js";
+import { buildAudit, fetchSiteFacts, type SiteFacts } from "./_lib/atlas-audit.js";
 
 interface GooglePlace {
   id?: string;
@@ -11,13 +12,22 @@ interface GooglePlace {
   businessStatus?: string;
   rating?: number;
   userRatingCount?: number;
+  regularOpeningHours?: { periods?: unknown[]; weekdayDescriptions?: string[] };
+  photos?: unknown[];
+  primaryTypeDisplayName?: { text?: string };
+  reviews?: { publishTime?: string }[];
 }
 
 const PROFILE_FIELDS = [
   "places.id", "places.displayName", "places.addressComponents", "places.googleMapsUri",
   "places.websiteUri", "places.nationalPhoneNumber", "places.businessStatus",
   "places.rating", "places.userRatingCount",
+  // Usados pela auditoria: horário, fotos, categoria e datas das avaliações.
+  "places.regularOpeningHours", "places.photos", "places.primaryTypeDisplayName", "places.reviews.publishTime",
 ].join(",");
+
+// A nota e o volume de avaliações dos concorrentes entram na comparação da auditoria.
+const RANKING_FIELDS = "places.id,places.rating,places.userRatingCount";
 
 function normalize(value: string): string {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
@@ -94,6 +104,90 @@ function readText(input: unknown, limit: number): string {
   return typeof input === "string" ? input.replace(/\s+/g, " ").trim().slice(0, limit) : "";
 }
 
+export interface AtlasScoreInput {
+  name: string;
+  city: string;
+  segment: string;
+  website: string;
+  mapsUrl: string;
+  radiusKm?: unknown;
+}
+
+/** Consulta o Google e o site da empresa e monta o relatório. Lança RadarError em falhas previstas. */
+export async function measureAtlasScore(input: AtlasScoreInput): Promise<AtlasScoreReport> {
+  const { name, city, segment, website, mapsUrl } = input;
+  const place = `${city}, Brasil`;
+  const query = `${segment} em ${place}`;
+  const radiusKm = typeof input.radiusKm === "number" && Number.isFinite(input.radiusKm)
+    ? Math.min(100, Math.max(1, input.radiusKm)) : 10;
+  const options = { languageCode: "pt-BR", regionCode: "BR", pageSize: LOCAL_SCORE_WINDOW };
+  const [profileResult, center] = await Promise.all([
+    placesTextSearch({ ...options, textQuery: `${name}, ${place}` }, PROFILE_FIELDS),
+    findCityCenter(place),
+  ]);
+  const profile = matchProfile(profileResult.places || [], name, city, website, mapsUrl);
+  const profileSite = classifyUrl(profile.websiteUri || "");
+  const informedSite = classifyUrl(website);
+  const siteUrl = profileSite?.kind === "site" ? profileSite.url : informedSite?.kind === "site" ? informedSite.url : null;
+  const cityName = parseCity(city).name;
+
+  // A busca dos concorrentes e a leitura do site não dependem uma da outra.
+  const [ranked, site] = await Promise.all([
+    placesTextSearch(localRankingQuery(query, center, radiusKm), RANKING_FIELDS),
+    siteUrl ? fetchSiteFacts(siteUrl, cityName) : Promise.resolve<SiteFacts | null>(null),
+  ]);
+  const rankedPlaces: GooglePlace[] = [];
+  for (const item of (ranked.places || []) as GooglePlace[]) {
+    if (item.id && !rankedPlaces.some((other) => other.id === item.id)) rankedPlaces.push(item);
+  }
+  const window = rankedPlaces.slice(0, LOCAL_SCORE_WINDOW);
+  const ids = window.map((item) => item.id!);
+  const rankIndex = ids.indexOf(profile.id!);
+  const position = rankIndex < 0 ? null : rankIndex + 1;
+  const positionScore = position !== null ? scoreForLocalPosition(position) : ids.length >= LOCAL_SCORE_WINDOW ? 0 : null;
+  const rating = typeof profile.rating === "number" ? profile.rating : null;
+  const result: AtlasScoreReport = {
+    companyName: profile.displayName!.text!,
+    city,
+    profileUrl: profile.googleMapsUri || "",
+    website: classifyUrl(profile.websiteUri || "")?.kind === "site" ? profile.websiteUri! : "",
+    phone: profile.nationalPhoneNumber || "",
+    rating,
+    reviewsCount: profile.userRatingCount || 0,
+    localSearch: {
+      query,
+      position,
+      resultsChecked: ids.length,
+      score: positionScore,
+      checkedAt: new Date().toISOString(),
+    },
+    audit: buildAudit({
+      query,
+      site,
+      profile: {
+        rating,
+        reviewsCount: profile.userRatingCount || 0,
+        phone: profile.nationalPhoneNumber || "",
+        hasSiteLink: profileSite?.kind === "site",
+        hasOpeningHours: Boolean(profile.regularOpeningHours?.periods?.length || profile.regularOpeningHours?.weekdayDescriptions?.length),
+        photosCount: profile.photos?.length || 0,
+        category: profile.primaryTypeDisplayName?.text || "",
+        reviewDates: (profile.reviews || []).map((review) => review.publishTime || "").filter(Boolean),
+      },
+      ranking: {
+        position,
+        resultsChecked: ids.length,
+        windowSize: LOCAL_SCORE_WINDOW,
+        positionScore,
+        competitors: window
+          .filter((item) => item.id !== profile.id)
+          .map((item) => ({ rating: typeof item.rating === "number" ? item.rating : null, reviewsCount: item.userRatingCount || 0 })),
+      },
+    }),
+  };
+  return result;
+}
+
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "POST") return res.status(405).json({ error: "Use POST para consultar o Atlas Score." });
@@ -111,37 +205,8 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ error: "Informe o nome da empresa, a cidade e o termo de busca." });
   }
 
-  const place = `${city}, Brasil`;
-  const query = `${segment} em ${place}`;
-  const radiusKm = typeof body.radiusKm === "number" && Number.isFinite(body.radiusKm)
-    ? Math.min(100, Math.max(1, body.radiusKm)) : 10;
-  const options = { languageCode: "pt-BR", regionCode: "BR", pageSize: LOCAL_SCORE_WINDOW };
   try {
-    const [profileResult, center] = await Promise.all([
-      placesTextSearch({ ...options, textQuery: `${name}, ${place}` }, PROFILE_FIELDS),
-      findCityCenter(place),
-    ]);
-    const profile = matchProfile(profileResult.places || [], name, city, website, mapsUrl);
-    const ranked = await placesTextSearch(localRankingQuery(query, center, radiusKm), "places.id");
-    const ids = [...new Set<string>((ranked.places || []).map((place: GooglePlace) => place.id).filter(Boolean))].slice(0, LOCAL_SCORE_WINDOW);
-    const rankIndex = ids.indexOf(profile.id!);
-    const position = rankIndex < 0 ? null : rankIndex + 1;
-    const result: AtlasScoreReport = {
-      companyName: profile.displayName!.text!,
-      city,
-      profileUrl: profile.googleMapsUri || "",
-      website: classifyUrl(profile.websiteUri || "")?.kind === "site" ? profile.websiteUri! : "",
-      phone: profile.nationalPhoneNumber || "",
-      rating: typeof profile.rating === "number" ? profile.rating : null,
-      reviewsCount: profile.userRatingCount || 0,
-      localSearch: {
-        query,
-        position,
-        resultsChecked: ids.length,
-        score: position !== null ? scoreForLocalPosition(position) : ids.length >= LOCAL_SCORE_WINDOW ? 0 : null,
-        checkedAt: new Date().toISOString(),
-      },
-    };
+    const result = await measureAtlasScore({ name, city, segment, website, mapsUrl, radiusKm: body.radiusKm });
     return res.status(200).json(result);
   } catch (err) {
     if (err instanceof RadarError) return res.status(err.status).json({ error: err.message });

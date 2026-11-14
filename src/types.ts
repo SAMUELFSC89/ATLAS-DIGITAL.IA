@@ -55,6 +55,46 @@ export interface LocalSearchPosition {
   checkedAt: string;
 }
 
+export type AtlasCheckStatus = 'ok' | 'partial' | 'fail' | 'unmeasured';
+
+/** Um item medido do Atlas Score, com o dado que justifica os pontos. */
+export interface AtlasCheck {
+  id: string;
+  label: string;
+  status: AtlasCheckStatus;
+  points: number;
+  maxPoints: number;
+  /** O dado observado, por exemplo "Nota 4,6 com 97 avaliações". */
+  evidence: string;
+  /** O que fazer para ganhar os pontos que faltam. Vazio quando não há o que melhorar. */
+  action: string;
+}
+
+export interface AtlasPillar {
+  id: 'visibility' | 'reputation' | 'profile' | 'site';
+  label: string;
+  /** Pontos obtidos e possíveis considerando só os itens medidos. */
+  points: number;
+  measuredMaxPoints: number;
+  maxPoints: number;
+  checks: AtlasCheck[];
+}
+
+export interface AtlasAudit {
+  /** 0 a 100, calculado apenas sobre os itens que foram medidos. Null quando nada foi medido. */
+  overallScore: number | null;
+  /** Percentual do índice que pôde ser medido nesta consulta. */
+  coverage: number;
+  pillars: AtlasPillar[];
+  /** Itens com pontos a ganhar, do maior ganho para o menor. */
+  recommendations: AtlasCheck[];
+  competitors: {
+    compared: number;
+    medianRating: number | null;
+    medianReviews: number | null;
+  };
+}
+
 export interface AtlasScoreReport {
   companyName: string;
   city: string;
@@ -64,6 +104,7 @@ export interface AtlasScoreReport {
   rating: number | null;
   reviewsCount: number;
   localSearch: LocalSearchPosition;
+  audit?: AtlasAudit;
 }
 
 export type LeadStatus = 'Novo' | 'Contato' | 'Resposta' | 'Reunião' | 'Proposta' | 'Negociação' | 'Fechado' | 'Pós-venda';
