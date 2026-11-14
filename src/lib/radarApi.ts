@@ -1,4 +1,4 @@
-import type { ProspectingQueueSettings } from './prospectingQueue';
+import type { ProspectingDraft, ProspectingPreviewData } from './prospectingQueue';
 import type { AiSimulation, AiTraining } from './aiTraining';
 import type { ProspectingSchedule } from "./prospectingSchedule";
 import { auth } from './firebase';
@@ -203,6 +203,16 @@ export function simulateAiTraining(message: string, memory: string): Promise<AiS
   return request('/api/ai-training', { method: 'POST', body: JSON.stringify({ action: 'simulate', message, memory }) });
 }
 
-export function getProspectingQueueSettings(signal: AbortSignal): Promise<ProspectingQueueSettings> {
+export function getProspectingQueueSettings(signal: AbortSignal): Promise<ProspectingPreviewData> {
   return request('/api/whatsapp-send?view=prospecting-settings', { method: 'GET', signal });
+}
+
+export function saveProspectingDraft(
+  draft: Omit<ProspectingDraft, 'savedAt'>, previous: string | null,
+): Promise<{ draft: ProspectingDraft }> {
+  return request('/api/whatsapp-send', {
+    method: 'POST',
+    signal: AbortSignal.timeout(15000),
+    body: JSON.stringify({ action: 'saveDraft', draft, previous }),
+  });
 }

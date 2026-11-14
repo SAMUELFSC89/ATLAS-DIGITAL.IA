@@ -1,3 +1,4 @@
+import { parseProspectingDraft } from '../src/lib/prospectingQueue.js';
 import { DEFAULT_PROSPECTING_SCHEDULE, parseProspectingSchedule, withinProspectingSchedule } from "../src/lib/prospectingSchedule.js";
 import { getWhatsAppConnectionInfo, sendWhatsAppTemplate } from "./whatsapp-service.js";
 import type { PositioningSnapshot } from "../src/lib/positioningPdf.js";
@@ -15,6 +16,7 @@ function campaignRefs(email: string) {
   const day = campaignDay.format(new Date()).replace(/\D/g, "");
   return {
     settings: account.collection("settings").doc("prospecting"),
+    draft: account.collection("settings").doc("prospectingDraft"),
     day: account.collection("prospectingDays").doc(day),
   };
 }
@@ -111,12 +113,34 @@ export default async function handler(req: any, res: any) {
         dailyUsed: day.get("count") ?? 0,
         schedule: parseProspectingSchedule(settings.get("schedule")) ?? DEFAULT_PROSPECTING_SCHEDULE,
       };
-      if (req.query?.view === "prospecting-settings") return res.status(200).json(preferences);
+      if (req.query?.view === "prospecting-settings") {
+        res.setHeader("Cache-Control", "no-store");
+        const draft = (await refs.draft.get()).data();
+        return res.status(200).json({ ...preferences, draft: draft ?? null });
+      }
       return res.status(200).json({ ...(await getWhatsAppConnectionInfo(email)), ...preferences });
     }
 
     if (req.method === "POST") {
       const refs = campaignRefs(email);
+      if (req.body?.action === "saveDraft") {
+        const draft = parseProspectingDraft(req.body.draft);
+        const previous = req.body.previous;
+        if (!draft || (previous !== null && (typeof previous !== "string" || previous.length !== 24 || !Number.isFinite(Date.parse(previous))))) {
+          return res.status(400).json({ error: "Rascunho inválido. Gere uma nova prévia." });
+        }
+        const saved = await refs.draft.firestore.runTransaction(async tx => {
+          const stored = await tx.get(refs.draft);
+          if ((stored.get("savedAt") ?? null) !== previous) return null;
+          const version = Math.max(Date.now(), previous ? Date.parse(previous) + 1 : 0);
+          const snapshot = { ...draft, savedAt: new Date(version).toISOString() };
+          tx.set(refs.draft, snapshot);
+          return snapshot;
+        });
+        if (!saved) return res.status(409).json({ error: "Outro rascunho foi salvo em outra aba. Reabra a fila para conferir a versão atual." });
+        return res.status(200).json({ draft: saved });
+      }
+
       if (req.body?.action === "saveSchedule") {
         const schedule = parseProspectingSchedule(req.body.schedule);
         if (!schedule) {

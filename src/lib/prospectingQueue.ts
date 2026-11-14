@@ -61,3 +61,35 @@ export function uniqueProspectingCandidates<T extends { whatsapp: string }>(lead
     return true;
   });
 }
+
+export interface ProspectingDraftRow {
+  company: string;
+  message: string;
+  at: string;
+}
+
+export interface ProspectingDraft {
+  template: string;
+  rows: ProspectingDraftRow[];
+  savedAt: string;
+}
+
+export interface ProspectingPreviewData extends ProspectingQueueSettings {
+  draft: ProspectingDraft | null;
+}
+
+export function parseProspectingDraft(input: unknown): Omit<ProspectingDraft, 'savedAt'> | null {
+  if (!input || typeof input !== 'object') return null;
+  const { template, rows } = input as Partial<ProspectingDraft>;
+  if (typeof template !== 'string' || !template.trim() || template.length > 4000 ||
+      !Array.isArray(rows) || !rows.length || rows.length > 60) return null;
+  const cleanRows: ProspectingDraftRow[] = [];
+  for (const row of rows) {
+    if (!row || typeof row.company !== 'string' || !row.company.trim() || row.company.length > 300 ||
+        typeof row.message !== 'string' || !row.message.trim() || row.message.length > 6500 ||
+        typeof row.at !== 'string' || row.at.length !== 24 || !Number.isFinite(Date.parse(row.at))) return null;
+    cleanRows.push({ company: row.company, message: row.message, at: new Date(row.at).toISOString() });
+  }
+  if (new TextEncoder().encode(JSON.stringify(cleanRows)).length > 700_000) return null;
+  return { template, rows: cleanRows };
+}

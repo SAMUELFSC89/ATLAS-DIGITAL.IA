@@ -7,6 +7,7 @@ import { Lead, RadarLead } from '../types';
 import { ApiError, DEFAULT_APPROACH, fillMessage, formatWhatsApp, searchRadar } from '../lib/radarApi';
 import { createPositioningPdf, positioningFromLead } from '../lib/positioningPdf';
 import { exportLeadsToExcel, exportLeadsToPdf } from '../lib/radarExport';
+import ProspectingQueuePreview from './ProspectingQueuePreview';
 import RadarWhatsAppCampaign from './RadarWhatsAppCampaign';
 
 interface RadarDeMercadoProps {
@@ -78,6 +79,7 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
   const [searchError, setSearchError] = useState<{ code: string; message: string } | null>(null);
   const [notifiedLeadIds, setNotifiedLeadIds] = useState<string[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showDraft, setShowDraft] = useState(false);
   const [showCampaign, setShowCampaign] = useState(false);
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
 
@@ -244,6 +246,12 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
           Rastreie automaticamente dados de empresas locais qualificadas na sua região de atuação. Encontre oportunidades críticas sem site ou com SEO defasado prontas para vendas.
         </p>
       </div>
+      <button type="button" aria-expanded={showDraft} onClick={() => setShowDraft(value => !value)}
+        className="rounded-lg border border-gray-800 px-3 py-2 text-xs font-semibold text-emerald-300">
+        {showDraft ? 'Fechar rascunho da campanha' : 'Abrir rascunho da campanha'}
+      </button>
+      {showDraft && <ProspectingQueuePreview leads={whatsappLeads} message={approach} />}
+
 
       {/* Control Filter Panel - Stripe style */}
       <div className="bg-[#121214]/30 border border-gray-900 rounded-2xl p-6">
