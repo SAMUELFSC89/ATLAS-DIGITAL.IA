@@ -7,6 +7,7 @@ import metaHandler from "./api/meta.ts";
 import metaCallbackHandler from "./api/meta-callback.ts";
 import webhookHandler from "./api/webhook.ts";
 import contactHandler from "./api/contact.ts";
+import aiTrainingHandler from "./api/ai-training.ts";
 import crmHandler from "./api/crm.ts";
 import radarHandler from "./api/radar.ts";
 import atlasScoreHandler from "./api/atlas-score.ts";
@@ -92,6 +93,7 @@ async function startServer() {
 
   app.all("/api/atlas-score", (req, res) => atlasScoreHandler(req, res));
   app.all("/api/contact", (req, res) => contactHandler(req, res));
+  app.all("/api/ai-training", (req, res) => aiTrainingHandler(req, res));
   app.all("/api/crm", (req, res) => crmHandler(req, res));
 
   const isProduction = 
