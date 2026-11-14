@@ -4,9 +4,11 @@ import {
   PlusCircle, Mail, Phone, Globe, DollarSign, X, Check, ArrowRight, TrendingUp 
 } from 'lucide-react';
 import { Lead, LeadStatus } from '../types';
+import SiteContacts from './SiteContacts';
 
 interface CrmInteligenteProps {
   leads: Lead[];
+  canAccessSiteContacts: boolean;
   error: string;
   loading: boolean;
   onUpdateLeadStatus: (leadId: string, newStatus: LeadStatus) => Promise<void>;
@@ -19,6 +21,7 @@ interface CrmInteligenteProps {
 
 export default function CrmInteligente({
   leads,
+  canAccessSiteContacts,
   error,
   loading,
   onUpdateLeadStatus,
@@ -152,6 +155,8 @@ export default function CrmInteligente({
       </div>
       {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
       {loading && !leads.length && <p role="status" className="text-sm text-gray-400">Carregando leads…</p>}
+
+      {canAccessSiteContacts && <SiteContacts />}
 
       {/* Visual Pipeline Lanes (Kanban view scrollable horizontally) */}
       <div className="flex gap-4 overflow-x-auto pb-4 pt-1 snap-x select-none scrollbar-thin scrollbar-thumb-gray-900">

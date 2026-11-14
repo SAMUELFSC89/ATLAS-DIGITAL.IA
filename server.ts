@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import metaHandler from "./api/meta.ts";
 import metaCallbackHandler from "./api/meta-callback.ts";
 import webhookHandler from "./api/webhook.ts";
+import contactHandler from "./api/contact.ts";
 import crmHandler from "./api/crm.ts";
 import radarHandler from "./api/radar.ts";
 import atlasScoreHandler from "./api/atlas-score.ts";
@@ -90,6 +91,7 @@ async function startServer() {
   app.all("/api/whatsapp-send", (req, res) => whatsappSendHandler(req, res));
 
   app.all("/api/atlas-score", (req, res) => atlasScoreHandler(req, res));
+  app.all("/api/contact", (req, res) => contactHandler(req, res));
   app.all("/api/crm", (req, res) => crmHandler(req, res));
 
   const isProduction = 
@@ -104,6 +106,7 @@ async function startServer() {
     
     console.log(`Running in PRODUCTION mode. Serving static assets from: ${distPath}`);
     app.use(express.static(distPath));
+    app.get('/contato', (req, res) => res.sendFile(path.join(distPath, 'contato.html')));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
@@ -112,6 +115,10 @@ async function startServer() {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
+    });
+    app.get('/contato', (req, res, next) => {
+      req.url = req.url.replace(/^\/contato\/?/, '/contato.html');
+      next();
     });
     app.use(vite.middlewares);
   }
