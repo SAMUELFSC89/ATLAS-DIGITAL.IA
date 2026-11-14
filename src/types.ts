@@ -134,6 +134,7 @@ export interface Lead {
   notes: string;
   segment: string;
   createdAt: string;
+  aiMemory?: string;
   statusSource?: 'manual' | 'whatsapp';
   statusUpdatedAt?: string;
 }

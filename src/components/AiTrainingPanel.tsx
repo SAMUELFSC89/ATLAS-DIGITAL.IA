@@ -1,16 +1,23 @@
 import { useEffect, useState } from 'react';
-import { EMPTY_TRAINING, TRAINING_FIELDS, type AiTraining, type AiSimulation } from '../lib/aiTraining';
+import type { Lead } from '../types';
+import { AI_MEMORY_LIMIT, EMPTY_TRAINING, TRAINING_FIELDS, type AiTraining, type AiSimulation } from '../lib/aiTraining';
 import { getAiTraining, saveAiTraining, simulateAiTraining } from '../lib/radarApi';
 
-export default function AiTrainingPanel() {
+export default function AiTrainingPanel({ leads, onSaveAiMemory }: {
+  leads: Lead[];
+  onSaveAiMemory: (id: string, memory: string, previousMemory: string) => Promise<void>;
+}) {
   const [training, setTraining] = useState(EMPTY_TRAINING);
   const [saved, setSaved] = useState<AiTraining | null>(null);
-  const [busy, setBusy] = useState<'load' | 'save' | 'test' | null>('load');
+  const [busy, setBusy] = useState<'load' | 'save' | 'test' | 'memory' | null>('load');
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [message, setMessage] = useState('');
   const [memory, setMemory] = useState('');
+  const [leadId, setLeadId] = useState('');
+  const [previousMemory, setPreviousMemory] = useState('');
+  const selectedLead = leads.find(lead => lead.id === leadId);
   const [turns, setTurns] = useState<Array<AiSimulation & { message: string }>>([]);
   const dirty = saved !== null && Object.keys(training).some(key => {
     const field = key as keyof AiTraining;
@@ -64,6 +71,23 @@ export default function AiTrainingPanel() {
     }
   }
 
+  async function saveLeadMemory() {
+    if (!selectedLead || busy) return;
+    const next = memory.trim();
+    setBusy('memory');
+    setNotice('');
+    setError('');
+    try {
+      await onSaveAiMemory(selectedLead.id, next, previousMemory);
+      setPreviousMemory(next);
+      setNotice(next ? 'Memória salva no CRM.' : 'Memória apagada no CRM.');
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <section className="space-y-5 text-left">
       <header>
@@ -96,6 +120,25 @@ export default function AiTrainingPanel() {
         </form>
         <form className="min-w-0 space-y-3 rounded-xl border border-zinc-800 p-4" onSubmit={event => { event.preventDefault(); void simulate(); }}>
           <h3 className="text-sm font-bold text-white">Simulador de atendimento</h3>
+          <label className="block space-y-1 text-sm text-white">
+            <span>Lead do CRM (opcional)</span>
+            <select value={selectedLead?.id ?? ''} disabled={!!busy}
+              onChange={event => {
+                const id = event.target.value;
+                const summary = leads.find(lead => lead.id === id)?.aiMemory ?? '';
+                setLeadId(id);
+                setMemory(summary);
+                setPreviousMemory(summary);
+                setTurns([]);
+                setMessage('');
+                setNotice('');
+                setError('');
+              }}
+              className="block w-full rounded-lg border border-zinc-800 bg-zinc-950 p-2 text-white">
+              <option value="">Simulação sem vínculo</option>
+              {leads.map(lead => <option key={lead.id} value={lead.id}>{lead.companyName}</option>)}
+            </select>
+          </label>
           {turns.length > 0 && <ol className="max-h-72 space-y-3 overflow-auto text-sm text-zinc-300" aria-live="polite">
             {turns.map((turn, index) => <li key={index} className="whitespace-pre-wrap break-words">
               <p><strong>Lead</strong> · {turn.message}</p>
@@ -114,17 +157,20 @@ export default function AiTrainingPanel() {
               className="rounded-lg bg-emerald-400 px-3 py-2 text-sm font-semibold text-black disabled:opacity-40">
               {busy === 'test' ? 'Gerando resposta…' : 'Testar mensagem'}
             </button>
-            <button type="button" disabled={!!busy || !turns.length} onClick={() => { setTurns([]); setMemory(''); setError(''); }}
+            <button type="button" disabled={!!busy || !turns.length} onClick={() => { setTurns([]); setMemory(previousMemory); setMessage(''); setError(''); }}
               className="rounded-lg bg-zinc-800 px-3 py-2 text-sm text-white disabled:opacity-40">Limpar teste</button>
           </div>
           {dirty && <p className="text-xs text-zinc-400">Salve as alterações para testar as novas regras.</p>}
           <label className="block space-y-1 text-sm text-white">
             <span>Memória da simulação</span>
             <span className="block text-xs text-zinc-400">Edite este resumo para ajustar o contexto da próxima mensagem do teste.</span>
-            <textarea rows={4} value={memory} maxLength={2000} disabled={!!busy}
+            <textarea rows={4} value={memory} maxLength={AI_MEMORY_LIMIT} disabled={!!busy}
               onChange={event => setMemory(event.target.value)}
               className="block w-full rounded-lg border border-zinc-800 bg-zinc-950 p-2 text-sm text-white" />
           </label>
+          {selectedLead && <button type="button" disabled={!!busy || memory.trim() === previousMemory}
+            onClick={() => void saveLeadMemory()}
+            className="rounded-lg bg-zinc-800 px-3 py-2 text-sm text-white disabled:opacity-40">Salvar memória no CRM</button>}
         </form>
       </div>}
     </section>
