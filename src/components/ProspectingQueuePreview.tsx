@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { RadarLead } from '../types';
-import { fillMessage, getProspectingQueueSettings } from '../lib/radarApi';
-import { planProspectingSlots, uniqueProspectingCandidates, type ProspectingQueueSettings } from '../lib/prospectingQueue';
+import { fillMessage, getProspectingQueueSettings, saveProspectingDraft } from '../lib/radarApi';
+import { planProspectingSlots, uniqueProspectingCandidates, type ProspectingQueueSettings, type ProspectingDraft, type ProspectingDraftRow } from '../lib/prospectingQueue';
 
 const brTime = new Intl.DateTimeFormat('pt-BR', {
   timeZone: 'America/Sao_Paulo',
@@ -14,6 +14,10 @@ export default function ProspectingQueuePreview({ leads, message }: { leads: Rad
   const [error, setError] = useState('');
   const [template, setTemplate] = useState(message);
   const [plan, setPlan] = useState<{ source: RadarLead[]; template: string; rows: { lead: RadarLead; at: Date }[] } | null>(null);
+  const [draft, setDraft] = useState<ProspectingDraft | null>(null);
+  const [showSaved, setShowSaved] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState('');
   const [generating, setGenerating] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const unique = useMemo(() => uniqueProspectingCandidates(leads), [leads]);
@@ -22,13 +26,20 @@ export default function ProspectingQueuePreview({ leads, message }: { leads: Rad
   useEffect(() => {
     const controller = new AbortController();
     getProspectingQueueSettings(AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]))
-      .then(data => { if (!controller.signal.aborted) setSettings(data); })
+      .then(data => {
+        if (controller.signal.aborted) return;
+        setSettings(data);
+        setDraft(data.draft);
+        if (data.draft) setTemplate(data.draft.template);
+      })
       .catch(err => { if (!controller.signal.aborted) setError((err as Error).message); });
     return () => controller.abort();
   }, [attempt]);
 
   async function generate() {
     setError('');
+    setNotice('');
+    setShowSaved(false);
     setPlan(null);
     setGenerating(true);
     const requestedTemplate = template;
@@ -45,17 +56,65 @@ export default function ProspectingQueuePreview({ leads, message }: { leads: Rad
     }
   }
 
+  async function save() {
+    if (!visiblePlan || saving) return;
+    setSaving(true);
+    setError('');
+    setNotice('');
+    try {
+      const snapshot = await saveProspectingDraft({
+        template: visiblePlan.template,
+        rows: visiblePlan.rows.map(({ lead, at }) => ({
+          company: lead.companyName,
+          message: fillMessage(visiblePlan.template, lead),
+          at: at.toISOString(),
+        })),
+      }, draft?.savedAt ?? null);
+      setDraft(snapshot.draft);
+      setNotice('Rascunho salvo.');
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function renderRows(rows: ProspectingDraftRow[]) {
+    return <ol className="max-h-96 space-y-2 overflow-auto">
+      {rows.map((row, i) => (
+        <li key={i} className="rounded-lg border border-gray-800 p-3 text-xs text-gray-300">
+          <div className="flex flex-wrap justify-between gap-2">
+            <strong className="text-white">{row.company}</strong>
+            <time dateTime={row.at}>{brTime.format(new Date(row.at))}</time>
+          </div>
+          <p className="mt-1 whitespace-pre-wrap break-words">{row.message}</p>
+        </li>
+      ))}
+    </ol>;
+  }
+
   return (
     <section className="space-y-3 rounded-xl border border-gray-800 p-4 text-left">
       <h5 className="text-sm font-semibold text-white">Fila simulada</h5>
       <p className="text-xs text-gray-400">Use a seleção atual do Radar para estimar a ordem e os horários da campanha. A fila é uma prévia e não envia mensagens.</p>
+      {notice && <p role="status" className="text-xs text-emerald-300">{notice}</p>}
+      {draft && <div className="space-y-2">
+        <button type="button" aria-expanded={showSaved} onClick={() => setShowSaved(value => !value)}
+          className="text-xs font-semibold text-emerald-300">
+          {showSaved ? 'Ocultar rascunho salvo' : 'Ver rascunho salvo'} · {brTime.format(new Date(draft.savedAt))}
+        </button>
+        {showSaved && <>
+          <p className="text-xs text-gray-400">Horários registrados na simulação original.</p>
+          {renderRows(draft.rows)}
+        </>}
+      </div>}
       {error && <p role="alert" className="text-xs text-amber-300">{error}</p>}
       {!settings && (error
         ? <button type="button" onClick={() => { setError(''); setAttempt(n => n + 1); }} className="text-xs text-emerald-300">Tentar novamente</button>
         : <p role="status" className="text-xs text-gray-400">Carregando limite e janela de envio…</p>)}
       <label className="block space-y-1 text-xs text-gray-300">
         <span>Abordagem desta campanha</span>
-        <textarea rows={4} value={template} maxLength={4000} onChange={event => setTemplate(event.target.value)}
+        <textarea rows={4} value={template} maxLength={4000} disabled={!settings || saving} onChange={event => setTemplate(event.target.value)}
           className="block w-full rounded border border-gray-800 bg-gray-950 p-2 text-white" />
         <span className="block text-gray-400">Variáveis: {'{empresa}'}, {'{cidade}'}, {'{segmento}'}, {'{diagnostico}'}, {'{posicao}'}, {'{nota}'}.</span>
       </label>
@@ -66,23 +125,20 @@ export default function ProspectingQueuePreview({ leads, message }: { leads: Rad
             : 'janela de envio desativada'} · horário de Brasília
         </p>
       )}
-      <button type="button" onClick={() => void generate()} disabled={generating || !settings || !unique.length || !template.trim()}
+      {settings && !unique.length && <p className="text-xs text-gray-400">Faça uma busca no Radar para gerar uma nova prévia.</p>}
+      <button type="button" onClick={() => void generate()} disabled={saving || generating || !settings || !unique.length || !template.trim()}
         className="rounded-lg bg-emerald-400 px-3 py-2 text-xs font-semibold text-black disabled:opacity-40">
         {generating ? 'Gerando prévia…' : 'Gerar prévia da fila'}
       </button>
       {visiblePlan && <>
         <p className="text-xs text-gray-400" role="status">{visiblePlan.rows.length} abordagens previstas, com um minuto entre horários. Os contatos reais precisam de autorização.</p>
-        <ol className="max-h-96 space-y-2 overflow-auto">
-          {visiblePlan.rows.map(({ lead, at }) => (
-            <li key={lead.id} className="rounded-lg border border-gray-800 p-3 text-xs text-gray-300">
-              <div className="flex flex-wrap justify-between gap-2">
-                <strong className="text-white">{lead.companyName}</strong>
-                <time dateTime={at.toISOString()}>{brTime.format(at)}</time>
-              </div>
-              <p className="mt-1 whitespace-pre-wrap break-words">{fillMessage(visiblePlan.template, lead)}</p>
-            </li>
-          ))}
-        </ol>
+        {renderRows(visiblePlan.rows.map(({ lead, at }) => ({
+          company: lead.companyName, at: at.toISOString(), message: fillMessage(visiblePlan.template, lead),
+        })))}
+        <button type="button" disabled={saving} onClick={() => void save()}
+          className="rounded-lg bg-gray-800 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">
+          {saving ? 'Salvando…' : draft ? 'Substituir rascunho salvo' : 'Salvar rascunho'}
+        </button>
       </>}
     </section>
   );
