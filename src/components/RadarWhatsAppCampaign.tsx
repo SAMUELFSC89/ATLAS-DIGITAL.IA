@@ -1,3 +1,4 @@
+import { DEFAULT_PROSPECTING_SCHEDULE, parseProspectingSchedule, withinProspectingSchedule } from "../lib/prospectingSchedule";
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, Check, Download, ExternalLink, Loader2, MessageCircle, Send, Square, X } from 'lucide-react';
 import { RadarLead } from '../types';
@@ -11,6 +12,7 @@ import {
   getWhatsAppConnection,
   sendWhatsAppTemplate,
   saveWhatsAppDailyLimit,
+  saveWhatsAppSchedule,
 } from '../lib/radarApi';
 
 interface RadarWhatsAppCampaignProps {
@@ -25,6 +27,7 @@ type VariableSource = 'empresa' | 'cidade' | 'segmento' | 'fixo';
 type SendStatus = { state: 'enviando' | 'enviado' | 'simulado' | 'erro'; detail?: string };
 
 const SEND_INTERVAL_MS = 4000;
+const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 const CONFIDENCE_TEXT: Record<string, string> = {
   confirmado: 'confirmado no site',
@@ -48,6 +51,11 @@ export default function RadarWhatsAppCampaign({ leads, message, onMessageChange,
   const [dailyLimitInput, setDailyLimitInput] = useState('');
   const [savingLimit, setSavingLimit] = useState(false);
   const [limitError, setLimitError] = useState('');
+  const [schedule, setSchedule] = useState(DEFAULT_PROSPECTING_SCHEDULE);
+  const [savingSchedule, setSavingSchedule] = useState(false);
+  const [scheduleError, setScheduleError] = useState('');
+  const savedSchedule = connection?.schedule ?? DEFAULT_PROSPECTING_SCHEDULE;
+  const scheduleDirty = JSON.stringify(parseProspectingSchedule(schedule)) !== JSON.stringify(savedSchedule);
   const [authorizedIds, setAuthorizedIds] = useState<string[]>([]);
   const remaining = Math.max(0, (connection?.dailyLimit ?? 0) - (connection?.dailyUsed ?? 0));
   const pendingAuthorized = leads.filter(lead => authorizedIds.includes(lead.id) && !statuses[lead.id]);
@@ -67,6 +75,7 @@ export default function RadarWhatsAppCampaign({ leads, message, onMessageChange,
       .then((info) => {
         setConnection(info);
         setDailyLimitInput(String(info.dailyLimit));
+        setSchedule(info.schedule ?? DEFAULT_PROSPECTING_SCHEDULE);
         const first = info.templates.find((item) => item.headerFormat === 'DOCUMENT')
           || info.templates.find(canSendTemplate);
         if (first) setTemplateKey(getTemplateKey(first));
@@ -124,11 +133,33 @@ export default function RadarWhatsAppCampaign({ leads, message, onMessageChange,
     }
   };
 
+  const saveSchedule = async () => {
+    const valid = parseProspectingSchedule(schedule);
+    if (!valid) return;
+    setSavingSchedule(true);
+    setScheduleError('');
+    try {
+      const result = await saveWhatsAppSchedule(valid);
+      setConnection(previous => previous && { ...previous, ...result });
+      setSchedule(result.schedule);
+    } catch (err) {
+      setScheduleError((err as Error).message);
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
+
   const startApiSend = async () => {
     // Na conexão de demonstração não há modelos; o servidor apenas simula o envio.
     const chosen: WhatsAppTemplate | undefined =
       template || (connection?.simulated ? { name: 'demonstracao', language: 'pt_BR', category: '', body: '', variableCount: 0 } : undefined);
     if (!chosen || running || savingLimit || !remaining || dailyLimitInput !== String(connection?.dailyLimit)) return;
+    if (savingSchedule || scheduleDirty) return;
+    setScheduleError('');
+    if (!withinProspectingSchedule(savedSchedule)) {
+      setScheduleError('Fora da janela configurada para envio. Confira os dias e horários.');
+      return;
+    }
     stopRequested.current = false;
     setRunning(true);
     const pending = pendingAuthorized.slice(0, remaining);
@@ -148,7 +179,15 @@ export default function RadarWhatsAppCampaign({ leads, message, onMessageChange,
         }));
       } catch (err) {
         setStatuses((prev) => ({ ...prev, [lead.id]: { state: 'erro', detail: (err as Error).message } }));
-        if (err instanceof ApiError && err.code === 'daily_limit') break;
+        if (err instanceof ApiError && ['outside_schedule', 'daily_limit'].includes(err.code)) {
+          setStatuses(prev => {
+            const next = { ...prev };
+            delete next[lead.id];
+            return next;
+          });
+          if (err.code === 'outside_schedule') setScheduleError(err.message);
+          break;
+        }
       }
       if (i < pending.length - 1 && !stopRequested.current) {
         await new Promise((resolve) => setTimeout(resolve, SEND_INTERVAL_MS));
@@ -278,6 +317,49 @@ export default function RadarWhatsAppCampaign({ leads, message, onMessageChange,
             </div>
           )}
 
+          {connection && (
+            <fieldset disabled={running || savingSchedule} className="space-y-2 rounded-lg border border-gray-800 p-3 text-xs text-gray-300">
+              <legend className="px-1 font-semibold">Janela de envio</legend>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={schedule.enabled}
+                  onChange={event => setSchedule({ ...schedule, enabled: event.target.checked })} />
+                Restringir os envios a dias e horários
+              </label>
+              {schedule.enabled && (
+                <>
+                  <div className="flex flex-wrap gap-3" aria-label="Dias permitidos">
+                    {WEEKDAYS.map((name, day) => (
+                      <label key={name} className="flex items-center gap-1">
+                        <input type="checkbox" checked={schedule.days.includes(day)} onChange={event =>
+                          setSchedule({ ...schedule, days: event.target.checked
+                            ? [...schedule.days, day]
+                            : schedule.days.filter(value => value !== day) })} />
+                        {name}
+                      </label>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(['start', 'end'] as const).map(key => (
+                      <label key={key} className="flex items-center gap-1.5">
+                        {key === 'start' ? 'Das' : 'Até'}
+                        <input type="time" value={schedule[key]}
+                          className="rounded border border-gray-800 bg-gray-950 p-1 text-white"
+                          onChange={event => setSchedule({ ...schedule, [key]: event.target.value })} />
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+              <p className="text-gray-400">Horário de Brasília. A janela limita quando você pode iniciar os envios pela API.</p>
+              {schedule.enabled && !parseProspectingSchedule(schedule) &&
+                <p className="text-amber-300">Escolha pelo menos um dia e um horário final posterior ao inicial.</p>}
+              <button type="button" disabled={!scheduleDirty || !parseProspectingSchedule(schedule)}
+                className="rounded bg-gray-800 px-3 py-2 disabled:opacity-40"
+                onClick={() => void saveSchedule()}>Salvar janela</button>
+              {scheduleError && <Notice tone="error">{scheduleError}</Notice>}
+            </fieldset>
+          )}
+
           {connection?.connected && (
             <>
               <p className="text-[11px] text-gray-400">
@@ -355,7 +437,7 @@ export default function RadarWhatsAppCampaign({ leads, message, onMessageChange,
                   {!running ? (
                     <button
                       onClick={startApiSend}
-                      disabled={(!template && !connection.simulated) || missingFixedText || !pendingAuthorized.length || !remaining || savingLimit || Number(dailyLimitInput) !== connection.dailyLimit}
+                      disabled={(!template && !connection.simulated) || missingFixedText || !pendingAuthorized.length || !remaining || savingLimit || savingSchedule || scheduleDirty || Number(dailyLimitInput) !== connection.dailyLimit}
                       className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-black disabled:opacity-40 flex items-center gap-2"
                     >
                       <Send className="w-3.5 h-3.5" />

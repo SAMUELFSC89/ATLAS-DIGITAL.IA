@@ -1,3 +1,4 @@
+import { DEFAULT_PROSPECTING_SCHEDULE, parseProspectingSchedule, withinProspectingSchedule } from "../src/lib/prospectingSchedule.js";
 import { getWhatsAppConnectionInfo, sendWhatsAppTemplate } from "./whatsapp-service.js";
 import type { PositioningSnapshot } from "../src/lib/positioningPdf.js";
 import { scoreForLocalPosition } from "./radar.js";
@@ -110,11 +111,21 @@ export default async function handler(req: any, res: any) {
         ...connection,
         dailyLimit: settings.get("dailyLimit") ?? DEFAULT_DAILY_LIMIT,
         dailyUsed: day.get("count") ?? 0,
+        schedule: parseProspectingSchedule(settings.get("schedule")) ?? DEFAULT_PROSPECTING_SCHEDULE,
       });
     }
 
     if (req.method === "POST") {
       const refs = campaignRefs(email);
+      if (req.body?.action === "saveSchedule") {
+        const schedule = parseProspectingSchedule(req.body.schedule);
+        if (!schedule) {
+          return res.status(400).json({ error: "Selecione os dias e informe uma janela com início anterior ao fim." });
+        }
+        await refs.settings.set({ schedule }, { merge: true });
+        return res.status(200).json({ schedule });
+      }
+
       if (req.body?.action === "saveDailyLimit") {
         const limit = req.body.dailyLimit;
         if (!Number.isSafeInteger(limit) || limit < 1) {
@@ -151,12 +162,20 @@ export default async function handler(req: any, res: any) {
         const [settings, day, existing] = await tx.getAll(refs.settings, refs.day, recipient);
         const count = day.get("count") ?? 0;
         const limit = settings.get("dailyLimit") ?? DEFAULT_DAILY_LIMIT;
+        const schedule = parseProspectingSchedule(settings.get("schedule")) ?? DEFAULT_PROSPECTING_SCHEDULE;
+        if (!withinProspectingSchedule(schedule)) return "outside_schedule";
         if (existing.exists) return "duplicate";
         if (count >= limit) return "daily_limit";
         tx.set(refs.day, { count: count + 1 });
         tx.create(recipient, { reservedAt: new Date(), consentConfirmed: true });
         return "ok";
       });
+      if (reservation === "outside_schedule") {
+        return res.status(409).json({
+          code: reservation,
+          error: "O envio está fora da janela configurada no horário de Brasília.",
+        });
+      }
       if (reservation !== "ok") {
         return res.status(reservation === "duplicate" ? 409 : 429).json({
           code: reservation,
