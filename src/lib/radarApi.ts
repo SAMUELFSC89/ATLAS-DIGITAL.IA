@@ -99,6 +99,8 @@ export interface WhatsAppTemplate {
 }
 
 export interface WhatsAppConnection {
+  dailyLimit: number;
+  dailyUsed: number;
   connected: boolean;
   simulated: boolean;
   displayPhoneNumber: string;
@@ -111,6 +113,13 @@ export function getWhatsAppConnection(): Promise<WhatsAppConnection> {
   return request('/api/whatsapp-send', { method: 'GET' });
 }
 
+export function saveWhatsAppDailyLimit(dailyLimit: number): Promise<Pick<WhatsAppConnection, 'dailyLimit' | 'dailyUsed'>> {
+  return request('/api/whatsapp-send', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'saveDailyLimit', dailyLimit }),
+  });
+}
+
 export interface WhatsAppSendResult {
   success: boolean;
   simulated?: boolean;
@@ -120,11 +129,11 @@ export interface WhatsAppSendResult {
 }
 
 export function sendWhatsAppTemplate(
-  to: string, template: WhatsAppTemplate, bodyParams: string[], positioning?: PositioningSnapshot, companyName?: string,
+  to: string, template: WhatsAppTemplate, bodyParams: string[], positioning: PositioningSnapshot | undefined, companyName: string, contactAuthorized: boolean,
 ): Promise<WhatsAppSendResult> {
   return request('/api/whatsapp-send', {
     method: 'POST',
-    body: JSON.stringify({ to, templateName: template.name, languageCode: template.language, bodyParams, positioning, companyName }),
+    body: JSON.stringify({ to, templateName: template.name, languageCode: template.language, bodyParams, positioning, companyName, contactAuthorized }),
   });
 }
 

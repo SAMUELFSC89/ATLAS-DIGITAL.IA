@@ -1,9 +1,22 @@
 import { getWhatsAppConnectionInfo, sendWhatsAppTemplate } from "./whatsapp-service.js";
 import type { PositioningSnapshot } from "../src/lib/positioningPdf.js";
 import { scoreForLocalPosition } from "./radar.js";
-import { recordCrmInteraction } from "./crm-store.js";
+import { crmAccount, crmHash, recordCrmInteraction } from "./crm-store.js";
 
 const MAX_PARAM_LENGTH = 300;
+const DEFAULT_DAILY_LIMIT = 30;
+const campaignDay = new Intl.DateTimeFormat("sv-SE", {
+  year: "numeric", month: "2-digit", day: "2-digit", timeZone: "America/Sao_Paulo",
+});
+
+function campaignRefs(email: string) {
+  const account = crmAccount(email);
+  const day = campaignDay.format(new Date()).replace(/\D/g, "");
+  return {
+    settings: account.collection("settings").doc("prospecting"),
+    day: account.collection("prospectingDays").doc(day),
+  };
+}
 
 // Chave pública do app web do Firebase (a mesma que já vai no navegador).
 const FIREBASE_WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY || "AIzaSyCqIc_q1LJLCtPLtlB0j_daTwvyCP7XkrE";
@@ -90,11 +103,29 @@ export default async function handler(req: any, res: any) {
 
   try {
     if (req.method === "GET") {
-      return res.status(200).json(await getWhatsAppConnectionInfo(email));
+      const connection = await getWhatsAppConnectionInfo(email);
+      const refs = campaignRefs(email);
+      const [settings, day] = await Promise.all([refs.settings.get(), refs.day.get()]);
+      return res.status(200).json({
+        ...connection,
+        dailyLimit: settings.get("dailyLimit") ?? DEFAULT_DAILY_LIMIT,
+        dailyUsed: day.get("count") ?? 0,
+      });
     }
 
     if (req.method === "POST") {
-      const { to, templateName, languageCode, bodyParams, positioning, companyName } = req.body || {};
+      const refs = campaignRefs(email);
+      if (req.body?.action === "saveDailyLimit") {
+        const limit = req.body.dailyLimit;
+        if (!Number.isSafeInteger(limit) || limit < 1) {
+          return res.status(400).json({ error: "Informe um número inteiro positivo de leads por dia." });
+        }
+        await refs.settings.set({ dailyLimit: limit }, { merge: true });
+        const day = await refs.day.get();
+        return res.status(200).json({ dailyLimit: limit, dailyUsed: day.get("count") ?? 0 });
+      }
+
+      const { to, templateName, languageCode, bodyParams, positioning, companyName, contactAuthorized } = req.body || {};
       const digits = String(to || "").replace(/\D/g, "");
       if (digits.length < 12 || digits.length > 15) {
         return res.status(400).json({ success: false, error: "Número de destino inválido." });
@@ -109,6 +140,30 @@ export default async function handler(req: any, res: any) {
       const snapshot = parsePositioningSnapshot(positioning);
       if (positioning !== undefined && !snapshot) {
         return res.status(400).json({ success: false, error: "Dados insuficientes para gerar o PDF de posicionamento." });
+      }
+
+      if (contactAuthorized !== true) {
+        return res.status(400).json({ code: "consent_required", error: "Confirme o aceite do destinatário antes de enviar." });
+      }
+
+      const recipient = refs.day.collection("recipients").doc(crmHash(digits));
+      const reservation = await refs.day.firestore.runTransaction(async tx => {
+        const [settings, day, existing] = await tx.getAll(refs.settings, refs.day, recipient);
+        const count = day.get("count") ?? 0;
+        const limit = settings.get("dailyLimit") ?? DEFAULT_DAILY_LIMIT;
+        if (existing.exists) return "duplicate";
+        if (count >= limit) return "daily_limit";
+        tx.set(refs.day, { count: count + 1 });
+        tx.create(recipient, { reservedAt: new Date(), consentConfirmed: true });
+        return "ok";
+      });
+      if (reservation !== "ok") {
+        return res.status(reservation === "duplicate" ? 409 : 429).json({
+          code: reservation,
+          error: reservation === "duplicate"
+            ? "Este número já foi processado na campanha de hoje."
+            : "O limite diário de abordagens foi atingido.",
+        });
       }
 
       const result = await sendWhatsAppTemplate(email, digits, templateName, String(languageCode || "pt_BR"), params, snapshot);

@@ -10,6 +10,7 @@ import {
   formatWhatsApp,
   getWhatsAppConnection,
   sendWhatsAppTemplate,
+  saveWhatsAppDailyLimit,
 } from '../lib/radarApi';
 
 interface RadarWhatsAppCampaignProps {
@@ -44,6 +45,12 @@ export default function RadarWhatsAppCampaign({ leads, message, onMessageChange,
   const [fixedTexts, setFixedTexts] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<Record<string, SendStatus>>({});
   const [running, setRunning] = useState(false);
+  const [dailyLimitInput, setDailyLimitInput] = useState('');
+  const [savingLimit, setSavingLimit] = useState(false);
+  const [limitError, setLimitError] = useState('');
+  const [authorizedIds, setAuthorizedIds] = useState<string[]>([]);
+  const remaining = Math.max(0, (connection?.dailyLimit ?? 0) - (connection?.dailyUsed ?? 0));
+  const pendingAuthorized = leads.filter(lead => authorizedIds.includes(lead.id) && !statuses[lead.id]);
   const stopRequested = useRef(false);
 
   const supportedTemplates = (connection?.templates || []).filter(
@@ -59,6 +66,7 @@ export default function RadarWhatsAppCampaign({ leads, message, onMessageChange,
     getWhatsAppConnection()
       .then((info) => {
         setConnection(info);
+        setDailyLimitInput(String(info.dailyLimit));
         const first = info.templates.find((item) => item.headerFormat === 'DOCUMENT')
           || info.templates.find(canSendTemplate);
         if (first) setTemplateKey(getTemplateKey(first));
@@ -102,17 +110,28 @@ export default function RadarWhatsAppCampaign({ leads, message, onMessageChange,
       return fixedTexts[i] || '';
     });
 
+  const saveDailyLimit = async () => {
+    setSavingLimit(true);
+    setLimitError('');
+    try {
+      const settings = await saveWhatsAppDailyLimit(Number(dailyLimitInput));
+      setConnection(previous => previous && { ...previous, ...settings });
+      setDailyLimitInput(String(settings.dailyLimit));
+    } catch (err) {
+      setLimitError((err as Error).message);
+    } finally {
+      setSavingLimit(false);
+    }
+  };
+
   const startApiSend = async () => {
     // Na conexão de demonstração não há modelos; o servidor apenas simula o envio.
     const chosen: WhatsAppTemplate | undefined =
       template || (connection?.simulated ? { name: 'demonstracao', language: 'pt_BR', category: '', body: '', variableCount: 0 } : undefined);
-    if (!chosen) return;
+    if (!chosen || running || savingLimit || !remaining || dailyLimitInput !== String(connection?.dailyLimit)) return;
     stopRequested.current = false;
     setRunning(true);
-    const pending = leads.filter((lead) => {
-      const state = statuses[lead.id]?.state;
-      return state !== 'enviado' && state !== 'simulado';
-    });
+    const pending = pendingAuthorized.slice(0, remaining);
 
     for (let i = 0; i < pending.length; i++) {
       if (stopRequested.current) break;
@@ -120,7 +139,7 @@ export default function RadarWhatsAppCampaign({ leads, message, onMessageChange,
       setStatuses((prev) => ({ ...prev, [lead.id]: { state: 'enviando' } }));
       try {
         const positioning = includePdf ? positioningFromLead(lead) : undefined;
-        const result = await sendWhatsAppTemplate(lead.whatsapp, chosen, resolveParams(lead), positioning, lead.companyName);
+        const result = await sendWhatsAppTemplate(lead.whatsapp, chosen, resolveParams(lead), positioning, lead.companyName, authorizedIds.includes(lead.id));
         setStatuses((prev) => ({
           ...prev,
           [lead.id]: result.success
@@ -129,12 +148,20 @@ export default function RadarWhatsAppCampaign({ leads, message, onMessageChange,
         }));
       } catch (err) {
         setStatuses((prev) => ({ ...prev, [lead.id]: { state: 'erro', detail: (err as Error).message } }));
+        if (err instanceof ApiError && err.code === 'daily_limit') break;
       }
       if (i < pending.length - 1 && !stopRequested.current) {
         await new Promise((resolve) => setTimeout(resolve, SEND_INTERVAL_MS));
       }
     }
-    setRunning(false);
+    try {
+      const info = await getWhatsAppConnection();
+      setConnection(info);
+    } catch (err) {
+      setLimitError((err as Error).message);
+    } finally {
+      setRunning(false);
+    }
   };
 
   const sentCount = (Object.values(statuses) as SendStatus[]).filter((s) => s.state === 'enviado' || s.state === 'simulado').length;
@@ -160,12 +187,14 @@ export default function RadarWhatsAppCampaign({ leads, message, onMessageChange,
       <div className="inline-flex bg-gray-950 border border-gray-800 rounded-xl p-1 text-xs font-semibold">
         <button
           onClick={() => setMode('assistido')}
+          disabled={running}
           className={`px-3 py-1.5 rounded-lg transition-all ${mode === 'assistido' ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}
         >
           Envio assistido (seu WhatsApp)
         </button>
         <button
           onClick={() => setMode('api')}
+          disabled={running}
           className={`px-3 py-1.5 rounded-lg transition-all ${mode === 'api' ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}
         >
           Envio automático (API oficial)
@@ -231,6 +260,22 @@ export default function RadarWhatsAppCampaign({ leads, message, onMessageChange,
               A conexão atual é de demonstração: os envios abaixo serão apenas simulados e nenhuma mensagem sai de verdade.
               Para enviar, conecte o número real pelo login da Meta em Automações.
             </Notice>
+          )}
+
+          {connection && (
+            <div className="space-y-2">
+              <label htmlFor="campaign-daily-limit" className="block text-xs text-gray-300">Máximo de leads por dia</label>
+              <div className="flex flex-wrap gap-2">
+                <input id="campaign-daily-limit" type="number" min="1" step="1" value={dailyLimitInput}
+                  onChange={event => setDailyLimitInput(event.target.value)} disabled={running || savingLimit}
+                  className="w-28 rounded-lg border border-gray-800 bg-gray-950 p-2 text-sm text-white" />
+                <button type="button" onClick={() => void saveDailyLimit()}
+                  disabled={running || savingLimit || !Number.isSafeInteger(Number(dailyLimitInput)) || Number(dailyLimitInput) < 1 || Number(dailyLimitInput) === connection.dailyLimit}
+                  className="rounded-lg bg-gray-800 px-3 py-2 text-xs text-white disabled:opacity-40">Salvar limite</button>
+              </div>
+              <p role="status" className="text-xs text-gray-400">{remaining} de {connection.dailyLimit} disponíveis hoje. O dia vira à meia-noite no horário de Brasília.</p>
+              {limitError && <Notice tone="error">{limitError}</Notice>}
+            </div>
           )}
 
           {connection?.connected && (
@@ -310,11 +355,11 @@ export default function RadarWhatsAppCampaign({ leads, message, onMessageChange,
                   {!running ? (
                     <button
                       onClick={startApiSend}
-                      disabled={(!template && !connection.simulated) || missingFixedText || sentCount === leads.length}
+                      disabled={(!template && !connection.simulated) || missingFixedText || !pendingAuthorized.length || !remaining || savingLimit || Number(dailyLimitInput) !== connection.dailyLimit}
                       className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-black disabled:opacity-40 flex items-center gap-2"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      {sentCount > 0 ? 'Continuar envio' : `Enviar para ${leads.length}`}
+                      {`Enviar para ${Math.min(pendingAuthorized.length, remaining)}`}
                     </button>
                   ) : (
                     <button
@@ -372,7 +417,16 @@ export default function RadarWhatsAppCampaign({ leads, message, onMessageChange,
                     {opened ? 'Aberta' : 'Abrir conversa'}
                   </button>
                 ) : (
-                  <span
+                  !status ? (
+                    <label className="flex items-center gap-1.5">
+                      <input type="checkbox" disabled={running} checked={authorizedIds.includes(lead.id)}
+                        onChange={event => {
+                          const checked = event.target.checked;
+                          setAuthorizedIds(previous => checked ? [...previous, lead.id] : previous.filter(id => id !== lead.id));
+                        }} />
+                      <span>Aceitou receber mensagens</span>
+                    </label>
+                  ) : <span
                     className={
                       status?.state === 'erro'
                         ? 'text-red-400'
