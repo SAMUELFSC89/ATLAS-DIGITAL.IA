@@ -38,7 +38,7 @@ const SEGMENTS = ['Marmorarias', 'Vidraçarias', 'Móveis planejados', 'Energia 
 const QUESTIONS = [
   { question: 'O diagnóstico é pago?', answer: 'Não. O diagnóstico é gratuito e não obriga a contratar nada.' },
   { question: 'Preciso já ter um site?', answer: 'Não. O diagnóstico funciona com ou sem site: ele parte do perfil da empresa no Google.' },
-  { question: 'Vocês atendem a minha cidade?', answer: 'Atendemos presencialmente a Grande Porto Alegre e, por videochamada, empresas de outras cidades.' },
+  { question: 'Vocês atendem a minha cidade?', answer: 'Sim. Atendemos empresas de todo o Brasil por WhatsApp e videochamada, e presencialmente na Grande Porto Alegre.' },
 ];
 
 function WhatsAppButton({ label, className = '' }: { label: string; className?: string }) {
@@ -81,7 +81,7 @@ export default function AdsLandingPage() {
         <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-16 pt-8 sm:px-6 lg:grid-cols-2 lg:pt-14">
           <div className="space-y-6">
             <p className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#E2B755]" /> Grande Porto Alegre
+              <span className="h-1.5 w-1.5 rounded-full bg-[#E2B755]" /> Atendimento em todo o Brasil
             </p>
             <h1 className="font-display text-4xl font-black leading-[1.08] tracking-tight sm:text-5xl">
               Mais pedidos de orçamento para a sua empresa, direto no WhatsApp.
