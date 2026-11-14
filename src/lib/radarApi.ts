@@ -1,3 +1,4 @@
+import type { ProspectingQueueSettings } from './prospectingQueue';
 import type { AiSimulation, AiTraining } from './aiTraining';
 import type { ProspectingSchedule } from "./prospectingSchedule";
 import { auth } from './firebase';
@@ -200,4 +201,8 @@ export function saveAiTraining(training: AiTraining): Promise<{ training: AiTrai
 
 export function simulateAiTraining(message: string, memory: string): Promise<AiSimulation> {
   return request('/api/ai-training', { method: 'POST', body: JSON.stringify({ action: 'simulate', message, memory }) });
+}
+
+export function getProspectingQueueSettings(signal: AbortSignal): Promise<ProspectingQueueSettings> {
+  return request('/api/whatsapp-send?view=prospecting-settings', { method: 'GET', signal });
 }
