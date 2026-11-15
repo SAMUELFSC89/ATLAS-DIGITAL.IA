@@ -1,3 +1,4 @@
+import type { ProspectingExecutionReport } from './prospectingExecution';
 import type { PreparedRadarBatch, RadarReviewDecision, RecurringRadarFilters, RecurringRadarStatus } from './radarRecurring';
 import type { ProspectingDraft, ProspectingPreviewData } from './prospectingQueue';
 import type { AiSimulation, AiTraining } from './aiTraining';
@@ -215,4 +216,8 @@ export function reviewRadarContact(key: string, decision: RadarReviewDecision): 
 
 export function prepareRadarBatch(keys: string[], template: string, previous: string | null): Promise<{ batch: PreparedRadarBatch }> {
   return request('/api/radar?view=recurring', { method: 'POST', body: JSON.stringify({ action: 'prepareBatch', keys, template, previous }) });
+}
+
+export function simulateRadarBatchExecution(preparedAt: string): Promise<{ report: ProspectingExecutionReport }> {
+  return request('/api/radar?view=recurring', { method: 'POST', body: JSON.stringify({ action: 'simulateExecution', preparedAt }) });
 }

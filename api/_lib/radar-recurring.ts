@@ -1,3 +1,4 @@
+import { evaluateProspectingExecution } from '../../src/lib/prospectingExecution.js';
 import { planProspectingSlots } from '../../src/lib/prospectingQueue.js';
 import { fillMessage } from '../../src/lib/prospectingApproach.js';
 import { DEFAULT_PROSPECTING_SCHEDULE, parseProspectingSchedule } from '../../src/lib/prospectingSchedule.js';
@@ -126,6 +127,48 @@ export async function handleRecurringRadar(
       return res.status(200).json({ batch: prepared });
     }
 
+    if (req.body?.action === 'simulateExecution') {
+      const { preparedAt } = req.body;
+      if (typeof preparedAt !== 'string' || preparedAt.length !== 24) {
+        return res.status(400).json({ error: 'Prepare um lote antes de testar a execução.' });
+      }
+      const report = await db.runTransaction(async tx => {
+        const now = new Date();
+        const day = campaignDay.format(now).replace(/\D/g, '');
+        const daily = account.collection('prospectingDays').doc(day);
+        const [current, settings, used] = await tx.getAll(
+          batchRef, account.collection('settings').doc('prospecting'), daily,
+        );
+        const batch = current.data() as PreparedRadarBatch | undefined;
+        if (!batch || batch.preparedAt !== preparedAt) return null;
+        const candidates = batch.rows.filter(row => row.status === 'scheduled').map(row => queue.doc(row.key));
+        const approvalDocs = candidates.length ? await tx.getAll(...candidates) : [];
+        const approved = new Map<string, string>();
+        for (const item of approvalDocs) {
+          const decision = parseRadarReviewDecision({ status: item.get('status'), consentSource: item.get('consentSource') });
+          const phone = item.get('lead.whatsapp');
+          if (decision?.status === 'approved' && typeof phone === 'string' && /^\d{12,15}$/.test(phone)) {
+            approved.set(item.id, phone);
+          }
+        }
+        const phones = [...new Set(approved.values())];
+        const reservations = phones.length
+          ? await tx.getAll(...phones.map(phone => daily.collection('recipients').doc(crmHash(phone))))
+          : [];
+        const reservedIds = new Set(reservations.filter(item => item.exists).map(item => item.id));
+        const reserved = new Set(phones.filter(phone => reservedIds.has(crmHash(phone))));
+        const simulation = evaluateProspectingExecution(batch.rows, approved, reserved, {
+          schedule: parseProspectingSchedule(settings.get('schedule')) ?? DEFAULT_PROSPECTING_SCHEDULE,
+          dailyLimit: settings.get('dailyLimit') ?? 30,
+          dailyUsed: used.get('count') ?? 0,
+        }, now);
+        tx.update(batchRef, { simulation });
+        return simulation;
+      });
+      if (!report) return res.status(409).json({ error: 'O lote mudou. Atualize a fila antes de testar.' });
+      return res.status(200).json({ report });
+    }
+
     if (req.body?.action === 'review') {
       const { key, decision: input } = req.body;
       const decision = parseRadarReviewDecision(input);
@@ -143,6 +186,7 @@ export async function handleRecurringRadar(
           if (prepared?.rows.some(row => row.key === key && row.status === 'scheduled')) {
             tx.update(batchRef, {
               preparedAt: new Date(Math.max(date(), Date.parse(prepared.preparedAt) + 1)).toISOString(),
+              simulation: null,
               rows: prepared.rows.map(row => row.key === key ? { ...row, status: 'cancelled' } : row),
             });
           }
