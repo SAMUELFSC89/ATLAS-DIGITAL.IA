@@ -46,6 +46,7 @@ export function parseRadarReviewDecision(input: unknown): RadarReviewDecision | 
 export interface PreparedRadarBatch {
   preparedAt: string;
   simulation?: ProspectingExecutionReport | null;
+  rehearsal?: { lastRunAt: string; processed: Record<string, string> } | null;
   rows: Array<{ key: string; company: string; message: string; at: string; status: 'scheduled' | 'cancelled' }>;
 }
 
@@ -57,6 +58,13 @@ export interface RecurringRadarStatus {
   lastAdded: number | null;
   queue: RadarReviewItem[];
   batch: PreparedRadarBatch | null;
+  readiness: {
+    trainingSaved: boolean;
+    aiConfigured: boolean;
+    autoReply: boolean;
+    whatsappConfigured: boolean;
+    webhookSubscribed: boolean;
+  };
 }
 
 export function parseRecurringRadarFilters(value: unknown): RecurringRadarFilters | null {

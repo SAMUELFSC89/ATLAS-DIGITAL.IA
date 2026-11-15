@@ -1,10 +1,11 @@
+import { readTraining } from './ai-reply.js';
 import { evaluateProspectingExecution } from '../../src/lib/prospectingExecution.js';
 import { planProspectingSlots } from '../../src/lib/prospectingQueue.js';
 import { fillMessage } from '../../src/lib/prospectingApproach.js';
 import { DEFAULT_PROSPECTING_SCHEDULE, parseProspectingSchedule } from '../../src/lib/prospectingSchedule.js';
 import type { PreparedRadarBatch } from '../../src/lib/radarRecurring.js';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
-import { getFirestoreAdmin } from '../db-helper.js';
+import { decrypt, getFirestoreAdmin } from '../db-helper.js';
 import { crmHash, crmPhone } from '../crm-store.js';
 import type { RadarSearchParams, RadarSearchResult } from '../radar.js';
 import { nextRadarRun, parseRecurringRadarFilters, parseRadarReviewDecision } from '../../src/lib/radarRecurring.js';
@@ -52,9 +53,16 @@ export async function handleRecurringRadar(
     const queue = account.collection('radarReview');
     const batchRef = account.collection('settings').doc('preparedRadarBatch');
     if (req.method === 'GET') {
-      const [settings, leads, batch] = await Promise.all([
+      const [settings, leads, batch, training, connection] = await Promise.all([
         ref.get(), queue.orderBy('addedAt', 'desc').limit(60).get(), batchRef.get(),
+        account.collection('settings').doc('aiTraining').get(),
+        db.collection('companies').doc(email).get(),
       ]);
+      const instructions = readTraining(training.data());
+      const token = connection.get('accessToken');
+      const connected = connection.get('status') === 'connected' &&
+        /^\d+$/.test(connection.get('phoneNumberId') ?? '') && connection.get('hasGraphErrors') !== true &&
+        typeof token === 'string' && Boolean(token) && !/^EAAG.*EAAG$/.test(decrypt(token));
       return res.status(200).json({
         filters: settings.get('filters') ?? null,
         enabled: settings.get('enabled') === true,
@@ -62,6 +70,13 @@ export async function handleRecurringRadar(
         lastRunAt: settings.get('lastRunAt') ?? null,
         lastAdded: settings.get('lastAdded') ?? null,
         batch: batch.data() ?? null,
+        readiness: {
+          trainingSaved: Boolean(instructions && Object.values(instructions).some(Boolean)),
+          aiConfigured: Boolean(process.env.GEMINI_API_KEY),
+          autoReply: training.get('autoSend') === true,
+          whatsappConfigured: connected,
+          webhookSubscribed: connected && connection.get('webhookSubscribed') === true,
+        },
         queue: leads.docs.map(doc => ({
           key: doc.id,
           lead: doc.get('lead'),
@@ -127,7 +142,8 @@ export async function handleRecurringRadar(
       return res.status(200).json({ batch: prepared });
     }
 
-    if (req.body?.action === 'simulateExecution') {
+    if (req.body?.action === 'simulateExecution' || req.body?.action === 'runRehearsal') {
+      const rehearsal = req.body.action === 'runRehearsal';
       const { preparedAt } = req.body;
       if (typeof preparedAt !== 'string' || preparedAt.length !== 24) {
         return res.status(400).json({ error: 'Prepare um lote antes de testar a execução.' });
@@ -136,12 +152,15 @@ export async function handleRecurringRadar(
         const now = new Date();
         const day = campaignDay.format(now).replace(/\D/g, '');
         const daily = account.collection('prospectingDays').doc(day);
-        const [current, settings, used] = await tx.getAll(
-          batchRef, account.collection('settings').doc('prospecting'), daily,
+        const testDaily = account.collection('prospectingTestDays').doc(day);
+        const [current, settings, used, testUsed] = await tx.getAll(
+          batchRef, account.collection('settings').doc('prospecting'), daily, testDaily,
         );
         const batch = current.data() as PreparedRadarBatch | undefined;
         if (!batch || batch.preparedAt !== preparedAt) return null;
-        const candidates = batch.rows.filter(row => row.status === 'scheduled').map(row => queue.doc(row.key));
+        const previous = batch.rehearsal?.processed ?? {};
+        const rows = rehearsal ? batch.rows.filter(row => !Object.hasOwn(previous, row.key)) : batch.rows;
+        const candidates = rows.filter(row => row.status === 'scheduled').map(row => queue.doc(row.key));
         const approvalDocs = candidates.length ? await tx.getAll(...candidates) : [];
         const approved = new Map<string, string>();
         for (const item of approvalDocs) {
@@ -156,17 +175,33 @@ export async function handleRecurringRadar(
           ? await tx.getAll(...phones.map(phone => daily.collection('recipients').doc(crmHash(phone))))
           : [];
         const reservedIds = new Set(reservations.filter(item => item.exists).map(item => item.id));
-        const reserved = new Set(phones.filter(phone => reservedIds.has(crmHash(phone))));
-        const simulation = evaluateProspectingExecution(batch.rows, approved, reserved, {
+        const testRecipients: string[] = rehearsal ? testUsed.get('recipients') ?? [] : [];
+        const testIds = new Set(testRecipients);
+        const reserved = new Set(phones.filter(phone => reservedIds.has(crmHash(phone)) || testIds.has(crmHash(phone))));
+        const simulation = evaluateProspectingExecution(rows, approved, reserved, {
           schedule: parseProspectingSchedule(settings.get('schedule')) ?? DEFAULT_PROSPECTING_SCHEDULE,
           dailyLimit: settings.get('dailyLimit') ?? 30,
-          dailyUsed: used.get('count') ?? 0,
+          dailyUsed: (used.get('count') ?? 0) + testRecipients.length,
         }, now);
-        tx.update(batchRef, { simulation });
-        return simulation;
+        if (!rehearsal) {
+          tx.update(batchRef, { simulation });
+          return { report: simulation };
+        }
+        const processed = { ...previous };
+        let added = 0;
+        for (const result of simulation.rows) {
+          if (result.status !== 'ready') continue;
+          processed[result.key] = simulation.checkedAt;
+          const phone = approved.get(result.key);
+          if (phone) testIds.add(crmHash(phone));
+          added++;
+        }
+        if (added) tx.set(testDaily, { recipients: [...testIds] });
+        tx.update(batchRef, { simulation, rehearsal: { lastRunAt: simulation.checkedAt, processed } });
+        return { report: simulation, processed: added };
       });
       if (!report) return res.status(409).json({ error: 'O lote mudou. Atualize a fila antes de testar.' });
-      return res.status(200).json({ report });
+      return res.status(200).json(report);
     }
 
     if (req.body?.action === 'review') {

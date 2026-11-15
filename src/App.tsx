@@ -399,7 +399,8 @@ export default function App() {
                 )}
 
                 {activePortalTab === 'radar' && (
-                  <RadarDeMercado 
+                  <RadarDeMercado
+                    onOpenSettings={setActivePortalTab}
                     onAddLeadToCrm={handleAddLeadToCrm} 
                     crmLeads={crmLeads}
                   />

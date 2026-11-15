@@ -1,6 +1,6 @@
 import { EXECUTION_LABELS, type ExecutionStatus } from '../lib/prospectingExecution';
 import { useEffect, useState } from 'react';
-import { getRecurringRadar, runRecurringRadar, saveRecurringRadar, reviewRadarContact, prepareRadarBatch, simulateRadarBatchExecution } from '../lib/radarApi';
+import { getRecurringRadar, runRecurringRadar, saveRecurringRadar, reviewRadarContact, prepareRadarBatch, simulateRadarBatchExecution, runRadarBatchRehearsal } from '../lib/radarApi';
 import { parseRecurringRadarFilters, RADAR_CONSENT_SOURCES, type RadarConsentSource, type RadarReviewDecision, type RadarReviewStatus, type RecurringRadarFilters, type RecurringRadarStatus } from '../lib/radarRecurring';
 import type { RadarLead } from '../types';
 
@@ -8,9 +8,10 @@ const brazilTime = new Intl.DateTimeFormat('pt-BR', {
   timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short',
 });
 
-export default function RecurringRadarPanel({ filters, onReview, approach }: {
+export default function RecurringRadarPanel({ filters, onReview, approach, onOpenSettings }: {
   filters: RecurringRadarFilters;
   approach: string;
+  onOpenSettings: (section: 'automacoes' | 'ai-training') => void;
   onReview: (leads: RadarLead[]) => void;
 }) {
   const [data, setData] = useState<RecurringRadarStatus | null>(null);
@@ -72,6 +73,20 @@ export default function RecurringRadarPanel({ filters, onReview, approach }: {
         <p>{data.filters
           ? `${data.enabled ? 'Ativa' : 'Pausada'} · ${data.filters.segment} em ${data.filters.city}/${data.filters.state}`
           : 'Nenhuma busca salva.'}</p>
+        <details className="space-y-2 rounded border border-gray-800 p-3">
+          <summary className="cursor-pointer font-semibold text-white">Prontidão da empresa</summary>
+          <ul className="space-y-1">
+            <li>Treinamento · {data.readiness.trainingSaved ? 'Salvo' : 'Pendente'}</li>
+            <li>Gemini · {data.readiness.aiConfigured ? 'Chave configurada' : 'Chave pendente'}</li>
+            <li>Modo da IA · {data.readiness.autoReply ? 'Respostas automáticas' : 'Sugestões'}</li>
+            <li>WhatsApp · {data.readiness.whatsappConfigured ? 'Conexão registrada' : 'Conexão pendente'}</li>
+            <li>Eventos da Meta · {data.readiness.webhookSubscribed ? 'Inscrição registrada' : 'Inscrição pendente'}</li>
+          </ul>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => onOpenSettings('ai-training')} className="rounded bg-gray-800 px-3 py-2">Treinar IA</button>
+            <button type="button" onClick={() => onOpenSettings('automacoes')} className="rounded bg-gray-800 px-3 py-2">APIs &amp; Conexões</button>
+          </div>
+        </details>
         {!data.cronConfigured && <p className="text-amber-200">O agendamento precisa de CRON_SECRET na Vercel. Você pode testar a busca manualmente.</p>}
         {data.lastRunAt && <p>Última execução: {brazilTime.format(data.lastRunAt)} · {data.lastAdded ?? 0} novos resultados.</p>}
         <div className="flex flex-wrap gap-2">
@@ -137,12 +152,22 @@ export default function RecurringRadarPanel({ filters, onReview, approach }: {
                   return 'Simulação de execução concluída.';
                 });
               }}>Testar execução do lote</button>
+            <button type="button" disabled={busy} className="ml-2 rounded bg-gray-800 px-3 py-2 font-semibold text-white disabled:opacity-40"
+              onClick={() => {
+                const batch = data.batch;
+                if (batch) void update(async () => {
+                  const { processed } = await runRadarBatchRehearsal(batch.preparedAt);
+                  return `${processed} itens processados em teste. Nenhuma mensagem enviada.`;
+                });
+              }}>Processar em modo teste</button>
+            {data.batch.rehearsal && <p>Último processamento: {brazilTime.format(new Date(data.batch.rehearsal.lastRunAt))} · {Object.keys(data.batch.rehearsal.processed).length} itens processados em teste.</p>}
             {simulation && <p>Último teste: {brazilTime.format(new Date(simulation.checkedAt))} · {simulation.rows.filter(row => row.status === 'ready').length} aptos nesse horário.</p>}
             <ul className="max-h-64 space-y-2 overflow-auto">
               {data.batch.rows.map(row => <li key={row.key} className="border-b border-gray-800 pb-2">
                 <strong>{row.company}</strong> · {row.status === 'cancelled' ? 'Cancelado' : brazilTime.format(new Date(row.at))}
                 <p className="whitespace-pre-wrap break-words">{row.message}</p>
-                {outcomes.has(row.key) && <p className="text-emerald-300">{EXECUTION_LABELS[outcomes.get(row.key)!]}</p>}
+                {data.batch?.rehearsal?.processed[row.key] && <p>Processado em teste · {brazilTime.format(new Date(data.batch.rehearsal.processed[row.key]))}</p>}
+                {!data.batch?.rehearsal?.processed[row.key] && outcomes.has(row.key) && <p className="text-emerald-300">{EXECUTION_LABELS[outcomes.get(row.key)!]}</p>}
               </li>)}
             </ul>
           </details>}
