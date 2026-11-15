@@ -15,12 +15,13 @@ export async function prepareWhatsAppDraft(email: string, phone: string, message
   const settings = readTraining(settingsDoc.data());
   if (!settings || !Object.values(settings).some(Boolean) || matches.size !== 1) return;
   const lead = matches.docs[0];
+  if (lead.get('aiPaused') === true || lead.get('lastInboundMessageId') !== eventId) return;
   const memory: string = lead.get('aiMemory') ?? '';
   const reply = await generateAiReply(apiKey, settings, message.slice(0, 2000), memory.slice(0, AI_MEMORY_LIMIT));
   if (!reply) return;
   await account.firestore.runTransaction(async tx => {
     const current = await tx.get(lead.ref);
-    if (!current.exists || current.get('lastInboundMessageId') !== eventId ||
+    if (!current.exists || current.get('aiPaused') === true || current.get('lastInboundMessageId') !== eventId ||
         (current.get('aiMemory') ?? '') !== memory) return;
     tx.update(lead.ref, { aiDraft: { ...reply, updatedAt: new Date().toISOString() } });
   });

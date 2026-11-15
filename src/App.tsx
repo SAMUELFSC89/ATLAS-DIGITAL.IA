@@ -183,6 +183,7 @@ export default function App() {
   const handleAddLeadToCrm = (lead: Omit<Lead, 'id' | 'createdAt'>) => saveCrm({ action: 'create', lead });
   const handleUpdateLeadStatus = (id: string, status: LeadStatus) => saveCrm({ action: 'stage', id, status });
   const handleUpdateLead = (lead: Lead) => saveCrm({ action: 'edit', id: lead.id, lead });
+  const handleAiHandoff = (id: string, paused: boolean) => saveCrm({ action: 'ai-handoff', id, paused });
   const handleSaveAiMemory = (id: string, memory: string, previousMemory: string) =>
     saveCrm({ action: 'ai-memory', id, memory, previousMemory });
   const handleDeleteLead = (id: string) => saveCrm({ action: 'delete', id });
@@ -416,6 +417,7 @@ export default function App() {
                     loading={crmLoading}
                     onUpdateLeadStatus={handleUpdateLeadStatus} 
                     onUpdateLead={handleUpdateLead}
+                    onAiHandoff={handleAiHandoff}
                     onSaveAiMemory={handleSaveAiMemory}
                     onDeleteLead={handleDeleteLead} 
                     onAddLead={handleAddLeadToCrm}

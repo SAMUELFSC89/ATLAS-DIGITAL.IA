@@ -44,7 +44,7 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ leads: snapshot.docs.map(doc => publicLead(doc.id, doc.data())), canAccessSiteContacts });
     }
 
-    const { action, id, lead = {}, status, localSearch, memory, previousMemory } = req.body || {};
+    const { action, id, lead = {}, status, localSearch, memory, previousMemory, paused } = req.body || {};
     const now = new Date().toISOString();
     if (action === 'create') {
       const text = Object.fromEntries(editableText.map(key => [key, cleanText(lead?.[key])])) as Pick<Lead, typeof editableText[number]>;
@@ -102,6 +102,9 @@ export default async function handler(req: any, res: any) {
       const text = Object.fromEntries(formFields.map(key => [key, cleanText(lead?.[key])])) as Pick<Lead, typeof formFields[number]>;
       if (!text.companyName) return res.status(400).json({ error: 'Informe o nome da empresa.' });
       patch = { ...text, contactKeys: leadContactKeys(text), closeProbability: probability(lead.closeProbability) };
+    } else if (action === 'ai-handoff') {
+      if (typeof paused !== 'boolean') return res.status(400).json({ error: 'Informe se o atendimento ficará em modo humano.' });
+      patch = paused ? { aiPaused: true, aiDraft: null, lastInboundMessageId: null } : { aiPaused: false };
     } else if (action === 'ai-memory') {
       if (typeof memory !== 'string' || typeof previousMemory !== 'string' ||
           memory.length > AI_MEMORY_LIMIT || previousMemory.length > AI_MEMORY_LIMIT) {
