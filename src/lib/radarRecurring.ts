@@ -42,6 +42,11 @@ export function parseRadarReviewDecision(input: unknown): RadarReviewDecision | 
   return null;
 }
 
+export interface PreparedRadarBatch {
+  preparedAt: string;
+  rows: Array<{ key: string; company: string; message: string; at: string; status: 'scheduled' | 'cancelled' }>;
+}
+
 export interface RecurringRadarStatus {
   filters: RecurringRadarFilters | null;
   enabled: boolean;
@@ -49,6 +54,7 @@ export interface RecurringRadarStatus {
   lastRunAt: number | null;
   lastAdded: number | null;
   queue: RadarReviewItem[];
+  batch: PreparedRadarBatch | null;
 }
 
 export function parseRecurringRadarFilters(value: unknown): RecurringRadarFilters | null {

@@ -260,6 +260,7 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
         {showRecurring ? 'Fechar busca recorrente' : 'Busca recorrente'}
       </button>
       {showRecurring && <RecurringRadarPanel
+        approach={approach}
         filters={{
           segment, city, state, radiusKm: Number(radius), quantity: Number(leadQuantity), siteFilter, keyword,
           minRating: minRating === 'all' ? null : Number(minRating),

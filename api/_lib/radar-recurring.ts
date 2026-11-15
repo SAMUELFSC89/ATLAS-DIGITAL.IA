@@ -1,3 +1,7 @@
+import { planProspectingSlots } from '../../src/lib/prospectingQueue.js';
+import { fillMessage } from '../../src/lib/prospectingApproach.js';
+import { DEFAULT_PROSPECTING_SCHEDULE, parseProspectingSchedule } from '../../src/lib/prospectingSchedule.js';
+import type { PreparedRadarBatch } from '../../src/lib/radarRecurring.js';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { getFirestoreAdmin } from '../db-helper.js';
 import { crmHash, crmPhone } from '../crm-store.js';
@@ -9,6 +13,9 @@ const PAUSED = Number.MAX_SAFE_INTEGER;
 const LEASE_MS = 120_000;
 const CRON_BATCH = 8;
 const date = () => Date.now();
+const campaignDay = new Intl.DateTimeFormat('sv-SE', {
+  year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'America/Sao_Paulo',
+});
 
 function cronAuthorization(req: any): boolean {
   const secret = process.env.CRON_SECRET;
@@ -40,15 +47,20 @@ export async function handleRecurringRadar(
     const db = getFirestoreAdmin();
     const id = crmHash(email.trim().toLowerCase());
     const ref = db.collection('radarRecurring').doc(id);
-    const queue = db.collection('crmAccounts').doc(id).collection('radarReview');
+    const account = db.collection('crmAccounts').doc(id);
+    const queue = account.collection('radarReview');
+    const batchRef = account.collection('settings').doc('preparedRadarBatch');
     if (req.method === 'GET') {
-      const [settings, leads] = await Promise.all([ref.get(), queue.orderBy('addedAt', 'desc').limit(60).get()]);
+      const [settings, leads, batch] = await Promise.all([
+        ref.get(), queue.orderBy('addedAt', 'desc').limit(60).get(), batchRef.get(),
+      ]);
       return res.status(200).json({
         filters: settings.get('filters') ?? null,
         enabled: settings.get('enabled') === true,
         cronConfigured: Boolean(process.env.CRON_SECRET),
         lastRunAt: settings.get('lastRunAt') ?? null,
         lastAdded: settings.get('lastAdded') ?? null,
+        batch: batch.data() ?? null,
         queue: leads.docs.map(doc => ({
           key: doc.id,
           lead: doc.get('lead'),
@@ -66,6 +78,54 @@ export async function handleRecurringRadar(
       await ref.set({ filters, enabled, nextRunAt: enabled ? nextRadarRun(date()) : PAUSED, revision: randomUUID() }, { merge: true });
       return res.status(200).json({ saved: true });
     }
+    if (req.body?.action === 'prepareBatch') {
+      const { keys, template, previous } = req.body;
+      if (!Array.isArray(keys) || !keys.length || keys.length > 60 ||
+          keys.some(key => typeof key !== 'string' || !/^[a-f0-9]{64}$/.test(key)) ||
+          typeof template !== 'string' || !template.trim() || template.length > 4000 ||
+          (previous !== null && (typeof previous !== 'string' || previous.length !== 24))) {
+        return res.status(400).json({ error: 'Confira os contatos e a abordagem.' });
+      }
+      const now = new Date();
+      const day = campaignDay.format(now).replace(/\D/g, '');
+      const selected = [...new Set<string>(keys)];
+      const prepared = await db.runTransaction(async tx => {
+        const [current, settings, used, ...items] = await tx.getAll(
+          batchRef,
+          account.collection('settings').doc('prospecting'),
+          account.collection('prospectingDays').doc(day),
+          ...selected.map(key => queue.doc(key)),
+        );
+        if ((current.get('preparedAt') ?? null) !== previous) return 'conflict';
+        const approved = new Map<string, { key: string; lead: RadarLead }>();
+        for (const item of items) {
+          const lead = item.get('lead') as RadarLead | undefined;
+          if (!lead || !/^\d{12,15}$/.test(lead.whatsapp) ||
+              !parseRadarReviewDecision({ status: item.get('status'), consentSource: item.get('consentSource') }) ||
+              item.get('status') !== 'approved') return 'not-approved';
+          if (!approved.has(lead.whatsapp)) approved.set(lead.whatsapp, { key: item.id, lead });
+        }
+        const schedule = parseProspectingSchedule(settings.get('schedule')) ?? DEFAULT_PROSPECTING_SCHEDULE;
+        const slots = planProspectingSlots(approved.size, {
+          schedule, dailyLimit: settings.get('dailyLimit') ?? 30, dailyUsed: used.get('count') ?? 0,
+        }, now);
+        if (slots.length !== approved.size) return 'invalid-slots';
+        const rows: PreparedRadarBatch['rows'] = [...approved.values()].map(({ key, lead }, index) => ({
+          key, company: lead.companyName, message: fillMessage(template.trim(), lead),
+          at: slots[index].toISOString(), status: 'scheduled',
+        }));
+        if (Buffer.byteLength(JSON.stringify(rows)) > 700_000) return 'too-large';
+        const saved = { preparedAt: new Date(Math.max(now.getTime(), previous ? Date.parse(previous) + 1 : 0)).toISOString(), rows };
+        tx.set(batchRef, saved);
+        return saved;
+      });
+      if (prepared === 'conflict') return res.status(409).json({ error: 'O lote mudou em outra sessão. Reabra a fila e tente novamente.' });
+      if (prepared === 'not-approved') return res.status(409).json({ error: 'Um contato perdeu a aprovação. Atualize a fila e tente novamente.' });
+      if (prepared === 'invalid-slots') return res.status(400).json({ error: 'Confira o limite diário e a janela de envio.' });
+      if (prepared === 'too-large') return res.status(400).json({ error: 'Reduza o tamanho da abordagem ou a quantidade de contatos.' });
+      return res.status(200).json({ batch: prepared });
+    }
+
     if (req.body?.action === 'review') {
       const { key, decision: input } = req.body;
       const decision = parseRadarReviewDecision(input);
@@ -78,6 +138,15 @@ export async function handleRecurringRadar(
         if (!item.exists) return 'missing';
         const number = item.get('lead.whatsapp');
         if (decision.status === 'approved' && (typeof number !== 'string' || !/^\d{12,15}$/.test(number))) return 'no-number';
+        if (decision.status !== 'approved') {
+          const prepared = (await tx.get(batchRef)).data() as PreparedRadarBatch | undefined;
+          if (prepared?.rows.some(row => row.key === key && row.status === 'scheduled')) {
+            tx.update(batchRef, {
+              preparedAt: new Date(Math.max(date(), Date.parse(prepared.preparedAt) + 1)).toISOString(),
+              rows: prepared.rows.map(row => row.key === key ? { ...row, status: 'cancelled' } : row),
+            });
+          }
+        }
         tx.update(contact, {
           status: decision.status,
           consentSource: decision.status === 'approved' ? decision.consentSource : null,
