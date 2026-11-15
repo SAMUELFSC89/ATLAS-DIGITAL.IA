@@ -193,7 +193,7 @@ export function formatWhatsApp(digits: string): string {
   return digits;
 }
 
-export function getAiTraining(signal?: AbortSignal): Promise<{ training: AiTraining }> {
+export function getAiTraining(signal?: AbortSignal): Promise<{ training: AiTraining; autoSend: boolean }> {
   return request('/api/ai-training', { method: 'GET', signal });
 }
 
@@ -229,4 +229,8 @@ export function saveRecurringRadar(filters: RecurringRadarFilters, enabled: bool
 
 export function runRecurringRadar(): Promise<{ added: number; superseded?: boolean }> {
   return request('/api/radar?view=recurring', { method: 'POST', body: JSON.stringify({ action: 'run' }) });
+}
+
+export function setAiAutoSend(enabled: boolean): Promise<{ autoSend: boolean }> {
+  return request('/api/ai-training', { method: 'POST', body: JSON.stringify({ action: 'setAutoSend', enabled }) });
 }
