@@ -2,7 +2,7 @@ import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { getFirestoreAdmin } from '../db-helper.js';
 import { crmHash, crmPhone } from '../crm-store.js';
 import type { RadarSearchParams, RadarSearchResult } from '../radar.js';
-import { nextRadarRun, parseRecurringRadarFilters } from '../../src/lib/radarRecurring.js';
+import { nextRadarRun, parseRecurringRadarFilters, parseRadarReviewDecision } from '../../src/lib/radarRecurring.js';
 import type { RadarLead } from '../../src/types.js';
 
 const PAUSED = Number.MAX_SAFE_INTEGER;
@@ -49,7 +49,13 @@ export async function handleRecurringRadar(
         cronConfigured: Boolean(process.env.CRON_SECRET),
         lastRunAt: settings.get('lastRunAt') ?? null,
         lastAdded: settings.get('lastAdded') ?? null,
-        queue: leads.docs.map(doc => doc.get('lead')),
+        queue: leads.docs.map(doc => ({
+          key: doc.id,
+          lead: doc.get('lead'),
+          status: doc.get('status') ?? 'pending',
+          reviewedAt: doc.get('reviewedAt') ?? null,
+          consentSource: doc.get('consentSource') ?? null,
+        })),
       });
     }
 
@@ -58,6 +64,29 @@ export async function handleRecurringRadar(
       const enabled = req.body.enabled;
       if (!filters || typeof enabled !== 'boolean') return res.status(400).json({ error: 'Confira os filtros da busca recorrente.' });
       await ref.set({ filters, enabled, nextRunAt: enabled ? nextRadarRun(date()) : PAUSED, revision: randomUUID() }, { merge: true });
+      return res.status(200).json({ saved: true });
+    }
+    if (req.body?.action === 'review') {
+      const { key, decision: input } = req.body;
+      const decision = parseRadarReviewDecision(input);
+      if (typeof key !== 'string' || !/^[a-f0-9]{64}$/.test(key) || !decision) {
+        return res.status(400).json({ error: 'Confira a decisão e a origem do aceite.' });
+      }
+      const contact = queue.doc(key);
+      const result = await db.runTransaction(async tx => {
+        const item = await tx.get(contact);
+        if (!item.exists) return 'missing';
+        const number = item.get('lead.whatsapp');
+        if (decision.status === 'approved' && (typeof number !== 'string' || !/^\d{12,15}$/.test(number))) return 'no-number';
+        tx.update(contact, {
+          status: decision.status,
+          consentSource: decision.status === 'approved' ? decision.consentSource : null,
+          reviewedAt: date(),
+        });
+        return 'ok';
+      });
+      if (result === 'missing') return res.status(404).json({ error: 'Contato não encontrado na sua fila.' });
+      if (result === 'no-number') return res.status(400).json({ error: 'Este contato não tem um número de WhatsApp para aprovação.' });
       return res.status(200).json({ saved: true });
     }
     if (req.body?.action === 'run') {
