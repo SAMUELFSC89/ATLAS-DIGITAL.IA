@@ -1,3 +1,4 @@
+import recurringRadarHandler from './api/radar-recurring.ts';
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -94,6 +95,7 @@ async function startServer() {
   app.all("/api/atlas-score", (req, res) => atlasScoreHandler(req, res));
   app.all("/api/contact", (req, res) => contactHandler(req, res));
   app.all("/api/ai-training", (req, res) => aiTrainingHandler(req, res));
+  app.all("/api/radar-recurring", (req, res) => recurringRadarHandler(req, res));
   app.all("/api/crm", (req, res) => crmHandler(req, res));
 
   const isProduction = 

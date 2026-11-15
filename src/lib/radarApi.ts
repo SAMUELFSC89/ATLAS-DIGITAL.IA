@@ -1,3 +1,4 @@
+import type { RecurringRadarFilters, RecurringRadarStatus } from './radarRecurring';
 import type { ProspectingDraft, ProspectingPreviewData } from './prospectingQueue';
 import type { AiSimulation, AiTraining } from './aiTraining';
 import type { ProspectingSchedule } from "./prospectingSchedule";
@@ -215,4 +216,16 @@ export function saveProspectingDraft(
     signal: AbortSignal.timeout(15000),
     body: JSON.stringify({ action: 'saveDraft', draft, previous }),
   });
+}
+
+export function getRecurringRadar(signal?: AbortSignal): Promise<RecurringRadarStatus> {
+  return request('/api/radar-recurring', { method: 'GET', signal });
+}
+
+export function saveRecurringRadar(filters: RecurringRadarFilters, enabled: boolean): Promise<{ saved: boolean }> {
+  return request('/api/radar-recurring', { method: 'POST', body: JSON.stringify({ action: 'save', filters, enabled }) });
+}
+
+export function runRecurringRadar(): Promise<{ added: number; superseded?: boolean }> {
+  return request('/api/radar-recurring', { method: 'POST', body: JSON.stringify({ action: 'run' }) });
 }

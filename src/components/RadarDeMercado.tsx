@@ -7,6 +7,7 @@ import { Lead, RadarLead } from '../types';
 import { ApiError, DEFAULT_APPROACH, fillMessage, formatWhatsApp, searchRadar } from '../lib/radarApi';
 import { createPositioningPdf, positioningFromLead } from '../lib/positioningPdf';
 import { exportLeadsToExcel, exportLeadsToPdf } from '../lib/radarExport';
+import RecurringRadarPanel from './RecurringRadarPanel';
 import ProspectingQueuePreview from './ProspectingQueuePreview';
 import RadarWhatsAppCampaign from './RadarWhatsAppCampaign';
 
@@ -79,6 +80,7 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
   const [searchError, setSearchError] = useState<{ code: string; message: string } | null>(null);
   const [notifiedLeadIds, setNotifiedLeadIds] = useState<string[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showRecurring, setShowRecurring] = useState(false);
   const [showDraft, setShowDraft] = useState(false);
   const [showCampaign, setShowCampaign] = useState(false);
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
@@ -252,6 +254,25 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
       </button>
       {showDraft && <ProspectingQueuePreview leads={whatsappLeads} message={approach} />}
 
+
+      <button type="button" aria-expanded={showRecurring} onClick={() => setShowRecurring(value => !value)}
+        className="rounded-lg border border-gray-800 px-3 py-2 text-xs font-semibold text-emerald-300">
+        {showRecurring ? 'Fechar busca recorrente' : 'Busca recorrente'}
+      </button>
+      {showRecurring && <RecurringRadarPanel
+        filters={{
+          segment, city, state, radiusKm: Number(radius), quantity: Number(leadQuantity), siteFilter, keyword,
+          minRating: minRating === 'all' ? null : Number(minRating),
+          minReviews: minReviews === 'all' ? null : Number(minReviews),
+        }}
+        onReview={queued => {
+          setResults(queued);
+          setSelectedIds([]);
+          setSearchError(null);
+          setShowCampaign(false);
+          setSearchSummary('Resultados da busca recorrente para revisão.');
+        }}
+      />}
 
       {/* Control Filter Panel - Stripe style */}
       <div className="bg-[#121214]/30 border border-gray-900 rounded-2xl p-6">
