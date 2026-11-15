@@ -12,6 +12,7 @@ import ProspectingQueuePreview from './ProspectingQueuePreview';
 import RadarWhatsAppCampaign from './RadarWhatsAppCampaign';
 
 interface RadarDeMercadoProps {
+  onOpenSettings: (section: 'automacoes' | 'ai-training') => void;
   onAddLeadToCrm: (lead: Omit<Lead, 'id' | 'createdAt'>) => Promise<void>;
   crmLeads: Lead[];
 }
@@ -60,7 +61,7 @@ function displayUrl(url: string): string {
   return url.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, '');
 }
 
-export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMercadoProps) {
+export default function RadarDeMercado({ onAddLeadToCrm, crmLeads, onOpenSettings }: RadarDeMercadoProps) {
   // Search parameters state
   const [segment, setSegment] = useState('Marmoraria');
   const [city, setCity] = useState('');
@@ -261,6 +262,7 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads }: RadarDeMerc
       </button>
       {showRecurring && <RecurringRadarPanel
         approach={approach}
+        onOpenSettings={onOpenSettings}
         filters={{
           segment, city, state, radiusKm: Number(radius), quantity: Number(leadQuantity), siteFilter, keyword,
           minRating: minRating === 'all' ? null : Number(minRating),

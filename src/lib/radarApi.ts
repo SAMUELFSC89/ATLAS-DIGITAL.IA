@@ -221,3 +221,7 @@ export function prepareRadarBatch(keys: string[], template: string, previous: st
 export function simulateRadarBatchExecution(preparedAt: string): Promise<{ report: ProspectingExecutionReport }> {
   return request('/api/radar?view=recurring', { method: 'POST', body: JSON.stringify({ action: 'simulateExecution', preparedAt }) });
 }
+
+export function runRadarBatchRehearsal(preparedAt: string): Promise<{ report: ProspectingExecutionReport; processed: number }> {
+  return request('/api/radar?view=recurring', { method: 'POST', body: JSON.stringify({ action: 'runRehearsal', preparedAt }) });
+}
