@@ -11,14 +11,31 @@ export default async function handler(req: any, res: any) {
   try {
     const ref = crmAccount(email).collection('settings').doc('aiTraining');
     if (req.method === 'GET') {
-      return res.status(200).json({ training: readTraining((await ref.get()).data()) ?? EMPTY_TRAINING });
+      const saved = await ref.get();
+      return res.status(200).json({ training: readTraining(saved.data()) ?? EMPTY_TRAINING, autoSend: saved.get('autoSend') === true });
     }
-    const { action, training, message, memory } = req.body || {};
+    const { action, training, message, memory, enabled } = req.body || {};
     if (action === 'save') {
       const saved = readTraining(training);
       if (!saved) return res.status(400).json({ error: 'Confira os limites dos campos de treinamento.' });
-      await ref.set(saved);
+      await ref.set(Object.values(saved).some(Boolean) ? saved : { ...saved, autoSend: false }, { merge: true });
       return res.status(200).json({ training: saved });
+    }
+    if (action === 'setAutoSend') {
+      if (typeof enabled !== 'boolean') return res.status(400).json({ error: 'Informe o modo de atendimento.' });
+      if (enabled && !process.env.GEMINI_API_KEY) {
+        return res.status(503).json({ error: 'Configure GEMINI_API_KEY na Vercel para ativar o envio automático.' });
+      }
+      const updated = await ref.firestore.runTransaction(async tx => {
+        if (enabled) {
+          const settings = readTraining((await tx.get(ref)).data());
+          if (!settings || !Object.values(settings).some(Boolean)) return false;
+        }
+        tx.set(ref, { autoSend: enabled }, { merge: true });
+        return true;
+      });
+      if (!updated) return res.status(400).json({ error: 'Salve o treinamento antes de ativar o envio automático.' });
+      return res.status(200).json({ autoSend: enabled });
     }
     if (action !== 'simulate') return res.status(400).json({ error: 'Ação inválida.' });
     if (typeof message !== 'string' || !message.trim() || message.length > 2000 ||

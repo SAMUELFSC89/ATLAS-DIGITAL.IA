@@ -780,7 +780,7 @@ Equipe Atlas Intelligence`;
                   </div>
                 )}
                 {whatsappMetaConfig?.autoReplyEnabled === false && (
-                  <p className="text-sm text-zinc-300">Número validado na Meta. O atendimento automático está desativado para esta conexão.</p>
+                  <p className="text-sm text-zinc-300">Configure o modo de atendimento na aba Treinar IA.</p>
                 )}
                 {whatsappMetaConfig?.webhookSubscribed === false && (
                   <p role="alert" className="text-sm text-amber-300">A Meta não confirmou o recebimento de eventos. Use a sincronização para tentar ativar as atualizações automáticas do CRM.</p>

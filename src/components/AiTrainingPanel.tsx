@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
 import type { Lead } from '../types';
 import { AI_MEMORY_LIMIT, EMPTY_TRAINING, TRAINING_FIELDS, type AiTraining, type AiSimulation } from '../lib/aiTraining';
-import { getAiTraining, saveAiTraining, simulateAiTraining } from '../lib/radarApi';
+import { getAiTraining, saveAiTraining, simulateAiTraining, setAiAutoSend } from '../lib/radarApi';
 
 export default function AiTrainingPanel({ leads, onSaveAiMemory }: {
   leads: Lead[];
   onSaveAiMemory: (id: string, memory: string, previousMemory: string) => Promise<void>;
 }) {
+  const [autoSend, setAutoSend] = useState(false);
   const [training, setTraining] = useState(EMPTY_TRAINING);
   const [saved, setSaved] = useState<AiTraining | null>(null);
-  const [busy, setBusy] = useState<'load' | 'save' | 'test' | 'memory' | null>('load');
+  const [busy, setBusy] = useState<'load' | 'save' | 'test' | 'memory' | 'mode' | null>('load');
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -27,9 +28,10 @@ export default function AiTrainingPanel({ leads, onSaveAiMemory }: {
   useEffect(() => {
     const controller = new AbortController();
     getAiTraining(controller.signal)
-      .then(({ training }) => {
+      .then(({ training, autoSend }) => {
         if (controller.signal.aborted) return;
         setTraining(training);
+        setAutoSend(autoSend);
         setSaved(training);
       })
       .catch(err => { if (!controller.signal.aborted) setError((err as Error).message); })
@@ -45,7 +47,23 @@ export default function AiTrainingPanel({ leads, onSaveAiMemory }: {
       const result = await saveAiTraining(training);
       setTraining(result.training);
       setSaved(result.training);
+      if (!Object.values(result.training).some(Boolean)) setAutoSend(false);
       setNotice('Treinamento salvo.');
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function changeMode() {
+    setBusy('mode');
+    setError('');
+    setNotice('');
+    try {
+      const result = await setAiAutoSend(!autoSend);
+      setAutoSend(result.autoSend);
+      setNotice(result.autoSend ? 'Resposta automática ativada.' : 'Modo de sugestões ativado.');
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -103,6 +121,15 @@ export default function AiTrainingPanel({ leads, onSaveAiMemory }: {
             setBusy('load');
             setLoadAttempt(attempt => attempt + 1);
           }}>Tentar novamente</button>)}
+      {saved && <div className="space-y-2 rounded-xl border border-zinc-800 p-4 text-sm text-zinc-300">
+        <p className="font-semibold text-white">{autoSend ? 'Resposta automática' : 'Modo de sugestões'}</p>
+        <p>Com o WhatsApp conectado, este modo vale para as próximas mensagens recebidas. Leads em atendimento humano continuam pausados.</p>
+        <button type="button" onClick={() => void changeMode()}
+          disabled={!!busy || (!autoSend && (dirty || !Object.values(saved).some(Boolean)))}
+          className="rounded-lg bg-zinc-800 px-3 py-2 font-semibold text-white disabled:opacity-40">
+          {autoSend ? 'Voltar para modo de sugestões' : 'Ativar respostas automáticas'}
+        </button>
+      </div>}
       {saved && <div className="grid gap-5 lg:grid-cols-2">
         <form className="space-y-4 rounded-xl border border-zinc-800 p-4" onSubmit={event => { event.preventDefault(); void save(); }}>
           {(Object.entries(TRAINING_FIELDS) as [keyof AiTraining, typeof TRAINING_FIELDS[keyof AiTraining]][]).map(([key, field]) => (

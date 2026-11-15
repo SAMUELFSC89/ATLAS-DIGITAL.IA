@@ -1,32 +1,10 @@
 import { canProcessInboundWithAi } from './_lib/whatsapp-handoff.js';
-import { prepareWhatsAppDraft } from './_lib/whatsapp-draft.js';
-import { GoogleGenAI } from "@google/genai";
+import { handleWhatsAppAi } from './_lib/whatsapp-draft.js';
 import { readDb, writeDb, decrypt, getFirestoreAdmin } from "./db-helper.js";
-import { recordCrmInteraction } from "./crm-store.js";
+import { crmAccount, recordCrmInteraction } from "./crm-store.js";
 import { createPositioningPdf, type PositioningSnapshot } from "../src/lib/positioningPdf.js";
 
 const WHATSAPP_GRAPH_URL = "https://graph.facebook.com/v24.0";
-
-let aiClient: GoogleGenAI | null = null;
-
-function getAiClient(): GoogleGenAI | null {
-  if (!aiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.warn("Chave GEMINI_API_KEY não configurada. Respostas do Webhook usarão fallback inteligente.");
-      return null;
-    }
-    aiClient = new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build-whatsapp-service',
-        }
-      }
-    });
-  }
-  return aiClient;
-}
 
 /**
  * Envia uma mensagem oficial via WhatsApp Cloud API de forma multi-tenant.
@@ -47,9 +25,14 @@ export async function sendWhatsAppMessage(empresaId: string, telefoneDestino: st
   }
 
   const decryptedToken = decrypt(accessToken);
-  if (inboundEventId && (company.autoReplyEnabled === false ||
-      !await canProcessInboundWithAi(empresaId, telefoneDestino, inboundEventId))) {
-    return { success: false, error: "Atendimento automático pausado ou mensagem já superada." };
+  if (inboundEventId) {
+    const [canReply, settings] = await Promise.all([
+      canProcessInboundWithAi(empresaId, telefoneDestino, inboundEventId),
+      crmAccount(empresaId).collection('settings').doc('aiTraining').get(),
+    ]);
+    if (!canReply || settings.get('autoSend') !== true) {
+      return { success: false, error: "Atendimento automático pausado ou mensagem já superada." };
+    }
   }
 
   // Se o token for simulado ou estarmos em ambiente de desenvolvimento sem tokens reais
@@ -95,10 +78,17 @@ export async function sendWhatsAppMessage(empresaId: string, telefoneDestino: st
 
     console.log(`[WhatsApp Service] Mensagem enviada com sucesso via Meta API! ID:`, data.messages?.[0]?.id);
 
-    // Atualiza estatísticas da empresa
-    company.messagesToday = (company.messagesToday || 0) + 1;
-    db[empresaId] = company;
-    await writeDb(db);
+    try {
+      const ref = getFirestoreAdmin().collection("companies").doc(empresaId);
+      await ref.firestore.runTransaction(async tx => {
+        const latest = await tx.get(ref);
+        if (latest.get("status") === "connected" && latest.get("phoneNumberId") === phoneNumberId) {
+          tx.update(ref, { messagesToday: (latest.get("messagesToday") || 0) + 1 });
+        }
+      });
+    } catch {
+      console.warn("[WhatsApp Service] Contador indisponível após envio.");
+    }
 
     return { success: true, messageId: data.messages?.[0]?.id };
   } catch (err: any) {
@@ -142,43 +132,17 @@ export async function handleIncomingWebhookMessage(body: any): Promise<{ process
         });
         processed ||= recorded;
         if (recorded && !outbound && typeof text === "string" && text.trim()) {
-          if (company.autoReplyEnabled === false) {
-            try {
-              await prepareWhatsAppDraft(target.id, phone, text, message.id);
-            } catch (err) {
-              console.error("[WhatsApp Webhook] Falha ao preparar rascunho:", err instanceof Error ? err.name : "unknown");
-            }
-          } else {
-            await replyToIncomingMessage(target.id, company.verifiedName, phone, typeof name === "string" ? name : "Cliente", text, message.id);
+          try {
+            await handleWhatsAppAi(target.id, phone, text, message.id,
+              reply => sendWhatsAppMessage(target.id, phone, reply, message.id));
+          } catch (err) {
+            console.error("[WhatsApp Webhook] Falha no atendimento com IA:", err instanceof Error ? err.name : "unknown");
           }
         }
       }
     }
   }
   return { processed };
-}
-
-async function replyToIncomingMessage(email: string, companyName: string | undefined, phone: string, name: string, text: string, eventId: string) {
-  if (!await canProcessInboundWithAi(email, phone, eventId)) return;
-  const company = companyName || "nossa equipe";
-  let reply = "";
-  const ai = getAiClient();
-  if (ai) {
-    try {
-      const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: `Você é o assistente de atendimento da empresa "${company}".
-Responda à mensagem do cliente de forma profissional, objetiva e simpática, em até três parágrafos.
-Cliente: ${name}
-Mensagem: ${text}`,
-      });
-      reply = response.text || "";
-    } catch {
-      console.error("[WhatsApp Webhook] Falha ao gerar resposta automática.");
-    }
-  }
-  await sendWhatsAppMessage(email, phone, reply ||
-    `Olá, ${name}! Obrigado pelo contato com ${company}. Como podemos ajudar você hoje?`, eventId);
 }
 
 export interface WhatsAppTemplateSummary {
