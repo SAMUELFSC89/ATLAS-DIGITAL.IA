@@ -15,5 +15,16 @@
     }
   ],
   "installCommand": "npm ci",
-  "buildCommand": "npm run build"
+  "buildCommand": "npm run build",
+  "crons": [
+    {
+      "path": "/api/radar-recurring?run=scheduled",
+      "schedule": "0 12 * * *"
+    }
+  ],
+  "functions": {
+    "api/radar-recurring.ts": {
+      "maxDuration": 60
+    }
+  }
 }
