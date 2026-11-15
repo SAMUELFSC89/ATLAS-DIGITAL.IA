@@ -1,3 +1,4 @@
+import type { ProspectingExecutionReport } from './prospectingExecution.js';
 import type { RadarLead } from '../types.js';
 
 export interface RecurringRadarFilters {
@@ -44,6 +45,7 @@ export function parseRadarReviewDecision(input: unknown): RadarReviewDecision | 
 
 export interface PreparedRadarBatch {
   preparedAt: string;
+  simulation?: ProspectingExecutionReport | null;
   rows: Array<{ key: string; company: string; message: string; at: string; status: 'scheduled' | 'cancelled' }>;
 }
 

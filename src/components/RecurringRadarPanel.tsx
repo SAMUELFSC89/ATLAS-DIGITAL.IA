@@ -1,5 +1,6 @@
+import { EXECUTION_LABELS, type ExecutionStatus } from '../lib/prospectingExecution';
 import { useEffect, useState } from 'react';
-import { getRecurringRadar, runRecurringRadar, saveRecurringRadar, reviewRadarContact, prepareRadarBatch } from '../lib/radarApi';
+import { getRecurringRadar, runRecurringRadar, saveRecurringRadar, reviewRadarContact, prepareRadarBatch, simulateRadarBatchExecution } from '../lib/radarApi';
 import { parseRecurringRadarFilters, RADAR_CONSENT_SOURCES, type RadarConsentSource, type RadarReviewDecision, type RadarReviewStatus, type RecurringRadarFilters, type RecurringRadarStatus } from '../lib/radarRecurring';
 import type { RadarLead } from '../types';
 
@@ -49,6 +50,8 @@ export default function RecurringRadarPanel({ filters, onReview, approach }: {
   }
 
   const valid = parseRecurringRadarFilters(filters);
+  const simulation = data?.batch?.simulation;
+  const outcomes = new Map<string, ExecutionStatus>(simulation?.rows.map(row => [row.key, row.status]));
   const shown = data?.queue.filter(item => item.status === filter) ?? [];
   function review(key: string, decision: RadarReviewDecision) {
     void update(async () => {
@@ -125,11 +128,21 @@ export default function RecurringRadarPanel({ filters, onReview, approach }: {
           </div>}
           {data.batch && <details className="space-y-2 rounded border border-gray-800 p-3">
             <summary className="cursor-pointer font-semibold text-white">Lote preparado ({data.batch.rows.length})</summary>
-            <p>Horários planejados. O envio automático ainda não está disponível.</p>
+            <p>Horários planejados. O teste verifica a situação atual de cada item, sem enviar mensagens nem consumir o limite diário.</p>
+            <button type="button" disabled={busy} className="rounded bg-gray-800 px-3 py-2 font-semibold text-white disabled:opacity-40"
+              onClick={() => {
+                const batch = data.batch;
+                if (batch) void update(async () => {
+                  await simulateRadarBatchExecution(batch.preparedAt);
+                  return 'Simulação de execução concluída.';
+                });
+              }}>Testar execução do lote</button>
+            {simulation && <p>Último teste: {brazilTime.format(new Date(simulation.checkedAt))} · {simulation.rows.filter(row => row.status === 'ready').length} aptos nesse horário.</p>}
             <ul className="max-h-64 space-y-2 overflow-auto">
               {data.batch.rows.map(row => <li key={row.key} className="border-b border-gray-800 pb-2">
                 <strong>{row.company}</strong> · {row.status === 'cancelled' ? 'Cancelado' : brazilTime.format(new Date(row.at))}
                 <p className="whitespace-pre-wrap break-words">{row.message}</p>
+                {outcomes.has(row.key) && <p className="text-emerald-300">{EXECUTION_LABELS[outcomes.get(row.key)!]}</p>}
               </li>)}
             </ul>
           </details>}
