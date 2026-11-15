@@ -1,3 +1,4 @@
+import { prepareWhatsAppDraft } from './_lib/whatsapp-draft.js';
 import { GoogleGenAI } from "@google/genai";
 import { readDb, writeDb, decrypt, getFirestoreAdmin } from "./db-helper.js";
 import { recordCrmInteraction } from "./crm-store.js";
@@ -135,8 +136,16 @@ export async function handleIncomingWebhookMessage(body: any): Promise<{ process
           text: typeof text === "string" ? text : undefined,
         });
         processed ||= recorded;
-        if (recorded && !outbound && company.autoReplyEnabled !== false && typeof text === "string" && text.trim()) {
-          await replyToIncomingMessage(target.id, company.verifiedName, phone, typeof name === "string" ? name : "Cliente", text);
+        if (recorded && !outbound && typeof text === "string" && text.trim()) {
+          if (company.autoReplyEnabled === false) {
+            try {
+              await prepareWhatsAppDraft(target.id, phone, text, message.id);
+            } catch (err) {
+              console.error("[WhatsApp Webhook] Falha ao preparar rascunho:", err instanceof Error ? err.name : "unknown");
+            }
+          } else {
+            await replyToIncomingMessage(target.id, company.verifiedName, phone, typeof name === "string" ? name : "Cliente", text);
+          }
         }
       }
     }

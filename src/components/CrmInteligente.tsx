@@ -36,6 +36,8 @@ export default function CrmInteligente({
 }: CrmInteligenteProps) {
   
   const [selectedLeadForEdit, setSelectedLeadForEdit] = useState<Lead | null>(null);
+  const activeAiDraft = selectedLeadForEdit
+    ? leads.find(lead => lead.id === selectedLeadForEdit.id)?.aiDraft : null;
   const [memoryDraft, setMemoryDraft] = useState('');
   const [memoryNotice, setMemoryNotice] = useState('');
   const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
@@ -415,6 +417,15 @@ export default function CrmInteligente({
                   className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E2B755] resize-none"
                 />
               </div>
+
+              {activeAiDraft && <section className="space-y-2 rounded-xl border border-gray-800 p-3 text-xs text-gray-300">
+                <h4 className="font-semibold text-white">Resposta sugerida pela IA</h4>
+                <p className="whitespace-pre-wrap break-words">{activeAiDraft.reply}</p>
+                <p className="whitespace-pre-wrap break-words">Resumo sugerido: {activeAiDraft.memory || 'Sem alterações.'}</p>
+                {activeAiDraft.memory && <button type="button" disabled={saving}
+                  onClick={() => { setMemoryDraft(activeAiDraft.memory); setMemoryNotice(''); }}
+                  className="rounded-lg bg-gray-800 px-3 py-2">Usar resumo no campo de memória</button>}
+              </section>}
 
               <div className="space-y-2 rounded-xl border border-gray-800 p-3">
                 <label className="block space-y-1 text-xs text-white">
