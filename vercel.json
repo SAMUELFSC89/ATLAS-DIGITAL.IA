@@ -18,12 +18,12 @@
   "buildCommand": "npm run build",
   "crons": [
     {
-      "path": "/api/radar-recurring?run=scheduled",
+      "path": "/api/radar?view=recurring&run=scheduled",
       "schedule": "0 12 * * *"
     }
   ],
   "functions": {
-    "api/radar-recurring.ts": {
+    "api/radar.ts": {
       "maxDuration": 60
     }
   }

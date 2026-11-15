@@ -220,13 +220,13 @@ export function saveProspectingDraft(
 }
 
 export function getRecurringRadar(signal?: AbortSignal): Promise<RecurringRadarStatus> {
-  return request('/api/radar-recurring', { method: 'GET', signal });
+  return request('/api/radar?view=recurring', { method: 'GET', signal });
 }
 
 export function saveRecurringRadar(filters: RecurringRadarFilters, enabled: boolean): Promise<{ saved: boolean }> {
-  return request('/api/radar-recurring', { method: 'POST', body: JSON.stringify({ action: 'save', filters, enabled }) });
+  return request('/api/radar?view=recurring', { method: 'POST', body: JSON.stringify({ action: 'save', filters, enabled }) });
 }
 
 export function runRecurringRadar(): Promise<{ added: number; superseded?: boolean }> {
-  return request('/api/radar-recurring', { method: 'POST', body: JSON.stringify({ action: 'run' }) });
+  return request('/api/radar?view=recurring', { method: 'POST', body: JSON.stringify({ action: 'run' }) });
 }
