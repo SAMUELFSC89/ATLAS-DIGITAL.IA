@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getRecurringRadar, runRecurringRadar, saveRecurringRadar, reviewRadarContact } from '../lib/radarApi';
+import { getRecurringRadar, runRecurringRadar, saveRecurringRadar, reviewRadarContact, prepareRadarBatch } from '../lib/radarApi';
 import { parseRecurringRadarFilters, RADAR_CONSENT_SOURCES, type RadarConsentSource, type RadarReviewDecision, type RadarReviewStatus, type RecurringRadarFilters, type RecurringRadarStatus } from '../lib/radarRecurring';
 import type { RadarLead } from '../types';
 
@@ -7,8 +7,9 @@ const brazilTime = new Intl.DateTimeFormat('pt-BR', {
   timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short',
 });
 
-export default function RecurringRadarPanel({ filters, onReview }: {
+export default function RecurringRadarPanel({ filters, onReview, approach }: {
   filters: RecurringRadarFilters;
+  approach: string;
   onReview: (leads: RadarLead[]) => void;
 }) {
   const [data, setData] = useState<RecurringRadarStatus | null>(null);
@@ -17,6 +18,8 @@ export default function RecurringRadarPanel({ filters, onReview }: {
   const [showContacts, setShowContacts] = useState(false);
   const [filter, setFilter] = useState<RadarReviewStatus>('pending');
   const [consentSources, setConsentSources] = useState<Record<string, RadarConsentSource | ''>>({});
+  const [template, setTemplate] = useState(approach);
+  const [selected, setSelected] = useState<string[]>([]);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
 
@@ -103,6 +106,33 @@ export default function RecurringRadarPanel({ filters, onReview }: {
           {filter === 'approved' && <button type="button" disabled={busy || !shown.length}
             onClick={() => onReview(shown.map(item => item.lead))}
             className="rounded bg-gray-800 px-3 py-2 disabled:opacity-40">Ver aprovados nos resultados do Radar</button>}
+          {filter === 'approved' && shown.length > 0 && <div className="space-y-2 rounded border border-gray-800 p-3">
+            <label className="block space-y-1">Abordagem para o lote
+              <textarea className="block w-full rounded border border-gray-800 bg-gray-950 p-2 text-white"
+                value={template} rows={4} maxLength={4000} disabled={busy} onChange={event => setTemplate(event.target.value)} />
+            </label>
+            <p>Selecione os contatos abaixo. A Atlas calcula as datas pelo limite diário e pela janela da conta.</p>
+            <button type="button" disabled={busy || !template.trim() || !shown.some(item => selected.includes(item.key))}
+              onClick={() => void update(async () => {
+                const keys = shown.filter(item => selected.includes(item.key)).map(item => item.key);
+                await prepareRadarBatch(keys, template, data.batch?.preparedAt ?? null);
+                setSelected([]);
+                return 'Lote preparado, aguardando execução.';
+              })}
+              className="rounded bg-emerald-400 px-3 py-2 font-semibold text-black disabled:opacity-40">
+              {data.batch ? 'Substituir lote preparado' : 'Preparar lote agendado'}
+            </button>
+          </div>}
+          {data.batch && <details className="space-y-2 rounded border border-gray-800 p-3">
+            <summary className="cursor-pointer font-semibold text-white">Lote preparado ({data.batch.rows.length})</summary>
+            <p>Horários planejados. O envio automático ainda não está disponível.</p>
+            <ul className="max-h-64 space-y-2 overflow-auto">
+              {data.batch.rows.map(row => <li key={row.key} className="border-b border-gray-800 pb-2">
+                <strong>{row.company}</strong> · {row.status === 'cancelled' ? 'Cancelado' : brazilTime.format(new Date(row.at))}
+                <p className="whitespace-pre-wrap break-words">{row.message}</p>
+              </li>)}
+            </ul>
+          </details>}
           {!shown.length && <p>Nenhum contato com este status.</p>}
           <ul className="max-h-96 space-y-2 overflow-auto">
             {shown.map(({ key, lead, status, consentSource }) => {
@@ -110,6 +140,12 @@ export default function RecurringRadarPanel({ filters, onReview }: {
               return <li key={key} className="space-y-2 rounded border border-gray-800 p-3">
                 <strong className="block text-white">{lead.companyName}</strong>
                 <p>{lead.city}/{lead.state} · {lead.whatsapp || 'Sem WhatsApp cadastrado'}</p>
+                {status === 'approved' && <label className="block">
+                  <input type="checkbox" disabled={busy} checked={selected.includes(key)} onChange={event => {
+                    const checked = event.target.checked;
+                    setSelected(previous => checked ? [...previous, key] : previous.filter(value => value !== key));
+                  }} /> Incluir no lote
+                </label>}
                 {status === 'approved' && consentSource && <p>Origem do aceite: {RADAR_CONSENT_SOURCES[consentSource]}</p>}
                 <div className="flex flex-wrap items-end gap-2">
                   {status === 'pending' && lead.whatsapp && <>

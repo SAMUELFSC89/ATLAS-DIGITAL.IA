@@ -1,4 +1,4 @@
-import type { RadarReviewDecision, RecurringRadarFilters, RecurringRadarStatus } from './radarRecurring';
+import type { PreparedRadarBatch, RadarReviewDecision, RecurringRadarFilters, RecurringRadarStatus } from './radarRecurring';
 import type { ProspectingDraft, ProspectingPreviewData } from './prospectingQueue';
 import type { AiSimulation, AiTraining } from './aiTraining';
 import type { ProspectingSchedule } from "./prospectingSchedule";
@@ -158,33 +158,7 @@ export const DEFAULT_APPROACH =
   'A Atlas aumenta as vendas de empresas como a sua pela internet: site que gera orçamento, perfil do Google otimizado e atendimento pelo WhatsApp. ' +
   'Preparei o diagnóstico da {empresa} em PDF, com a nota e o que corrigir. Posso te mostrar em 5 minutos?';
 
-/** Frase com o principal problema medido da empresa, usada em {diagnostico}. */
-export function approachDiagnosis(lead: RadarLead): string {
-  const search = `a busca por ${lead.segment.toLowerCase()} em ${lead.city}`;
-  if (!lead.website) {
-    return `vocês não têm site próprio, então quem faz ${search} conhece o concorrente antes de vocês`;
-  }
-  if (lead.localPosition > 3) {
-    return `vocês aparecem em ${lead.localPosition}º lugar n${search}, atrás de concorrentes que recebem os primeiros pedidos de orçamento`;
-  }
-  if (lead.localPosition > 0) {
-    return `vocês já aparecem em ${lead.localPosition}º lugar n${search}, e dá para transformar mais dessas buscas em orçamentos`;
-  }
-  return `dá para transformar em orçamentos mais das pessoas que fazem ${search}`;
-}
-
-/** Troca as variáveis da mensagem pelos dados da empresa. */
-export function fillMessage(message: string, lead: RadarLead): string {
-  const rating = lead.rating === null ? 'sem nota' : lead.rating.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-  return message
-    .replace(/\{empresa\}/gi, lead.companyName)
-    .replace(/\{cidade\}/gi, lead.city)
-    .replace(/\{segmento\}/gi, lead.segment.toLowerCase())
-    .replace(/\{diagnostico\}/gi, approachDiagnosis(lead))
-    .replace(/\{posicao\}/gi, lead.localPosition > 0 ? `${lead.localPosition}º` : 'fora dos primeiros resultados')
-    .replace(/\{nota\}/gi, rating)
-    .replace(/\{avaliacoes\}/gi, String(lead.reviewsCount));
-}
+export { approachDiagnosis, fillMessage } from './prospectingApproach';
 
 export function formatWhatsApp(digits: string): string {
   const local = digits.startsWith('55') ? digits.slice(2) : digits;
@@ -237,4 +211,8 @@ export function setAiAutoSend(enabled: boolean): Promise<{ autoSend: boolean }> 
 
 export function reviewRadarContact(key: string, decision: RadarReviewDecision): Promise<{ saved: boolean }> {
   return request('/api/radar?view=recurring', { method: 'POST', body: JSON.stringify({ action: 'review', key, decision }) });
+}
+
+export function prepareRadarBatch(keys: string[], template: string, previous: string | null): Promise<{ batch: PreparedRadarBatch }> {
+  return request('/api/radar?view=recurring', { method: 'POST', body: JSON.stringify({ action: 'prepareBatch', keys, template, previous }) });
 }
