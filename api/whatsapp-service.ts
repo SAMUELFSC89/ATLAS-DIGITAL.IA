@@ -1,3 +1,4 @@
+import { canProcessInboundWithAi } from './_lib/whatsapp-handoff.js';
 import { prepareWhatsAppDraft } from './_lib/whatsapp-draft.js';
 import { GoogleGenAI } from "@google/genai";
 import { readDb, writeDb, decrypt, getFirestoreAdmin } from "./db-helper.js";
@@ -30,7 +31,7 @@ function getAiClient(): GoogleGenAI | null {
 /**
  * Envia uma mensagem oficial via WhatsApp Cloud API de forma multi-tenant.
  */
-export async function sendWhatsAppMessage(empresaId: string, telefoneDestino: string, mensagem: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
+export async function sendWhatsAppMessage(empresaId: string, telefoneDestino: string, mensagem: string, inboundEventId?: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
   console.log(`[WhatsApp Service] Iniciando envio para ${telefoneDestino} representando a empresa: ${empresaId}`);
 
   const db = await readDb();
@@ -46,6 +47,10 @@ export async function sendWhatsAppMessage(empresaId: string, telefoneDestino: st
   }
 
   const decryptedToken = decrypt(accessToken);
+  if (inboundEventId && (company.autoReplyEnabled === false ||
+      !await canProcessInboundWithAi(empresaId, telefoneDestino, inboundEventId))) {
+    return { success: false, error: "Atendimento automático pausado ou mensagem já superada." };
+  }
 
   // Se o token for simulado ou estarmos em ambiente de desenvolvimento sem tokens reais
   if (decryptedToken.startsWith("EAAG") && decryptedToken.endsWith("EAAG")) {
@@ -144,7 +149,7 @@ export async function handleIncomingWebhookMessage(body: any): Promise<{ process
               console.error("[WhatsApp Webhook] Falha ao preparar rascunho:", err instanceof Error ? err.name : "unknown");
             }
           } else {
-            await replyToIncomingMessage(target.id, company.verifiedName, phone, typeof name === "string" ? name : "Cliente", text);
+            await replyToIncomingMessage(target.id, company.verifiedName, phone, typeof name === "string" ? name : "Cliente", text, message.id);
           }
         }
       }
@@ -153,7 +158,8 @@ export async function handleIncomingWebhookMessage(body: any): Promise<{ process
   return { processed };
 }
 
-async function replyToIncomingMessage(email: string, companyName: string | undefined, phone: string, name: string, text: string) {
+async function replyToIncomingMessage(email: string, companyName: string | undefined, phone: string, name: string, text: string, eventId: string) {
+  if (!await canProcessInboundWithAi(email, phone, eventId)) return;
   const company = companyName || "nossa equipe";
   let reply = "";
   const ai = getAiClient();
@@ -172,7 +178,7 @@ Mensagem: ${text}`,
     }
   }
   await sendWhatsAppMessage(email, phone, reply ||
-    `Olá, ${name}! Obrigado pelo contato com ${company}. Como podemos ajudar você hoje?`);
+    `Olá, ${name}! Obrigado pelo contato com ${company}. Como podemos ajudar você hoje?`, eventId);
 }
 
 export interface WhatsAppTemplateSummary {

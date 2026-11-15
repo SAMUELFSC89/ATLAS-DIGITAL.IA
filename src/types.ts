@@ -135,6 +135,7 @@ export interface Lead {
   segment: string;
   createdAt: string;
   aiMemory?: string;
+  aiPaused?: boolean;
   aiDraft?: { reply: string; memory: string; updatedAt: string } | null;
   statusSource?: 'manual' | 'whatsapp';
   statusUpdatedAt?: string;

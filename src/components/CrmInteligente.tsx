@@ -14,6 +14,7 @@ interface CrmInteligenteProps {
   loading: boolean;
   onUpdateLeadStatus: (leadId: string, newStatus: LeadStatus) => Promise<void>;
   onUpdateLead: (updatedLead: Lead) => Promise<void>;
+  onAiHandoff: (id: string, paused: boolean) => Promise<void>;
   onSaveAiMemory: (id: string, memory: string, previousMemory: string) => Promise<void>;
   onDeleteLead: (leadId: string) => Promise<void>;
   onAddLead: (lead: Omit<Lead, 'id' | 'createdAt'>) => Promise<void>;
@@ -28,6 +29,7 @@ export default function CrmInteligente({
   loading,
   onUpdateLeadStatus,
   onUpdateLead,
+  onAiHandoff,
   onSaveAiMemory,
   onDeleteLead,
   onAddLead,
@@ -36,8 +38,10 @@ export default function CrmInteligente({
 }: CrmInteligenteProps) {
   
   const [selectedLeadForEdit, setSelectedLeadForEdit] = useState<Lead | null>(null);
-  const activeAiDraft = selectedLeadForEdit
-    ? leads.find(lead => lead.id === selectedLeadForEdit.id)?.aiDraft : null;
+  const activeLead = leads.find(lead => lead.id === selectedLeadForEdit?.id);
+  const activeAiDraft = activeLead?.aiDraft;
+  const aiPaused = activeLead?.aiPaused === true;
+  const [handoffNotice, setHandoffNotice] = useState('');
   const [memoryDraft, setMemoryDraft] = useState('');
   const [memoryNotice, setMemoryNotice] = useState('');
   const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
@@ -250,6 +254,7 @@ export default function CrmInteligente({
                           <button
                             onClick={() => {
                           setSelectedLeadForEdit(lead);
+                          setHandoffNotice('');
                           setMemoryDraft(lead.aiMemory ?? '');
                           setMemoryNotice('');
                         }}
@@ -417,6 +422,25 @@ export default function CrmInteligente({
                   className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E2B755] resize-none"
                 />
               </div>
+
+              <section className="space-y-2 rounded-xl border border-gray-800 p-3 text-xs text-gray-300">
+                <h4 className="font-semibold text-white">Responsável pelo atendimento</h4>
+                <p>{aiPaused ? 'Atendimento humano. A IA está pausada neste lead.' : 'A IA segue as configurações de WhatsApp da sua conta.'}</p>
+                <button type="button" disabled={saving || !activeLead}
+                  onClick={() => void save(async () => {
+                    setHandoffNotice('');
+                    try {
+                      await onAiHandoff(selectedLeadForEdit.id, !aiPaused);
+                      setHandoffNotice(aiPaused ? 'Controle devolvido à IA.' : 'Você assumiu o atendimento.');
+                    } catch (err) {
+                      setHandoffNotice((err as Error).message);
+                    }
+                  })}
+                  className="rounded-lg bg-gray-800 px-3 py-2 font-semibold text-white disabled:opacity-40">
+                  {aiPaused ? 'Devolver à IA' : 'Assumir atendimento'}
+                </button>
+                {handoffNotice && <p role="status">{handoffNotice}</p>}
+              </section>
 
               {activeAiDraft && <section className="space-y-2 rounded-xl border border-gray-800 p-3 text-xs text-gray-300">
                 <h4 className="font-semibold text-white">Resposta sugerida pela IA</h4>
