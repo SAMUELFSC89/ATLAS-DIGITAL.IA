@@ -1,3 +1,4 @@
+import { handleRecurringRadar } from './_lib/radar-recurring.js';
 /**
  * Este arquivo é propositalmente autossuficiente: não importa nenhum outro
  * arquivo do projeto nem biblioteca, para iniciar igual em qualquer servidor.
@@ -477,6 +478,7 @@ function toNumber(value: unknown): number | null {
 export default async function handler(req: any, res: any) {
   applyCors(res);
   if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.query?.view === "recurring") return handleRecurringRadar(req, res, getAuthenticatedEmail, searchRadar);
   if (req.method === "GET") {
     // Diagnóstico: mostra se o servidor está de pé e se a chave do Google foi cadastrada.
     const hasKey = !!(process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_MAPS_API_KEY || "").trim();

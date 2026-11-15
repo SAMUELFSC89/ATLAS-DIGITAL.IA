@@ -1,9 +1,9 @@
 import { randomUUID, timingSafeEqual } from 'node:crypto';
-import { getFirestoreAdmin } from './db-helper.js';
-import { crmHash, crmPhone } from './crm-store.js';
-import { getAuthenticatedEmail, searchRadar } from './radar.js';
-import { nextRadarRun, parseRecurringRadarFilters } from '../src/lib/radarRecurring.js';
-import type { RadarLead } from '../src/types.js';
+import { getFirestoreAdmin } from '../db-helper.js';
+import { crmHash, crmPhone } from '../crm-store.js';
+import type { RadarSearchParams, RadarSearchResult } from '../radar.js';
+import { nextRadarRun, parseRecurringRadarFilters } from '../../src/lib/radarRecurring.js';
+import type { RadarLead } from '../../src/types.js';
 
 const PAUSED = Number.MAX_SAFE_INTEGER;
 const LEASE_MS = 120_000;
@@ -18,7 +18,11 @@ function cronAuthorization(req: any): boolean {
   return received.length === expected.length && timingSafeEqual(received, expected);
 }
 
-export default async function handler(req: any, res: any) {
+export async function handleRecurringRadar(
+  req: any, res: any,
+  getAuthenticatedEmail: (req: any) => Promise<string | null>,
+  searchRadar: (params: RadarSearchParams) => Promise<RadarSearchResult>,
+) {
   res.setHeader('Cache-Control', 'no-store');
   if (!['GET', 'POST'].includes(req.method)) return res.status(405).json({ error: 'Método inválido.' });
 
@@ -27,7 +31,7 @@ export default async function handler(req: any, res: any) {
       if (!cronAuthorization(req)) return res.status(401).json({ error: 'Execução não autorizada.' });
       const jobs = getFirestoreAdmin().collection('radarRecurring');
       const due = await jobs.where('nextRunAt', '<=', date()).orderBy('nextRunAt').limit(CRON_BATCH).get();
-      const runs = await Promise.allSettled(due.docs.map(job => runSearch(job.id, true)));
+      const runs = await Promise.allSettled(due.docs.map(job => runSearch(job.id, true, searchRadar)));
       return res.status(200).json({ checked: runs.length, failed: runs.filter(run => run.status === 'rejected').length });
     }
 
@@ -57,7 +61,7 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ saved: true });
     }
     if (req.body?.action === 'run') {
-      const result = await runSearch(id, false);
+      const result = await runSearch(id, false, searchRadar);
       if (!result) return res.status(409).json({ error: 'Salve os filtros ou aguarde a busca que já está em andamento.' });
       return res.status(200).json(result);
     }
@@ -68,7 +72,7 @@ export default async function handler(req: any, res: any) {
   }
 }
 
-async function runSearch(accountId: string, scheduled: boolean) {
+async function runSearch(accountId: string, scheduled: boolean, searchRadar: (params: RadarSearchParams) => Promise<RadarSearchResult>) {
   const db = getFirestoreAdmin();
   const ref = db.collection('radarRecurring').doc(accountId);
   const queue = db.collection('crmAccounts').doc(accountId).collection('radarReview');
