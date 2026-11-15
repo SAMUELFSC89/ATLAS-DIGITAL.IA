@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { getRecurringRadar, runRecurringRadar, saveRecurringRadar } from '../lib/radarApi';
-import { parseRecurringRadarFilters, type RecurringRadarFilters, type RecurringRadarStatus } from '../lib/radarRecurring';
+import { getRecurringRadar, runRecurringRadar, saveRecurringRadar, reviewRadarContact } from '../lib/radarApi';
+import { parseRecurringRadarFilters, RADAR_CONSENT_SOURCES, type RadarConsentSource, type RadarReviewDecision, type RadarReviewStatus, type RecurringRadarFilters, type RecurringRadarStatus } from '../lib/radarRecurring';
 import type { RadarLead } from '../types';
 
 const brazilTime = new Intl.DateTimeFormat('pt-BR', {
@@ -14,6 +14,9 @@ export default function RecurringRadarPanel({ filters, onReview }: {
   const [data, setData] = useState<RecurringRadarStatus | null>(null);
   const [busy, setBusy] = useState(true);
   const [reload, setReload] = useState(0);
+  const [showContacts, setShowContacts] = useState(false);
+  const [filter, setFilter] = useState<RadarReviewStatus>('pending');
+  const [consentSources, setConsentSources] = useState<Record<string, RadarConsentSource | ''>>({});
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
 
@@ -43,6 +46,13 @@ export default function RecurringRadarPanel({ filters, onReview }: {
   }
 
   const valid = parseRecurringRadarFilters(filters);
+  const shown = data?.queue.filter(item => item.status === filter) ?? [];
+  function review(key: string, decision: RadarReviewDecision) {
+    void update(async () => {
+      await reviewRadarContact(key, decision);
+      return decision.status === 'approved' ? 'Aceite registrado na fila.' : 'Decisão atualizada.';
+    });
+  }
   return (
     <section className="space-y-3 rounded-xl border border-gray-800 p-4 text-xs text-gray-300">
       <h3 className="text-sm font-semibold text-white">Busca recorrente</h3>
@@ -76,8 +86,56 @@ export default function RecurringRadarPanel({ filters, onReview }: {
               }}>Pausar busca</button>}
           </>}
           <button type="button" disabled={busy || !data.queue.length} className="rounded bg-gray-800 px-3 py-2 disabled:opacity-40"
-            onClick={() => onReview(data.queue)}>Revisar no Radar ({data.queue.length})</button>
+            onClick={() => setShowContacts(value => !value)} aria-expanded={showContacts}>
+            {showContacts ? 'Fechar fila' : 'Abrir fila de revisão'} ({data.queue.length})
+          </button>
         </div>
+        {showContacts && <div className="space-y-3 border-t border-gray-800 pt-3">
+          <p>Marque como aprovado somente se a empresa aceitou receber mensagens pelo WhatsApp. A aprovação fica registrada na fila.</p>
+          <label className="block text-white">Status
+            <select className="ml-2 rounded border border-gray-800 bg-gray-950 p-2" value={filter}
+              onChange={event => setFilter(event.target.value as RadarReviewStatus)}>
+              <option value="pending">Pendentes</option>
+              <option value="approved">Aprovados</option>
+              <option value="excluded">Excluídos</option>
+            </select>
+          </label>
+          {filter === 'approved' && <button type="button" disabled={busy || !shown.length}
+            onClick={() => onReview(shown.map(item => item.lead))}
+            className="rounded bg-gray-800 px-3 py-2 disabled:opacity-40">Ver aprovados nos resultados do Radar</button>}
+          {!shown.length && <p>Nenhum contato com este status.</p>}
+          <ul className="max-h-96 space-y-2 overflow-auto">
+            {shown.map(({ key, lead, status, consentSource }) => {
+              const selectedSource = consentSources[key];
+              return <li key={key} className="space-y-2 rounded border border-gray-800 p-3">
+                <strong className="block text-white">{lead.companyName}</strong>
+                <p>{lead.city}/{lead.state} · {lead.whatsapp || 'Sem WhatsApp cadastrado'}</p>
+                {status === 'approved' && consentSource && <p>Origem do aceite: {RADAR_CONSENT_SOURCES[consentSource]}</p>}
+                <div className="flex flex-wrap items-end gap-2">
+                  {status === 'pending' && lead.whatsapp && <>
+                    <label className="space-y-1">Origem do aceite
+                      <select value={selectedSource || ''} disabled={busy}
+                        onChange={event => setConsentSources(previous => ({ ...previous, [key]: event.target.value as RadarConsentSource | '' }))}
+                        className="block rounded border border-gray-800 bg-gray-950 p-2">
+                        <option value="">Selecione</option>
+                        {Object.entries(RADAR_CONSENT_SOURCES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                      </select>
+                    </label>
+                    <button type="button" disabled={busy || !selectedSource}
+                      onClick={() => { if (selectedSource) review(key, {status: 'approved', consentSource: selectedSource}); }}
+                      className="rounded bg-emerald-400 px-3 py-2 font-semibold text-black disabled:opacity-40">Aprovar com aceite</button>
+                  </>}
+                  {status !== 'excluded' && <button type="button" disabled={busy}
+                    onClick={() => review(key, { status: 'excluded' })}
+                    className="rounded bg-gray-800 px-3 py-2 disabled:opacity-40">{status === 'approved' ? 'Revogar aprovação' : 'Excluir da campanha'}</button>}
+                  {status === 'excluded' && <button type="button" disabled={busy}
+                    onClick={() => review(key, { status: 'pending' })}
+                    className="rounded bg-gray-800 px-3 py-2 disabled:opacity-40">Voltar para revisão</button>}
+                </div>
+              </li>;
+            })}
+          </ul>
+        </div>}
       </>}
     </section>
   );

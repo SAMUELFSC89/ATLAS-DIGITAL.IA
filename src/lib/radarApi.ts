@@ -1,4 +1,4 @@
-import type { RecurringRadarFilters, RecurringRadarStatus } from './radarRecurring';
+import type { RadarReviewDecision, RecurringRadarFilters, RecurringRadarStatus } from './radarRecurring';
 import type { ProspectingDraft, ProspectingPreviewData } from './prospectingQueue';
 import type { AiSimulation, AiTraining } from './aiTraining';
 import type { ProspectingSchedule } from "./prospectingSchedule";
@@ -233,4 +233,8 @@ export function runRecurringRadar(): Promise<{ added: number; superseded?: boole
 
 export function setAiAutoSend(enabled: boolean): Promise<{ autoSend: boolean }> {
   return request('/api/ai-training', { method: 'POST', body: JSON.stringify({ action: 'setAutoSend', enabled }) });
+}
+
+export function reviewRadarContact(key: string, decision: RadarReviewDecision): Promise<{ saved: boolean }> {
+  return request('/api/radar?view=recurring', { method: 'POST', body: JSON.stringify({ action: 'review', key, decision }) });
 }

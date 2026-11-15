@@ -12,13 +12,43 @@ export interface RecurringRadarFilters {
   keyword: string;
 }
 
+export const RADAR_CONSENT_SOURCES = {
+  form: 'Formulário',
+  direct: 'Confirmação direta',
+  other: 'Outro canal',
+} as const;
+export type RadarConsentSource = keyof typeof RADAR_CONSENT_SOURCES;
+export type RadarReviewStatus = 'pending' | 'approved' | 'excluded';
+
+export interface RadarReviewItem {
+  key: string;
+  lead: RadarLead;
+  status: RadarReviewStatus;
+  reviewedAt?: number;
+  consentSource?: RadarConsentSource | null;
+}
+
+export type RadarReviewDecision =
+  | { status: 'approved'; consentSource: RadarConsentSource }
+  | { status: 'excluded' | 'pending' };
+
+export function parseRadarReviewDecision(input: unknown): RadarReviewDecision | null {
+  if (!input || typeof input !== 'object') return null;
+  const { status, consentSource } = input as { status?: unknown; consentSource?: unknown };
+  if (status === 'pending' || status === 'excluded') return { status };
+  if (status === 'approved' && typeof consentSource === 'string' && Object.hasOwn(RADAR_CONSENT_SOURCES, consentSource)) {
+    return { status, consentSource: consentSource as RadarConsentSource };
+  }
+  return null;
+}
+
 export interface RecurringRadarStatus {
   filters: RecurringRadarFilters | null;
   enabled: boolean;
   cronConfigured: boolean;
   lastRunAt: number | null;
   lastAdded: number | null;
-  queue: RadarLead[];
+  queue: RadarReviewItem[];
 }
 
 export function parseRecurringRadarFilters(value: unknown): RecurringRadarFilters | null {
