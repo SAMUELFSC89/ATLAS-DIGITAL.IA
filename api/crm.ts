@@ -16,7 +16,7 @@ const probability = (value: unknown) => typeof value === 'number' && Number.isFi
   ? Math.max(0, Math.min(100, Math.round(value))) : 0;
 
 function publicLead(id: string, data: Record<string, unknown>): Lead {
-  const { contactKeys, lastCrmInteractionAt, ...lead } = data;
+  const { contactKeys, lastCrmInteractionAt, lastInboundMessageId, ...lead } = data;
   return { ...lead, id, atlasScore: lead.positionQuery ? lead.atlasScore ?? null : null } as Lead;
 }
 

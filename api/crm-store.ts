@@ -51,7 +51,10 @@ export async function recordCrmInteraction(email: string, event: CrmInteraction 
     const stagePatch = !existing || status !== existing.status ? {
       status, statusSource: 'whatsapp', statusUpdatedAt: at, nextAction: CRM_NEXT_ACTION[status],
     } : {};
-    const activity = { lastContact: at, lastCrmInteractionAt: at, ...stagePatch };
+    const activity = {
+      lastContact: at, lastCrmInteractionAt: at, ...stagePatch,
+      lastInboundMessageId: event.direction === 'inbound' ? event.id : null, aiDraft: null,
+    };
     if (existing) {
       tx.update(ref, activity);
     } else {
