@@ -4,6 +4,8 @@ import AtlasLogo from './AtlasLogo';
 import LegalModals from './LegalModals';
 import { CONTACT_CAMPAIGN_KEYS, CONTACT_WHATSAPP_URL, normalizeBrazilianWhatsApp } from '../lib/contact';
 
+import AtlasSiteBackdrop from './AtlasSiteBackdrop';
+
 const inputClass = 'w-full rounded-xl border border-[#344052] bg-[#0d1520] px-4 py-3 text-base text-white placeholder:text-slate-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e2b755]';
 
 export default function ContactPage() {
@@ -77,7 +79,8 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#090d14] text-white font-sans flex flex-col">
+    <div className="atlas-public-site min-h-screen text-white font-sans flex flex-col">
+      <AtlasSiteBackdrop />
       <header className="border-b border-white/10">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <a href="/" aria-label="Atlas Digital, início"><AtlasLogo showSubtitle={false} /></a>
@@ -103,7 +106,7 @@ export default function ContactPage() {
           </ul>
         </section>
 
-        <section aria-labelledby="contact-title" className="rounded-3xl border border-white/12 bg-[#131d2a] p-5 shadow-2xl shadow-black/25 sm:p-8">
+        <section aria-labelledby="contact-title" className="rounded-3xl border border-white/12 bg-[#131d2a]/95 p-5 shadow-2xl shadow-black/25 sm:p-8">
           {saved ? (
             <div className="py-2 sm:py-5">
               <CheckCircle2 aria-hidden="true" className="mb-4 size-9 text-[#e2b755]" />

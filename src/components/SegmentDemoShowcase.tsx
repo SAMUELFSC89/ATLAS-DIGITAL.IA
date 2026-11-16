@@ -127,21 +127,16 @@ export default function SegmentDemoShowcase({ openContactWithPrefill }: SegmentD
   };
 
   return (
-    <section id="demonstracoes" className="py-24 bg-white text-[#121214] relative overflow-hidden">
-      {/* Background soft geometric patterns */}
-      <div className="absolute top-0 inset-x-0 h-40 bg-gradient-to-b from-gray-50 to-white pointer-events-none" />
-      <div className="absolute -left-32 top-1/4 w-96 h-96 bg-gray-100 rounded-full blur-3xl opacity-50 pointer-events-none" />
-      <div className="absolute -right-32 bottom-1/4 w-96 h-96 bg-[#E2B755]/5 rounded-full blur-3xl opacity-50 pointer-events-none" />
-
+    <section id="demonstracoes" className="py-24 relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
         {/* SECTION HEADER */}
         <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
           <span className="text-[10px] text-zinc-400 uppercase tracking-[0.2em] font-mono font-bold">Protótipos Interativos</span>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-zinc-950 tracking-tight leading-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-white tracking-tight leading-tight">
             Veja como pode ser o site da sua empresa
           </h2>
-          <p className="text-sm md:text-base text-zinc-500 font-light max-w-xl mx-auto leading-relaxed">
+          <p className="text-sm md:text-base text-zinc-300 font-light max-w-xl mx-auto leading-relaxed">
             Escolha um segmento e explore uma demonstração interativa de um site desenvolvido para gerar o máximo de credibilidade e novos contatos.
           </p>
         </div>

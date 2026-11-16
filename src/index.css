@@ -32,3 +32,40 @@
     transform: translateY(-4px);
   }
 }
+
+.atlas-public-site {
+  position: relative;
+  isolation: isolate;
+  background-color: #0b0b0e;
+}
+
+.atlas-site-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.atlas-site-backdrop img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 48%;
+}
+
+.atlas-site-backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, rgb(9 10 13 / 88%), rgb(9 10 13 / 62%) 56%, rgb(9 10 13 / 72%));
+}
+
+@media (max-width: 767px) {
+  .atlas-site-backdrop img {
+    object-position: 56% center;
+  }
+
+  .atlas-site-backdrop::after {
+    background: rgb(9 10 13 / 74%);
+  }
+}
