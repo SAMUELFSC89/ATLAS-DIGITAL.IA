@@ -8,6 +8,11 @@ interface InteractiveContactModalProps {
   prefilledSubject?: string;
 }
 
+const segmentExamples = [
+  'Comércio e varejo', 'Restaurante', 'Clínica', 'Educação', 'Serviços profissionais',
+  'Tecnologia', 'Indústria', 'Marmoraria', 'Vidraçaria', 'Energia Solar', 'Móveis Planejados',
+];
+
 export default function InteractiveContactModal({ isOpen, onClose, prefilledSubject }: InteractiveContactModalProps) {
   const [step, setStep] = useState<number>(1);
   const [segment, setSegment] = useState<string>('');
@@ -24,17 +29,13 @@ export default function InteractiveContactModal({ isOpen, onClose, prefilledSubj
       setStep(1);
       setError('');
       setSuccess(false);
-      if (prefilledSubject) {
-        setSegment(prefilledSubject);
-      } else {
-        setSegment('');
-      }
+      setSegment(segmentExamples.find(example => example === prefilledSubject) ?? '');
     }
   }, [isOpen, prefilledSubject]);
 
   const handleNextStep = () => {
-    if (step === 1 && !segment) {
-      setError('Por favor, selecione seu segmento principal.');
+    if (step === 1 && !segment.trim()) {
+      setError('Informe o ramo da sua empresa.');
       return;
     }
     if (step === 2 && !companyName.trim()) {
@@ -64,7 +65,7 @@ export default function InteractiveContactModal({ isOpen, onClose, prefilledSubj
     setTimeout(() => {
       const newLead = {
         id: 'lead_' + Date.now(),
-        segment,
+        segment: segment.trim(),
         companyName,
         phone,
         website: website || 'Não possui',
@@ -86,14 +87,17 @@ export default function InteractiveContactModal({ isOpen, onClose, prefilledSubj
 
   // WhatsApp redirection url
   const getWhatsAppURL = () => {
-    const formattedText = `Olá Atlas Digital! Acabei de solicitar minha Análise Gratuita de Site.%0A%0A` +
-      `*Empresa:* ${companyName}%0A` +
-      `*Segmento:* ${segment}%0A` +
-      `*WhatsApp:* ${phone}%0A` +
-      `*Site atual:* ${website || 'Não possui'}%0A%0A` +
-      `Gostaria de agendar o diagnóstico gratuito para iniciarmos o projeto!`;
-    
-    return `https://wa.me/5551994578544?text=${formattedText}`;
+    const message = [
+      'Olá, Atlas Digital! Gostaria de solicitar uma análise gratuita para o site da minha empresa.',
+      '',
+      `Empresa: ${companyName.trim()}`,
+      `Ramo: ${segment.trim()}`,
+      `WhatsApp: ${phone.trim()}`,
+      `Site atual: ${website.trim() || 'Não possui'}`,
+      prefilledSubject && prefilledSubject !== segment.trim() ? `Assunto: ${prefilledSubject}` : '',
+    ].join('\n');
+
+    return `https://wa.me/5551994578544?text=${encodeURIComponent(message)}`;
   };
 
   return (
@@ -214,36 +218,26 @@ export default function InteractiveContactModal({ isOpen, onClose, prefilledSubj
                         exit={{ opacity: 0, x: -15 }}
                         className="space-y-3"
                       >
-                        <label className="block text-xs font-semibold text-gray-300">
-                          Qual o segmento principal da sua empresa?
+                        <label htmlFor="analysis-business-segment" className="block text-xs font-semibold text-gray-300">
+                          Qual é o ramo da sua empresa?
                         </label>
-                        <div className="grid grid-cols-2 gap-2">
-                          {[
-                            'Marmoraria',
-                            'Vidraçaria',
-                            'Energia Solar',
-                            'Esquadrias',
-                            'Coberturas',
-                            'Serralheria',
-                            'Móveis Planejados'
-                          ].map((seg) => (
-                            <button
-                              key={seg}
-                              type="button"
-                              onClick={() => {
-                                setSegment(seg);
-                                setError('');
-                              }}
-                              className={`p-2.5 rounded-xl border text-xs font-medium text-left transition-all ${
-                                segment === seg
-                                  ? 'border-[#E2B755] bg-[#e2b7550b] text-white'
-                                  : 'border-zinc-800 bg-[#0B0B0E]/60 text-gray-400 hover:border-gray-700 hover:text-gray-300'
-                              }`}
-                            >
-                              {seg}
-                            </button>
-                          ))}
-                        </div>
+                        <input
+                          id="analysis-business-segment"
+                          list="analysis-business-segment-examples"
+                          type="text"
+                          maxLength={100}
+                          value={segment}
+                          onChange={event => { setSegment(event.target.value); setError(''); }}
+                          placeholder="Ex.: pet shop, contabilidade ou loja de roupas"
+                          aria-describedby="analysis-business-segment-help"
+                          className="w-full rounded-xl border border-zinc-800 bg-[#0B0B0E] px-4 py-2.5 text-sm text-white focus:border-[#E2B755] focus:outline-none"
+                        />
+                        <datalist id="analysis-business-segment-examples">
+                          {segmentExamples.map(example => <option key={example} value={example} />)}
+                        </datalist>
+                        <p id="analysis-business-segment-help" className="text-xs text-gray-400">
+                          Digite seu ramo ou escolha uma sugestão.
+                        </p>
                       </motion.div>
                     )}
 
@@ -279,7 +273,7 @@ export default function InteractiveContactModal({ isOpen, onClose, prefilledSubj
                           </label>
                           <input
                             type="url"
-                            placeholder="Ex: www.minhamarmoraria.com.br"
+                            placeholder="Ex.: www.suaempresa.com.br"
                             value={website}
                             onChange={(e) => setWebsite(e.target.value)}
                             className="w-full bg-[#0B0B0E] border border-zinc-800 rounded-xl py-2.5 px-4 text-xs text-white focus:outline-none focus:border-[#E2B755] transition-colors"
