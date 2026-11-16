@@ -58,7 +58,7 @@ export default function FAQSection() {
   };
 
   return (
-    <section id="faq" className="py-20 bg-[#0B0B0E] border-t border-zinc-900 relative overflow-hidden">
+    <section id="faq" className="py-20 border-t border-zinc-900 relative overflow-hidden">
       {/* Background decoration elements */}
       <div className="absolute top-0 right-1/4 w-[400px] h-[400px] bg-[#E2B755]/[0.015] rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] bg-[#9CA3AF]/[0.01] rounded-full blur-[120px] pointer-events-none" />

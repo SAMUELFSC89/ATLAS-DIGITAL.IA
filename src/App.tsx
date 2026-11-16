@@ -57,6 +57,7 @@ import BudgetSimulator from './components/BudgetSimulator';
 import InteractiveContactModal from './components/InteractiveContactModal';
 import SegmentDemoShowcase from './components/SegmentDemoShowcase';
 import AtlasLogo from './components/AtlasLogo';
+import AtlasSiteBackdrop from './components/AtlasSiteBackdrop';
 import FAQSection from './components/FAQSection';
 import LegalModals, { LegalDocType } from './components/LegalModals';
 import AtlasScoreModule from './components/AtlasScoreModule';
@@ -471,7 +472,8 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0B0E] text-[#F3F4F6] font-sans antialiased overflow-x-hidden selection:bg-[#E2B755]/20 selection:text-white">
+    <div className="atlas-public-site min-h-screen text-[#F3F4F6] font-sans antialiased overflow-x-hidden selection:bg-[#E2B755]/20 selection:text-white">
+      <AtlasSiteBackdrop />
       
       {/* HEADER / NAVIGATION */}
       <header 
@@ -580,22 +582,8 @@ export default function App() {
       </AnimatePresence>
 
       {/* HERO SECTION */}
-      <section id="home" className="relative min-h-screen pt-36 pb-24 flex items-center justify-center overflow-hidden bg-[#0B0B0E]">
+      <section id="home" className="relative min-h-screen pt-36 pb-24 flex items-center justify-center overflow-hidden">
         
-        {/* Background Image of building with premium overlay styling */}
-        <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-b from-[#0B0B0E]/95 via-[#0B0B0E]/85 to-[#0B0B0E] z-10" />
-          <img 
-            src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=2000" 
-            alt="Arquitetura de Negócios Luxo" 
-            className="w-full h-full object-cover opacity-15"
-            referrerPolicy="no-referrer"
-          />
-        </div>
-
-        {/* Decorative Grid Lines / Elegant spacing */}
-        <div className="absolute inset-0 bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:24px_24px] opacity-25 pointer-events-none z-0" />
-
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
           
           {/* Left Hero Column */}
@@ -706,7 +694,7 @@ export default function App() {
       </section>
 
       {/* SEÇÃO SOLUÇÃO */}
-      <section id="solucoes" className="py-32 relative bg-black">
+      <section id="solucoes" className="py-32 relative">
         {/* Decorative subtle background gradient */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-zinc-900/[0.05] rounded-full blur-[120px] pointer-events-none" />
 
@@ -745,7 +733,7 @@ export default function App() {
       </section>
 
       {/* PORTFÓLIO */}
-      <section id="portfolio" className="py-32 bg-black border-y border-zinc-900/40 relative">
+      <section id="portfolio" className="py-32 border-y border-zinc-900/40 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           {/* Section Header */}
@@ -827,7 +815,7 @@ export default function App() {
       <SegmentDemoShowcase openContactWithPrefill={openContactWithPrefill} />
 
       {/* INTERACTIVE SCOPE BUILDER / CALCULATOR HIGHLIGHT */}
-      <section id="simulador" className="py-32 relative bg-black">
+      <section id="simulador" className="py-32 relative">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           
           <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
@@ -854,7 +842,7 @@ export default function App() {
       </section>
 
       {/* COMO FUNCIONA (TIMELINE) */}
-      <section id="processo" className="py-32 bg-black border-y border-zinc-900/40 relative">
+      <section id="processo" className="py-32 border-y border-zinc-900/40 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           {/* Section Header */}
@@ -924,7 +912,7 @@ export default function App() {
       </section>
 
       {/* DIFERENCIAIS */}
-      <section id="diferenciais" className="py-32 relative bg-black">
+      <section id="diferenciais" className="py-32 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           {/* Section Header */}
@@ -960,7 +948,7 @@ export default function App() {
       </section>
 
       {/* DEPOIMENTOS */}
-      <section id="depoimentos" className="py-32 bg-black border-y border-zinc-900/40 relative">
+      <section id="depoimentos" className="py-32 border-y border-zinc-900/40 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           {/* Section Header */}
@@ -1021,7 +1009,7 @@ export default function App() {
       <FAQSection />
 
       {/* CTA FINAL */}
-      <section className="py-32 relative overflow-hidden text-center bg-black border-t border-zinc-900/40">
+      <section className="py-32 relative overflow-hidden text-center border-t border-zinc-900/40">
         
         {/* Subtle glow decoration */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-zinc-900/[0.03] rounded-full blur-[120px] pointer-events-none" />
@@ -1086,7 +1074,7 @@ export default function App() {
       </section>
 
       {/* FOOTER */}
-      <footer className="bg-black border-t border-zinc-900/60 py-16 md:py-20 text-zinc-400 text-xs">
+      <footer className="border-t border-zinc-900/60 py-16 md:py-20 text-zinc-400 text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 md:gap-12">
           
           {/* Col 1: Brand details */}
