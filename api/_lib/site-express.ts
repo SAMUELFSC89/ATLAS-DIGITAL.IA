@@ -4,9 +4,10 @@ import { getAuthenticatedEmail } from '../radar.js';
 import { reconcileExpressPayment } from './express-payment.js';
 import { normalizeBrazilianWhatsApp } from '../../src/lib/contact.js';
 import { EXPRESS_PRICE, PREVIEW_PAGES, type ExpressBusiness, type ExpressOrder } from '../../src/lib/expressOrder.js';
-import { advanceVisualPreview, createVisualPreview, initialVisual, readVisualImage, reserveVisualBudget } from './express-visual-store.js';
+import { advanceVisualPreview, createVisualPreview, initialVisual, readVisualImage, reserveVisualBudget, resumeVisualPreview } from './express-visual-store.js';
 import { DEFAULT_VISUAL_PROMPT } from '../../src/lib/expressVisualPrompt.js';
-import { findExpressPlace, generateExpressContent, publicUrl, mercadoPagoRequest } from './express-providers.js';
+import { generateExpressContent, publicUrl, mercadoPagoRequest } from './express-providers.js';
+import { ExpressAssetError, readExpressAsset, resolveExpressAssets, saveExpressAsset } from './express-assets.js';
 import { checkoutEnabled, db, defaultCapacity, orderId, orders, previews, publicOrigin, rateLimit, saoPauloDay, sendDelivery, sendReceipt, settings } from './express-store.js';
 
 const clean = (value: unknown, length: number) =>
@@ -113,10 +114,14 @@ async function admin(req: Request, res: Response) {
       return { id: doc.id, previewId, business, email, status, amount, createdAt, dueAt, receiptSentAt, deliveredAt, finalUrl, mode, deliveryUrl: deliveryAttempt?.url };
     }), capacity: config.data()?.capacity ?? defaultCapacity,
       visualPrompt: config.data()?.visualPrompt ?? DEFAULT_VISUAL_PROMPT,
-      visualEnabled: config.data()?.visualEnabled === true });
+      visualEnabled: config.data()?.visualEnabled === true, visualLastIssue: config.data()?.visualLastIssue || null });
   }
   if (req.method !== 'POST') return res.status(405).end();
   const { id, action, capacity, visualPrompt, visualEnabled } = req.body || {};
+  if (action === 'visualResume') {
+    if (!orderId(id)) return res.status(400).json({ error: 'Informe um link de prévia válido.' });
+    return await resumeVisualPreview(id) ? res.json({ ok: true }) : res.status(409).json({ error: 'A prévia não está interrompida, expirou ou já atingiu o limite de tentativas.' });
+  }
   if (action === 'visualEnabled') {
     if (typeof visualEnabled !== 'boolean') return res.status(400).json({ error: 'Configuração inválida.' });
     await settings().set({ visualEnabled }, { merge: true });
@@ -178,6 +183,17 @@ export default async function siteExpress(req: Request, res: Response) {
           visualAvailable: config?.visualEnabled === true || await visualOwner(req) });
       }
       if (!orderId(req.query.id)) return res.status(400).json({ error: 'Link inválido.' });
+      if (view === 'asset') {
+        if (!orderId(req.query.asset)) return res.status(400).json({ error: 'Arquivo inválido.' });
+        const file = await readExpressAsset(req.query.id, req.query.asset);
+        if (!file) return res.status(404).json({ error: 'Arquivo não encontrado neste projeto.' });
+        res.setHeader('Content-Type', file.asset.mimeType);
+        res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        const extension = file.asset.mimeType === 'image/png' ? 'png' : file.asset.mimeType === 'image/webp' ? 'webp' : 'jpg';
+        res.setHeader('Content-Disposition', `${req.query.download === '1' ? 'attachment' : 'inline'}; filename="atlas-${file.asset.kind}-${file.asset.id}.${extension}"`);
+        return res.send(file.buffer);
+      }
       if (view === 'image') {
         const page = PREVIEW_PAGES.find(item => item.id === req.query.page);
         if (!page) return res.status(400).json({ error: 'Tela inválida.' });
@@ -204,31 +220,29 @@ export default async function siteExpress(req: Request, res: Response) {
       return res.json({ ...preview, id: req.query.id });
     }
     if (req.method !== 'POST') return res.status(405).end();
-    if (view !== 'checkout' && view !== 'lookup' && view !== 'generate') return res.status(400).json({ error: 'Ação inválida.' });
+    if (view !== 'checkout' && view !== 'upload' && view !== 'generate') return res.status(400).json({ error: 'Ação inválida.' });
     const forwarded = req.headers['x-vercel-forwarded-for'];
     const ip = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : req.socket?.remoteAddress || 'unknown';
-    if (!(await rateLimit(ip, view, view === 'checkout' ? 16 : 6, view === 'checkout' ? 100 : 40))) {
+    if (!(await rateLimit(ip, view, view === 'upload' ? 28 : view === 'checkout' ? 16 : 6, view === 'upload' ? 140 : view === 'checkout' ? 100 : 40))) {
       return res.status(429).json({ error: 'Limite temporário atingido. Tente novamente mais tarde.' });
     }
     if (view === 'checkout') return await startCheckout(req, res);
-    if (view === 'lookup') {
-      const place = await findExpressPlace(clean(req.body?.googleLink, 800)).catch(() => null);
-      return place ? res.json(place) : res.status(404).json({ error: 'Não conseguimos identificar o perfil. Preencha os dados manualmente para continuar.' });
-    }
+    if (view === 'upload') return res.json({ asset: await saveExpressAsset(req.body, ip) });
     const input = req.body?.business;
     const whatsapp = normalizeBrazilianWhatsApp(clean(input?.whatsapp, 30));
     const business: ExpressBusiness = {
       name: clean(input?.name, 100), city: clean(input?.city, 100), segment: clean(input?.segment, 80),
-      services: clean(input?.services, 500), whatsapp, photo: publicUrl(input?.photo),
+      services: clean(input?.services, 500), whatsapp, photo: '',
     };
-    if (!business.name || !business.city || !business.segment || !business.services || !whatsapp ||
-        (input?.photo && !business.photo)) {
-      return res.status(400).json({ error: 'Confira os campos e use um WhatsApp brasileiro com DDD. Para foto, informe um link HTTPS.' });
+    if (!business.name || !business.city || !business.segment || !business.services || !whatsapp) {
+      return res.status(400).json({ error: 'Confira os campos e use um WhatsApp brasileiro com DDD.' });
     }
     if (!process.env.GEMINI_API_KEY?.trim()) return res.status(503).json({ error: 'O gerador está indisponível no momento.' });
+    const id = randomUUID();
+    business.assets = await resolveExpressAssets(req.body, id);
+    business.photo = business.assets.find(asset => asset.kind === 'photo')?.url || '';
     if (req.body?.visual !== true) {
       const content = await generateExpressContent(business);
-      const id = randomUUID();
       await previews().doc(id).create({ business, ...content, createdAt: Date.now() });
       return res.json({ id, business, ...content });
     }
@@ -240,11 +254,11 @@ export default async function siteExpress(req: Request, res: Response) {
     const device = req.body?.device === 'desktop' ? 'desktop' : 'mobile';
     if (!(await reserveVisualBudget(ip))) return res.status(429).json({ error: 'O limite de prévias visuais gratuitas foi atingido. Fale com a Atlas para continuar.' });
     const content = await generateExpressContent(business);
-    const id = randomUUID();
     const visual = initialVisual(device);
     await createVisualPreview(id, { business, ...content, visual }, brandColor);
     return res.json({ id, business, ...content, visual });
   } catch (error) {
+    if (error instanceof ExpressAssetError) return res.status(400).json({ error: error.message });
     console.error('[Site Express]', req.query.view, error instanceof Error ? error.name : 'unknown');
     return res.status(503).json({ error: 'Não conseguimos concluir agora. Tente novamente em instantes.' });
   }

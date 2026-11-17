@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, ExternalLink, LoaderCircle, Maximize2, Search, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, ExternalLink, LoaderCircle, Maximize2, Sparkles, X } from 'lucide-react';
 import type { ExpressPreview, ExpressVisual } from '../lib/expressOrder';
 
 export default function ExpressVisualGallery({ preview }: { key?: string; preview: ExpressPreview & { visual: ExpressVisual } }) {
@@ -54,14 +54,14 @@ export default function ExpressVisualGallery({ preview }: { key?: string; previe
   return <section className="min-w-0 overflow-hidden rounded-2xl border border-white/15 bg-[#111317]" aria-label="Carrossel das páginas do seu site" aria-roledescription="carrossel">
     <div className="border-b border-white/10 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-[#E2B755]"><Sparkles size={14} /> Conceito visual · 2K</p>
+        <div><p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-[#E2B755]"><Sparkles size={14} /> Seu novo site</p>
           <h2 className="mt-2 break-words text-lg font-bold">{preview.business.name}</h2></div>
         <span className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-zinc-300">{visual.device === 'mobile' ? 'Visualização mobile' : 'Visualização desktop'}</span>
       </div>
       <div role="status" aria-live="polite" className="mt-4 flex items-start gap-2 text-sm leading-relaxed text-zinc-300">
         {working && !problem && !expired ? <LoaderCircle size={17} className="mt-0.5 shrink-0 animate-spin text-[#E2B755]" /> : visual.status === 'ready' ? <Check size={17} className="mt-0.5 shrink-0 text-[#E2B755]" /> : null}
         <span>{expired ? 'O prazo de disponibilidade destas imagens terminou.' : problem || visual.message ||
-          (visual.status === 'researching' ? 'Pesquisando três sites do seu ramo e definindo a direção visual…' :
+          (visual.status === 'researching' ? 'Preparando sua prévia…' :
             visual.status === 'ready' ? 'Suas quatro telas estão prontas. Deslize para conhecer a proposta.' :
               `Criando as imagens com a mesma identidade visual. ${completed} de ${visual.pages.length} telas prontas.`)}</span>
       </div>
@@ -94,7 +94,7 @@ export default function ExpressVisualGallery({ preview }: { key?: string; previe
         {working && !expired && !problem ? <LoaderCircle className="mx-auto mb-4 animate-spin" size={28} /> : <Sparkles className="mx-auto mb-4" size={28} />}
         <h3 className="text-xl font-bold">{page.title}</h3>
         <p className="mt-3 text-sm leading-relaxed">{imageError || (expired ? 'As imagens desta prévia já expiraram. Fale com a Atlas para continuar seu projeto.' : visual.status === 'error' ? visual.message :
-          visual.status === 'researching' ? 'Estamos buscando referências do seu setor para criar uma proposta que combine com a sua empresa.' : 'Esta tela aparecerá aqui assim que estiver pronta.')}</p>
+          visual.status === 'researching' ? 'Estamos preparando uma proposta que combine com a sua empresa.' : 'Esta tela aparecerá aqui assim que estiver pronta.')}</p>
       </div>}
     </div>
 
@@ -108,16 +108,7 @@ export default function ExpressVisualGallery({ preview }: { key?: string; previe
       <p>Prévia conceitual com imagens ilustrativas. Os detalhes finais serão revisados com a Atlas. Imagens disponíveis por até 7 dias.</p>
       <p className="mt-2">No Site Express de uma página, os conteúdos são reunidos em uma única página. Páginas separadas e recursos especiais têm orçamento personalizado.</p>
     </div>
-    {visual.references.length > 0 && <details className="border-t border-white/10 px-4 py-4 sm:px-5">
-      <summary className="cursor-pointer text-sm font-semibold text-zinc-200"><Search size={14} className="mr-2 inline" />Referências consultadas ({visual.references.length})</summary>
-      <p className="mt-3 text-xs leading-relaxed text-zinc-500">Sites selecionados na pesquisa do setor para orientar a proposta original da sua empresa.</p>
-      <ul className="mt-3 space-y-3">{visual.references.map(ref => <li key={ref.url}>
-        <a href={ref.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#E2B755]">{ref.title}<ExternalLink size={12} /></a>
-        <p className="mt-1 text-xs leading-relaxed text-zinc-400">{ref.insight}</p>
-      </li>)}</ul>
-      {visual.searchSuggestions && <iframe title="Sugestões da Pesquisa Google" sandbox="allow-popups allow-popups-to-escape-sandbox" className="mt-3 h-28 w-full border-0 bg-white"
-        srcDoc={`<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src https://www.google.com https://www.gstatic.com; base-uri 'none'; form-action 'none'"></head><body>${visual.searchSuggestions}</body></html>`} />}
-    </details>}
+
 
     <dialog ref={dialog} onClose={() => setZoom(false)} className="fixed inset-0 m-auto max-h-[94vh] w-[96vw] max-w-5xl overflow-auto rounded-2xl border border-white/20 bg-[#111317] p-3 text-white backdrop:bg-black/85 sm:p-5" aria-label={`Imagem ampliada da página ${page.title}`}>
       <div className="sticky top-0 mb-3 flex items-center justify-between gap-3 rounded-lg bg-[#111317] p-2">

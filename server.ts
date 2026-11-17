@@ -53,6 +53,7 @@ async function startServer() {
 
   app.all("/api/webhook", (req, res) => webhookHandler(req, res));
   app.post("/api/site-express-webhook", (req, res) => expressWebhook(req, res));
+  app.use('/api/site-express', express.json({ limit: '2mb' }));
   app.use(express.json());
   app.all("/api/site-express", (req, res) => siteExpress(req, res));
 

@@ -2,8 +2,9 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, Check, Clock, ExternalLink, Globe2, LoaderCircle, Sparkles } from 'lucide-react';
 import AtlasLogo from './AtlasLogo';
 import ExpressVisualGallery from './ExpressVisualGallery';
+import ExpressAssetUpload from './ExpressAssetUpload';
 import { auth } from '../lib/firebase';
-import { EXPRESS_HOURS, EXPRESS_PRICE, EXPRESS_WHATSAPP, expressDate, expressMoney, type ExpressBusiness, type ExpressPreview, type ExpressStatus } from '../lib/expressOrder';
+import { EXPRESS_HOURS, EXPRESS_PRICE, EXPRESS_WHATSAPP, expressDate, expressMoney, type ExpressAsset, type ExpressBusiness, type ExpressPreview, type ExpressStatus } from '../lib/expressOrder';
 
 const blank: ExpressBusiness = { name: '', segment: '', city: '', services: '', whatsapp: '', photo: '' };
 const inputStyle = 'w-full rounded-xl border border-white/15 bg-black/25 px-3.5 py-3 text-sm text-white outline-none focus:border-[#E2B755]';
@@ -25,8 +26,9 @@ async function api<T>(query: string, body?: object): Promise<T> {
 }
 
 export default function SiteExpressPage() {
-  const [link, setLink] = useState('');
-  const [attribution, setAttribution] = useState('');
+  const [assets, setAssets] = useState<ExpressAsset[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadSession] = useState(() => ({ projectId: crypto.randomUUID(), writeKey: crypto.randomUUID() }));
   const [business, setBusiness] = useState(blank);
   const [preview, setPreview] = useState<ExpressPreview | null>(null);
   const [order, setOrder] = useState<{ status: ExpressStatus; dueAt?: number } | null>(null);
@@ -53,7 +55,7 @@ export default function SiteExpressPage() {
     if (draft && !orderId) {
       setBusy('loading');
       api<ExpressPreview>('id=' + encodeURIComponent(draft)).then(saved => {
-        if (mounted) { setPreview(saved); setBusiness(saved.business); }
+        if (mounted) { setPreview(saved); setBusiness(saved.business); setAssets(saved.business.assets || []); }
       }).catch(e => { if (mounted) setError(e.message); }).finally(() => { if (mounted) setBusy(''); });
     }
     return () => { mounted = false; };
@@ -85,24 +87,16 @@ export default function SiteExpressPage() {
     setBusiness(previous => ({ ...previous, [key]: value }));
   }
 
-  async function lookup() {
-    setBusy('lookup'); setError(''); setNotice('');
-    try {
-      const result = await api<{ name: string; city: string; whatsapp: string; mapsUrl: string }>('view=lookup', { googleLink: link });
-      setBusiness(previous => ({ ...previous, name: result.name, city: result.city || previous.city, whatsapp: result.whatsapp || previous.whatsapp }));
-      setAttribution(result.mapsUrl || 'https://maps.google.com/');
-      setNotice('Confira os dados encontrados e complete o formulário.');
-    } catch (e) { setError((e as Error).message); }
-    finally { setBusy(''); }
-  }
-
   async function generate(event: FormEvent) {
     event.preventDefault();
+    if (uploading) return;
     setBusy('generate'); setError(''); setNotice('');
     try {
-      const result = await api<ExpressPreview>('view=generate', { business, brandColor, device, visual: visualAvailable });
+      const result = await api<ExpressPreview>('view=generate', { business, brandColor, device, visual: visualAvailable,
+        ...uploadSession, assetIds: assets.map(asset => asset.id), sourcePreviewId: preview?.id });
       setPreview(result);
       setBusiness(result.business);
+      setAssets(result.business.assets || []);
       setEditing(false);
       history.replaceState(null, '', '/site-express?previa=' + result.id);
       window.scrollTo(0, 0);
@@ -174,7 +168,7 @@ export default function SiteExpressPage() {
             </div>
             <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_21rem]">
               {preview.visual ? <ExpressVisualGallery key={preview.id} preview={preview as ExpressPreview & { visual: NonNullable<ExpressPreview['visual']> }} /> : <article className="overflow-hidden rounded-2xl bg-[#ebeee5] text-[#182b23]" aria-label="Prévia do site">
-                <div className="flex items-center gap-2 px-5 py-4 text-sm font-bold"><Globe2 size={16} /> {preview.business.name}</div>
+                <div className="flex items-center gap-2 px-5 py-4 text-sm font-bold">{preview.business.assets?.find(asset => asset.kind === 'logo')?.url ? <img src={preview.business.assets.find(asset => asset.kind === 'logo')!.url} alt={`Logo de ${preview.business.name}`} className="h-12 max-w-36 object-contain" /> : <Globe2 size={16} />} {preview.business.name}</div>
                 <div className="relative isolate overflow-hidden bg-[#19372c] px-5 py-12 text-white sm:px-8 md:py-16">
                   {preview.business.photo && <>
                     <img className="absolute inset-0 -z-20 h-full w-full object-cover" src={preview.business.photo} alt="" referrerPolicy="no-referrer" />
@@ -251,14 +245,6 @@ export default function SiteExpressPage() {
               Precisa de várias páginas, loja virtual ou integrações? <a href={quote} target="_blank" rel="noreferrer" className="font-semibold text-[#E2B755] underline underline-offset-4">Solicite um orçamento personalizado</a>.
             </p>
             <form onSubmit={generate} className="mt-7 space-y-5 rounded-3xl border border-white/10 bg-[#14161a] p-5 sm:p-7">
-              <div className="border-b border-white/10 pb-5">
-                <label className="block text-sm font-medium" htmlFor="express-google">Link do Google Maps (opcional)</label>
-                <div className="mt-2 flex flex-wrap gap-2 sm:flex-nowrap">
-                  <input id="express-google" className={inputStyle} value={link} onChange={e => setLink(e.target.value)} placeholder="https://maps.app.goo.gl/…" inputMode="url" maxLength={800} />
-                  <button type="button" className={secondary + ' shrink-0'} disabled={!link.trim() || Boolean(busy)} onClick={lookup}>{busy === 'lookup' ? 'Buscando…' : 'Buscar empresa'}</button>
-                </div>
-                {attribution && <a href={attribution} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-semibold text-zinc-300">Fonte: Google Maps</a>}
-              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {([
                   ['name', 'Nome da empresa', 100], ['segment', 'Ramo de atuação', 80],
@@ -272,9 +258,7 @@ export default function SiteExpressPage() {
               <label className="block text-sm font-medium">Principais serviços
                 <textarea className={inputStyle + ' mt-1'} value={business.services} onChange={e => update('services', e.target.value)} required maxLength={500} rows={3} placeholder="Ex.: Banho e tosa, hidratação e corte de unhas" />
               </label>
-              <label className="block text-sm font-medium">Link de uma foto da empresa (opcional)
-                <input className={inputStyle + ' mt-1'} type="url" value={business.photo} onChange={e => update('photo', e.target.value)} maxLength={800} />
-              </label>
+              <ExpressAssetUpload assets={assets} session={uploadSession} onChange={setAssets} onBusy={setUploading} disabled={Boolean(busy)} />
               {visualAvailable && <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block text-sm font-medium">Cor principal da marca (opcional)
                   <input className={inputStyle + ' mt-1'} value={brandColor} onChange={e => setBrandColor(e.target.value)} pattern="#[a-fA-F0-9]{6}" maxLength={7} placeholder="#123456" />
@@ -286,8 +270,8 @@ export default function SiteExpressPage() {
                   </select>
                 </label>
               </div>}
-              <p className="text-xs leading-relaxed text-zinc-400">{visualAvailable && 'Pesquisamos três referências do setor para orientar uma proposta original. A criação das imagens pode levar alguns minutos. '}Use dados comerciais: qualquer pessoa com o link poderá abrir a prévia.</p>
-              <button className={primary} disabled={Boolean(busy)}>{busy === 'generate' ? <><LoaderCircle className="animate-spin" size={16} /> Preparando sua prévia…</> : <>{visualAvailable ? 'Gerar prévia visual' : 'Gerar prévia'} <ArrowRight size={17} /></>}</button>
+              <p className="text-xs leading-relaxed text-zinc-400">A criação da prévia pode levar alguns minutos. Envie dados e imagens da sua empresa: qualquer pessoa com o link poderá abrir a prévia.</p>
+              <button className={primary} disabled={Boolean(busy) || uploading}>{uploading ? <><LoaderCircle className="animate-spin" size={16} /> Enviando imagens…</> : busy === 'generate' ? <><LoaderCircle className="animate-spin" size={16} /> Preparando sua prévia…</> : <>Gerar prévia <ArrowRight size={17} /></>}</button>
             </form>
           </div>
         )}
