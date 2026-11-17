@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { getFirestoreAdmin } from '../db-helper.js';
-import { EXPRESS_HOURS, EXPRESS_PRICE, expressDate, expressMoney, type ExpressOrder } from '../../src/lib/expressOrder.js';
+import { EXPRESS_HOURS, expressDate, expressMoney, type ExpressOrder } from '../../src/lib/expressOrder.js';
 import { sendExpressEmail } from './express-providers.js';
 
 export const orderId = (value: unknown): value is string => typeof value === 'string' &&
@@ -13,7 +13,7 @@ export const saoPauloDay = (ms: number) => new Intl.DateTimeFormat('sv-SE', { ti
 export const defaultCapacity = 3;
 
 export function checkoutEnabled() {
-  return Boolean(process.env.STRIPE_SECRET_KEY?.trim() && process.env.STRIPE_EXPRESS_WEBHOOK_SECRET?.trim() &&
+  return Boolean(process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim() && process.env.MERCADO_PAGO_WEBHOOK_SECRET?.trim() &&
     process.env.RESEND_API_KEY?.trim() && process.env.ATLAS_EXPRESS_FROM_EMAIL?.trim());
 }
 
@@ -44,7 +44,7 @@ export async function sendReceipt(id: string, order: ExpressOrder) {
   await sendExpressEmail(order.email, 'Pedido confirmado · Atlas Digital',
     [
       `O pagamento do Site Express para ${order.business.name} foi confirmado.`,
-      `Pedido ${id} · ${expressMoney(EXPRESS_PRICE)}`,
+      `Pedido ${id} · ${expressMoney(order.amount)}`,
       `Entrega até ${expressDate(order.dueAt)} (horário de Brasília).`,
       `Acompanhe seu pedido em ${publicOrigin()}/site-express?pedido=${id}`,
     ].join('\n\n'), `express-receipt/${id}`);
@@ -84,6 +84,6 @@ export async function sendDelivery(id: string, finalUrl: string, resend: boolean
   return true;
 }
 
-export function dueDate(stripeCreated: number) {
-  return stripeCreated * 1000 + EXPRESS_HOURS * 3600000;
+export function dueDate(approvedAt: number) {
+  return approvedAt + EXPRESS_HOURS * 3600000;
 }

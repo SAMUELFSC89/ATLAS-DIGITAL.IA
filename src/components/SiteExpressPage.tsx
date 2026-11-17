@@ -23,6 +23,7 @@ export default function SiteExpressPage() {
   const [business, setBusiness] = useState(blank);
   const [preview, setPreview] = useState<ExpressPreview | null>(null);
   const [order, setOrder] = useState<{ status: ExpressStatus; dueAt?: number } | null>(null);
+  const [projectType, setProjectType] = useState<'express' | 'custom'>('express');
   const [checkout, setCheckout] = useState(false);
   const [sandbox, setSandbox] = useState(false);
   const [email, setEmail] = useState('');
@@ -104,7 +105,7 @@ export default function SiteExpressPage() {
       const existing = sessionStorage.getItem(storageKey);
       const id = existing || crypto.randomUUID();
       sessionStorage.setItem(storageKey, id);
-      const { url } = await api<{ url: string }>('view=checkout', { previewId: preview.id, id, email: email.trim(), acceptsScope });
+      const { url } = await api<{ url: string }>('view=checkout', { previewId: preview.id, id, email: email.trim(), acceptsScope, projectType });
       location.assign(url);
     } catch (e) {
       const message = (e as Error).message;
@@ -117,6 +118,9 @@ export default function SiteExpressPage() {
     ? `Olá, Atlas! Quero falar sobre o Site Express de ${preview.business.name}. Prévia: ${location.origin}/site-express?previa=${preview.id}`
     : `Olá, Atlas! Gostaria de ajuda com o Site Express${orderId ? ', pedido ' + orderId : ''}.`;
   const contact = EXPRESS_WHATSAPP + '?text=' + encodeURIComponent(whatsappMessage);
+  const quote = EXPRESS_WHATSAPP + '?text=' + encodeURIComponent(preview
+    ? `Olá, Atlas! Quero um orçamento personalizado para ${preview.business.name}. Minha prévia: ${location.origin}/site-express?previa=${preview.id}`
+    : 'Olá, Atlas! Quero solicitar um orçamento para um site personalizado.');
 
   return (
     <div className="min-h-screen bg-[#0a0b0e] text-white">
@@ -179,23 +183,45 @@ export default function SiteExpressPage() {
                 </div>}
               </article>
               <aside className="rounded-2xl border border-white/15 bg-[#14161a] p-5">
-                <h2 className="font-display text-xl font-bold">Site Express</h2>
-                <p className="mt-2 text-3xl font-bold text-[#E2B755]">{expressMoney(EXPRESS_PRICE)}</p>
-                <p className="mt-1 text-sm text-zinc-300">Criação de uma página. Pagamento único.</p>
-                <p className="mt-4 flex gap-2 text-sm text-zinc-100"><Clock size={16} className="mt-0.5 shrink-0 text-[#E2B755]" /> Receba por e-mail em até {EXPRESS_HOURS} horas após a confirmação do pagamento.</p>
-                <p className="mt-3 text-sm leading-relaxed text-zinc-300">Inclui a entrega do link final com serviços e botão de WhatsApp. Domínio próprio e plano Wix, se desejados, são contratados à parte.</p>
-                {checkout && (
-                  <form onSubmit={buy} className="mt-5 space-y-3">
-                    {sandbox && <p className="text-sm font-semibold text-[#E2B755]">Checkout em ambiente de teste.</p>}
-                    <label className="block text-sm font-medium">E-mail para entrega
-                      <input className={inputStyle + ' mt-1'} value={email} onChange={e => setEmail(e.target.value)} required type="email" autoComplete="email" maxLength={254} />
-                    </label>
-                    <label className="flex items-start gap-2 text-sm text-zinc-300"><input type="checkbox" required checked={acceptsScope} onChange={e => setAcceptsScope(e.target.checked)} className="mt-1" /> Confirmo os dados da prévia e as condições do Site Express.</label>
-                    <button className={primary + ' w-full'} disabled={Boolean(busy)}>{busy === 'checkout' ? 'Abrindo checkout…' : `Comprar por ${expressMoney(EXPRESS_PRICE)}`}</button>
-                  </form>
+                <fieldset className="mb-5 space-y-2 border-b border-white/10 pb-4">
+                  <legend className="mb-2 text-sm font-bold">Qual tipo de projeto você precisa?</legend>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="radio" name="project-type" checked={projectType === 'express'} onChange={() => { setProjectType('express'); setAcceptsScope(false); }} />
+                    Site de uma página
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="radio" name="project-type" checked={projectType === 'custom'} onChange={() => { setProjectType('custom'); setAcceptsScope(false); }} />
+                    Projeto personalizado
+                  </label>
+                </fieldset>
+                {projectType === 'custom' ? (
+                  <>
+                    <h2 className="font-display text-xl font-bold">Orçamento personalizado</h2>
+                    <p className="mt-3 text-sm leading-relaxed text-zinc-300">Para sites com várias páginas, loja virtual, agendamento, integrações ou outras exigências especiais, a Atlas define o valor e o prazo de acordo com o projeto.</p>
+                    <a href={quote} target="_blank" rel="noreferrer" className={primary + ' mt-4 w-full'}>Solicitar orçamento <ExternalLink size={14} /></a>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="font-display text-xl font-bold">Site Express</h2>
+                    <p className="mt-2 text-3xl font-bold text-[#E2B755]">{expressMoney(EXPRESS_PRICE)}</p>
+                    <p className="mt-1 text-sm text-zinc-300">Criação de uma página. Pagamento único.</p>
+                    <p className="mt-4 flex gap-2 text-sm text-zinc-100"><Clock size={16} className="mt-0.5 shrink-0 text-[#E2B755]" /> Receba por e-mail em até {EXPRESS_HOURS} horas após a confirmação do pagamento.</p>
+                    <p className="mt-3 text-sm leading-relaxed text-zinc-300">Inclui a entrega do link final com serviços e botão de WhatsApp. Domínio próprio e plano Wix, se desejados, são contratados à parte.</p>
+                    {checkout && (
+                      <form onSubmit={buy} className="mt-5 space-y-3">
+                        {sandbox && <p className="text-sm font-semibold text-[#E2B755]">Mercado Pago em ambiente de teste.</p>}
+                        <label className="block text-sm font-medium">E-mail para entrega
+                          <input className={inputStyle + ' mt-1'} value={email} onChange={e => setEmail(e.target.value)} required type="email" autoComplete="email" maxLength={254} />
+                        </label>
+                        <label className="flex items-start gap-2 text-sm text-zinc-300"><input type="checkbox" required checked={acceptsScope} onChange={e => setAcceptsScope(e.target.checked)} className="mt-1" /> Confirmo os dados e quero o pacote de uma página com serviços e WhatsApp.</label>
+                        <button className={primary + ' w-full'} disabled={Boolean(busy)}>{busy === 'checkout' ? 'Abrindo checkout…' : `Comprar por ${expressMoney(EXPRESS_PRICE)}`}</button>
+                      </form>
+                    )}
+                    {!checkout && <p className="mt-4 text-sm text-zinc-300">Compra online indisponível. Consulte a Atlas para contratar.</p>}
+                    {checkout && <p className="mt-3 text-xs text-zinc-400">Pagamento pelo Mercado Pago.</p>}
+                    <a href={contact} target="_blank" rel="noreferrer" className={secondary + ' mt-3 w-full'}>Falar pelo WhatsApp <ExternalLink size={14} /></a>
+                  </>
                 )}
-                {!checkout && <p className="mt-4 text-sm text-zinc-300">Compra online indisponível. Consulte a Atlas para contratar.</p>}
-                <a href={contact} target="_blank" rel="noreferrer" className={secondary + ' mt-3 w-full'}>Falar pelo WhatsApp <ExternalLink size={14} /></a>
               </aside>
             </div>
           </>
@@ -232,6 +258,7 @@ export default function SiteExpressPage() {
               <p className="text-xs leading-relaxed text-zinc-400">Use dados comerciais. Qualquer pessoa com o link poderá abrir a prévia.</p>
               <button className={primary} disabled={Boolean(busy)}>{busy === 'generate' ? <><LoaderCircle className="animate-spin" size={16} /> Gerando sua prévia…</> : <>Gerar prévia <ArrowRight size={17} /></>}</button>
             </form>
+            <p className="mt-5 text-sm text-zinc-300">Precisa de várias páginas, loja virtual ou integrações? <a href={quote} target="_blank" rel="noreferrer" className="font-semibold text-[#E2B755] underline underline-offset-4">Solicite um orçamento personalizado</a>.</p>
           </div>
         )}
         {error && <p role="alert" className="mx-auto mt-4 max-w-2xl rounded-xl border border-red-400/30 bg-red-950/60 p-3 text-sm text-red-100">{error}</p>}
