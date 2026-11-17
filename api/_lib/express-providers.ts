@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { ExpressBusiness, ExpressPreview } from '../../src/lib/expressOrder.js';
+import type { ExpressEmail } from './express-email.js';
 
 export function publicUrl(value: unknown) {
   if (typeof value !== 'string' || value.length > 800) return '';
@@ -136,7 +137,7 @@ export function verifyMercadoPagoSignature(paymentId: string, requestId: string,
   return matches && timestampFresh;
 }
 
-export async function sendExpressEmail(to: string, subject: string, text: string, idempotency: string) {
+export async function sendExpressEmail(to: string, email: ExpressEmail, idempotency: string) {
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -144,7 +145,7 @@ export async function sendExpressEmail(to: string, subject: string, text: string
       'Content-Type': 'application/json',
       'Idempotency-Key': idempotency,
     },
-    body: JSON.stringify({ from: process.env.ATLAS_EXPRESS_FROM_EMAIL?.trim(), to: [to], subject, text }),
+    body: JSON.stringify({ from: process.env.ATLAS_EXPRESS_FROM_EMAIL?.trim(), to: [to], ...email }),
     signal: AbortSignal.timeout(10000),
   });
   if (!response.ok) throw new Error('Resend request failed');

@@ -1,11 +1,8 @@
 import { createHash } from 'node:crypto';
 import { getFirestoreAdmin } from '../db-helper.js';
-import { EXPRESS_HOURS, expressDate, expressMoney, type ExpressOrder } from '../../src/lib/expressOrder.js';
+import { EXPRESS_HOURS, type ExpressOrder } from '../../src/lib/expressOrder.js';
 import { sendExpressEmail } from './express-providers.js';
-import { ATLAS_WHATSAPP } from '../../src/lib/contact.js';
-
-const supportContact = (id: string) =>
-  `Suporte pelo WhatsApp da Atlas Digital: https://wa.me/${ATLAS_WHATSAPP}?text=${encodeURIComponent(`Olá! Preciso de ajuda com meu pedido ${id}.`)}`;
+import { receiptEmail, deliveryEmail } from './express-email.js';
 
 export const orderId = (value: unknown): value is string => typeof value === 'string' &&
   /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(value);
@@ -45,17 +42,9 @@ export async function rateLimit(ip: string, action: string, perIp: number, total
 
 export async function sendReceipt(id: string, order: ExpressOrder) {
   if (!order.dueAt || order.receiptSentAt) return;
-  await sendExpressEmail(order.email, 'Pedido confirmado · Atlas Digital',
-    [
-      `Olá! Recebemos o pagamento do Site Express para ${order.business.name}. Sua compra está confirmada.`,
-      `Pedido ${id} · ${expressMoney(order.amount)}`,
-      `Agora nossa equipe vai preparar seu site. A prévia apresentada na compra é uma demonstração; o site final será produzido e revisado pela Atlas Digital.`,
-      `O prazo de entrega é de até ${EXPRESS_HOURS} horas após a aprovação do pagamento: até ${expressDate(order.dueAt)} (horário de Brasília).`,
-      `Enviaremos o link do site concluído para este mesmo e-mail assim que a entrega estiver pronta.`,
-      `Acompanhe seu pedido em ${publicOrigin()}/site-express?pedido=${id}`,
-      supportContact(id),
-      `Para enviar informações, fotos ou tirar dúvidas sobre seu projeto, fale com a equipe pelo WhatsApp e informe o número do pedido. Este e-mail é automático; o atendimento é realizado pelo WhatsApp acima.`,
-    ].join('\n\n'), `express-receipt/${id}`);
+  await sendExpressEmail(order.email, receiptEmail({
+    id, name: order.business.name, amount: order.amount, dueAt: order.dueAt, origin: publicOrigin(),
+  }), `express-receipt/${id}`);
   await orders().doc(id).update({ receiptSentAt: Date.now() });
 }
 
@@ -75,11 +64,7 @@ export async function sendDelivery(id: string, finalUrl: string, resend: boolean
   if (!attempt) return false;
 
   try {
-    await sendExpressEmail(attempt.email, 'Seu site está pronto · Atlas Digital',
-      [`Olá! O site de ${attempt.name} foi concluído e está disponível no link abaixo.`, finalUrl,
-        `Pedido ${id}`, supportContact(id),
-        `Se precisar de ajuda para acessar ou tiver dúvidas sobre a entrega, fale com nossa equipe pelo WhatsApp e informe o número do pedido. Este e-mail é automático; o atendimento é realizado pelo WhatsApp acima.`,
-      ].join('\n\n'),
+    await sendExpressEmail(attempt.email, deliveryEmail({ id, name: attempt.name, finalUrl, origin: publicOrigin() }),
       `express-delivery/${id}/${attempt.version}`);
   } catch (error) {
     await ref.update({ deliveryLeaseUntil: 0 });
