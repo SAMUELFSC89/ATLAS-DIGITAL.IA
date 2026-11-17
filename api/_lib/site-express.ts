@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
-import { getAuthenticatedEmail } from './radar.js';
-import { normalizeBrazilianWhatsApp } from '../src/lib/contact.js';
-import { EXPRESS_PRICE, type ExpressBusiness, type ExpressOrder } from '../src/lib/expressOrder.js';
-import { findExpressPlace, generateExpressContent, publicUrl, stripeRequest } from './_lib/express-providers.js';
-import { checkoutEnabled, db, defaultCapacity, orderId, orders, previews, publicOrigin, rateLimit, saoPauloDay, sendDelivery, sendReceipt, settings } from './_lib/express-store.js';
+import { getAuthenticatedEmail } from '../radar.js';
+import { normalizeBrazilianWhatsApp } from '../../src/lib/contact.js';
+import { EXPRESS_PRICE, type ExpressBusiness, type ExpressOrder } from '../../src/lib/expressOrder.js';
+import { findExpressPlace, generateExpressContent, publicUrl, stripeRequest } from './express-providers.js';
+import { checkoutEnabled, db, defaultCapacity, orderId, orders, previews, publicOrigin, rateLimit, saoPauloDay, sendDelivery, sendReceipt, settings } from './express-store.js';
 
 const clean = (value: unknown, length: number) =>
   typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, length) : '';

@@ -1,6 +1,6 @@
-import { verifyExpressSignature } from './_lib/express-providers.js';
-import { db, dueDate, orderId, orders, sendReceipt } from './_lib/express-store.js';
-import type { ExpressOrder } from '../src/lib/expressOrder.js';
+import { verifyExpressSignature } from './express-providers.js';
+import { db, dueDate, orderId, orders, sendReceipt } from './express-store.js';
+import type { ExpressOrder } from '../../src/lib/expressOrder.js';
 
 export default async function expressWebhook(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).end();

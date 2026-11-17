@@ -2,6 +2,14 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/api/site-express",
+      "destination": "/api/contact?expressEndpoint=site"
+    },
+    {
+      "source": "/api/site-express-webhook",
+      "destination": "/api/contact?expressEndpoint=webhook"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },
@@ -26,7 +34,7 @@
     "api/radar.ts": {
       "maxDuration": 60
     },
-    "api/site-express.ts": {
+    "api/contact.ts": {
       "maxDuration": 45
     }
   },

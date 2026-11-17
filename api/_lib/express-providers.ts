@@ -65,7 +65,7 @@ export async function findExpressPlace(link: string) {
 export async function generateExpressContent(business: ExpressBusiness): Promise<Pick<ExpressPreview, 'title' | 'introduction' | 'offers'>> {
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY?.trim() });
   const response = await ai.models.generateContent({
-    model: process.env.ATLAS_EXPRESS_GEMINI_MODEL?.trim() || 'gemini-2.5-flash',
+    model: process.env.ATLAS_EXPRESS_GEMINI_MODEL?.trim() || 'gemini-3.5-flash-lite',
     contents: JSON.stringify({ empresa: business.name, ramo: business.segment, cidade: business.city, servicos: business.services }),
     config: {
       abortSignal: AbortSignal.timeout(22000),
