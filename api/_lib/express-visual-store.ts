@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto';
 import { PREVIEW_PAGES, type ExpressBusiness, type ExpressPreview, type ExpressVisual, type PreviewPageId } from '../../src/lib/expressOrder.js';
 import { db, previews, saoPauloDay, settings } from './express-store.js';
 import { DEFAULT_VISUAL_PROMPT } from '../../src/lib/expressVisualPrompt.js';
-import { extractVisualImage, getVisualInteraction, parseVisualPlan, startVisualImage, startVisualResearch, type VisualPlan } from './express-visual-provider.js';
+import { visualAssetInputs } from './express-assets.js';
+import { extractVisualImage, getVisualInteraction, parseVisualPlan, requireActiveInteraction, startVisualImage, startVisualResearch, type VisualPlan } from './express-visual-provider.js';
 
 const jobs = () => db().collection('expressVisualJobs');
 const nowPlusWeek = () => Date.now() + 7 * 24 * 3600000;
@@ -41,7 +42,7 @@ export async function createVisualPreview(id: string, preview: Omit<ExpressPrevi
 }
 
 const safeFailure = (status?: number) => status === 429
-  ? 'O serviço de imagens atingiu o limite temporário. Sua prévia foi salva. Fale com a Atlas para continuar.'
+  ? 'A criação da prévia está temporariamente indisponível. Seus dados foram salvos. Fale com a Atlas para continuar.'
   : status === 403 || status === 404 || status === 400
     ? 'A geração visual ainda não está disponível para esta configuração. Fale com a Atlas para preparar sua prévia.'
     : 'Não foi possível concluir todas as imagens agora. As telas prontas foram preservadas. Fale com a Atlas para continuar.';
@@ -82,11 +83,12 @@ export async function advanceVisualPreview(id: string): Promise<ExpressVisual | 
       : job.phase === 'research' ? await startVisualResearch(preview.business, job.creativePrompt || DEFAULT_VISUAL_PROMPT)
         : await startVisualImage({ business: preview.business, plan: job.plan as VisualPlan,
           page: page!.id, device: preview.visual.device, brandColor: job.brandColor || '',
-          creativePrompt: job.creativePrompt || DEFAULT_VISUAL_PROMPT, firstInteraction: job.interactions?.home });
+          creativePrompt: job.creativePrompt || DEFAULT_VISUAL_PROMPT, firstInteraction: job.interactions?.home,
+          assetInputs: job.interactions?.home ? [] : await visualAssetInputs(preview.business.assets) });
     if (!result.id) throw new Error('Missing visual interaction');
     // Persist the provider ID before processing output, so refreshes resume instead of regenerating.
     await jobRef.update({ activeId: result.id, activePage: page?.id || '', operation: 'polling' });
-    if (!['completed', 'in_progress'].includes(result.status)) throw new Error('Visual interaction failed');
+    requireActiveInteraction(result);
     let visual: ExpressVisual = { ...preview.visual };
     let patch: Record<string, unknown>;
     if (result.status === 'completed') {
@@ -113,13 +115,35 @@ export async function advanceVisualPreview(id: string): Promise<ExpressVisual | 
     await batch.commit();
     return visual;
   } catch (error) {
-    const status = Number((error as { status?: number }).status) || 0;
+    const issue = error as { status?: number; statusCode?: number; terminal?: boolean };
+    const status = Number(issue.status || issue.statusCode) || 0;
     const visual: ExpressVisual = { ...preview.visual, status: 'error', message: safeFailure(status) };
     console.warn('[Site Express Visual] Etapa interrompida.', { phase: job.phase, status, reason: error instanceof Error ? error.name : 'unknown' });
     await previewRef.update({ visual });
-    await jobRef.update({ leaseUntil: 0, operation: 'failed' });
+    await jobRef.update({ leaseUntil: 0, operation: 'failed', lastError: { status, terminal: issue.terminal === true, at: Date.now() } });
+    await settings().set({ visualLastIssue: { status, phase: job.phase, at: Date.now() } }, { merge: true });
     return visual;
   }
+}
+
+export async function resumeVisualPreview(id: string) {
+  const ref = previews().doc(id), task = jobs().doc(id);
+  const previous = (await task.get()).data();
+  let terminalId = '';
+  if (previous?.activeId && !previous.lastError) {
+    const operation = await getVisualInteraction(previous.activeId);
+    if (!['in_progress', 'completed'].includes(operation.status)) terminalId = previous.activeId;
+  }
+  return db().runTransaction(async tx => {
+    const [p, j] = await tx.getAll(ref, task);
+    const visual = p.data()?.visual as ExpressVisual | undefined, job = j.data();
+    if (!visual || !job || visual.status !== 'error' || visual.expiresAt <= Date.now() || (job.retries || 0) >= 3) return false;
+    const { message: _message, ...saved } = visual;
+    tx.update(ref, { visual: { ...saved, status: job.phase === 'research' ? 'researching' : 'generating' } });
+    tx.update(task, { operation: 'idle', leaseUntil: 0, nextPollAt: 0, retries: (job.retries || 0) + 1,
+      ...((job.lastError?.terminal || job.activeId === terminalId) && { activeId: '' }) });
+    return true;
+  });
 }
 
 export async function readVisualImage(id: string, page: PreviewPageId) {

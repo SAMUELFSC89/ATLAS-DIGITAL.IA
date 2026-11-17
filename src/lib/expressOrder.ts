@@ -2,6 +2,18 @@ export const EXPRESS_PRICE = 29700;
 export const EXPRESS_HOURS = 48;
 export const EXPRESS_WHATSAPP = 'https://wa.me/5551994578544';
 
+export interface ExpressAsset {
+  id: string;
+  projectId: string;
+  kind: 'photo' | 'logo';
+  name: string;
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
+  width: number;
+  height: number;
+  size: number;
+  url?: string;
+}
+
 export interface ExpressBusiness {
   name: string;
   segment: string;
@@ -9,6 +21,7 @@ export interface ExpressBusiness {
   services: string;
   whatsapp: string;
   photo: string;
+  assets?: ExpressAsset[];
 }
 
 export interface ExpressPreview {

@@ -5,7 +5,7 @@ import { expressDate, expressMoney, type ExpressOrder, type ExpressStatus } from
 import { DEFAULT_VISUAL_PROMPT } from '../lib/expressVisualPrompt';
 
 type PanelOrder = ExpressOrder & { mode?: 'test' | 'live'; deliveryUrl?: string };
-type List = { orders: PanelOrder[]; capacity: number; visualPrompt?: string; visualEnabled?: boolean };
+type List = { orders: PanelOrder[]; capacity: number; visualPrompt?: string; visualEnabled?: boolean; visualLastIssue?: { status: number; phase: string; at: number } };
 
 const labels: Record<ExpressStatus, string> = {
   pending: 'Aguardando pagamento', paid: 'Pago', production: 'Em produção',
@@ -34,6 +34,8 @@ export default function ExpressOrdersPanel() {
   const [visualPrompt, setVisualPrompt] = useState(DEFAULT_VISUAL_PROMPT);
   const [savedPrompt, setSavedPrompt] = useState(DEFAULT_VISUAL_PROMPT);
   const [visualEnabled, setVisualEnabled] = useState(false);
+  const [visualLastIssue, setVisualLastIssue] = useState<List['visualLastIssue']>();
+  const [resumeLink, setResumeLink] = useState('');
   const [filter, setFilter] = useState<'active' | 'all' | ExpressStatus>('active');
   const [busy, setBusy] = useState('load');
   const [message, setMessage] = useState('');
@@ -46,13 +48,14 @@ export default function ExpressOrdersPanel() {
     setVisualPrompt(data.visualPrompt || DEFAULT_VISUAL_PROMPT);
     setSavedPrompt(data.visualPrompt || DEFAULT_VISUAL_PROMPT);
     setVisualEnabled(data.visualEnabled === true);
+    setVisualLastIssue(data.visualLastIssue);
   }
 
   useEffect(() => {
     let active = true;
     request<List>().then(data => {
       if (active) { setOrders(data.orders); setCapacity(String(data.capacity));
-        setVisualPrompt(data.visualPrompt || DEFAULT_VISUAL_PROMPT); setSavedPrompt(data.visualPrompt || DEFAULT_VISUAL_PROMPT); setVisualEnabled(data.visualEnabled === true); }
+        setVisualPrompt(data.visualPrompt || DEFAULT_VISUAL_PROMPT); setSavedPrompt(data.visualPrompt || DEFAULT_VISUAL_PROMPT); setVisualEnabled(data.visualEnabled === true); setVisualLastIssue(data.visualLastIssue); }
     }).catch(e => { if (active) setError(e.message); }).finally(() => { if (active) setBusy(''); });
     return () => { active = false; };
   }, []);
@@ -102,6 +105,7 @@ export default function ExpressOrdersPanel() {
       <details className="rounded-xl border border-[#E2B755]/25 bg-zinc-900/70 p-4 sm:p-5">
         <summary className="cursor-pointer font-semibold text-[#E2B755]">Prompt do Gemini · Direção criativa das prévias</summary>
         <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-300">Defina como a Atlas deve criar os mockups: estilo, tipografia, fotografias, cores, organização das páginas e o que evitar. Suas instruções serão usadas junto às três referências pesquisadas do ramo em cada nova prévia.</p>
+        {visualLastIssue && <p className="mt-3 rounded-lg border border-amber-300/20 bg-amber-900/15 p-3 text-sm text-amber-200">{visualLastIssue.status === 429 ? 'O Google recusou a última geração por limite de uso (429). Confira o faturamento e os limites do projeto da Atlas no Google AI Studio antes de retomar.' : `A última geração foi interrompida pelo serviço (${visualLastIssue.status || 'sem código'}).`} <a className="underline" href="https://aistudio.google.com/projects" target="_blank" rel="noreferrer">Abrir Google AI Studio</a></p>}
         <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-white/10 p-3">
           <p className="min-w-0 flex-1 text-sm text-zinc-300">{visualEnabled ? 'Prévias em imagens disponíveis para os visitantes.' : 'Prévias em imagens em validação. A conta da Atlas pode testar antes de liberar para os visitantes.'}</p>
           <a className={button} href="/site-express" target="_blank" rel="noreferrer">Testar uma prévia</a>
@@ -121,6 +125,13 @@ export default function ExpressOrdersPanel() {
           </div>
           <p className="text-xs leading-relaxed text-zinc-500">Cada prévia mantém as instruções usadas no início da geração para preservar a identidade entre as telas. O prompt se aplica ao visual; preço e condições do pacote continuam definidos pela Atlas.</p>
         </form>
+        <form className="mt-4 flex flex-wrap items-end gap-2 border-t border-white/10 pt-4" onSubmit={event => {
+          event.preventDefault(); let id = resumeLink.trim(); try { id = new URL(id).searchParams.get('previa') || id; } catch {}
+          void run({ action: 'visualResume', id }, 'Geração retomada. Abra novamente o link da prévia para acompanhar.');
+        }}>
+          <label className="min-w-0 flex-1 text-sm text-zinc-300">Retomar uma prévia interrompida<input className={input + ' mt-1 block w-full'} value={resumeLink} onChange={event => setResumeLink(event.target.value)} placeholder="Cole o link da prévia" required /></label>
+          <button className={button} disabled={Boolean(busy) || !resumeLink.trim()}>Retomar prévia</button>
+        </form>
       </details>
       {!busy && !error && !visible.length && <p className="text-sm text-zinc-400">Nenhum pedido neste filtro.</p>}
       <div className="grid gap-4">
@@ -135,6 +146,13 @@ export default function ExpressOrdersPanel() {
             </div>
             <p className="break-words text-sm text-zinc-300">{order.email} · +{order.business.whatsapp}</p>
             <p className="break-words text-sm text-zinc-300">{order.business.services}</p>
+            {Boolean(order.business.assets?.length) && <details className="rounded-lg border border-white/10 p-3">
+              <summary className="cursor-pointer text-sm font-semibold text-[#E2B755]">Fotos e logo do projeto ({order.business.assets!.length})</summary>
+              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">{order.business.assets!.map(asset => <a key={asset.id} href={asset.url + '&download=1'} className="overflow-hidden rounded-lg border border-white/15" target="_blank" rel="noreferrer">
+                <img src={asset.url} alt={asset.kind === 'logo' ? 'Logo enviada pelo cliente' : asset.name} className={`h-28 w-full ${asset.kind === 'logo' ? 'bg-white p-2 object-contain' : 'object-cover'}`} />
+                <span className="block truncate p-2 text-xs">{asset.kind === 'logo' ? 'Logo' : 'Foto'} · Baixar arquivo</span>
+              </a>)}</div>
+            </details>}
             {order.dueAt && <p className={isOpen(order) && order.dueAt <= Date.now() ? 'text-sm text-red-300' : 'text-sm text-zinc-300'}>
               Prazo {expressDate(order.dueAt)}{isOpen(order) && order.dueAt <= Date.now() ? ' · Vencido' : ''}
             </p>}

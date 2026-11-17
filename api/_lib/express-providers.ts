@@ -11,58 +11,6 @@ export function publicUrl(value: unknown) {
   } catch { return ''; }
 }
 
-const googleHost = (url: URL) => ['google.com', 'www.google.com', 'maps.google.com',
-  'google.com.br', 'www.google.com.br', 'maps.google.com.br'].includes(url.hostname);
-const shortLink = (url: URL) => url.hostname === 'maps.app.goo.gl' ||
-  (url.hostname === 'goo.gl' && url.pathname.startsWith('/maps/'));
-
-export async function findExpressPlace(link: string) {
-  const key = (process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_MAPS_API_KEY)?.trim();
-  const safe = publicUrl(link);
-  if (!key || !safe) return null;
-  let url = new URL(safe);
-  for (let redirects = 0; shortLink(url) && redirects < 3; redirects++) {
-    const response = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(5000) });
-    const location = response.headers.get('location');
-    await response.body?.cancel();
-    if (response.status < 300 || response.status >= 400 || !location) return null;
-    const safeTarget = publicUrl(new URL(location, url).href);
-    if (!safeTarget) return null;
-    url = new URL(safeTarget);
-  }
-  if (!googleHost(url)) return null;
-  const id = url.searchParams.get('query_place_id') ||
-    url.searchParams.get('q')?.match(/^place_id:(.+)$/)?.[1];
-  const pathName = url.pathname.match(/\/maps\/place\/([^/]+)/)?.[1];
-  const query = url.searchParams.get('query') || url.searchParams.get('q') ||
-    (pathName ? decodeURIComponent(pathName.replace(/\+/g, ' ')) : '');
-  const fields = 'displayName,addressComponents,nationalPhoneNumber,googleMapsUri';
-  const base = 'https://places.googleapis.com/v1/places';
-  const headers = { 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': fields };
-  const timeout = { signal: AbortSignal.timeout(7000) };
-  const match = id && /^[\w-]{5,300}$/.test(id)
-    ? await fetch(`${base}/${id}?languageCode=pt-BR`, { headers, ...timeout })
-    : query && query.length < 220
-      ? await fetch(base + ':searchText', {
-        method: 'POST', headers: { ...headers, 'Content-Type': 'application/json',
-          'X-Goog-FieldMask': fields.split(',').map(field => 'places.' + field).join(',') },
-        body: JSON.stringify({ textQuery: query, pageSize: 1, languageCode: 'pt-BR', regionCode: 'BR' }),
-        ...timeout,
-      })
-      : null;
-  if (!match?.ok) return null;
-  const data = await match.json();
-  const place = data.places?.[0] ?? data;
-  if (!place.displayName?.text) return null;
-  return {
-    name: String(place.displayName.text).slice(0, 100),
-    city: String(place.addressComponents?.find((entry: { types?: string[] }) =>
-      entry.types?.includes('administrative_area_level_2') || entry.types?.includes('locality'))?.longText || '').slice(0, 100),
-    whatsapp: String(place.nationalPhoneNumber || '').slice(0, 25),
-    mapsUrl: publicUrl(place.googleMapsUri),
-  };
-}
-
 export async function generateExpressContent(business: ExpressBusiness): Promise<Pick<ExpressPreview, 'title' | 'introduction' | 'offers'>> {
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY?.trim() });
   const response = await ai.models.generateContent({
