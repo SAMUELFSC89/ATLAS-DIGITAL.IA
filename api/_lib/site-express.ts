@@ -3,13 +3,20 @@ import type { Request, Response } from 'express';
 import { getAuthenticatedEmail } from '../radar.js';
 import { reconcileExpressPayment } from './express-payment.js';
 import { normalizeBrazilianWhatsApp } from '../../src/lib/contact.js';
-import { EXPRESS_PRICE, type ExpressBusiness, type ExpressOrder } from '../../src/lib/expressOrder.js';
+import { EXPRESS_PRICE, PREVIEW_PAGES, type ExpressBusiness, type ExpressOrder } from '../../src/lib/expressOrder.js';
+import { advanceVisualPreview, createVisualPreview, initialVisual, readVisualImage, reserveVisualBudget } from './express-visual-store.js';
+import { DEFAULT_VISUAL_PROMPT } from '../../src/lib/expressVisualPrompt.js';
 import { findExpressPlace, generateExpressContent, publicUrl, mercadoPagoRequest } from './express-providers.js';
 import { checkoutEnabled, db, defaultCapacity, orderId, orders, previews, publicOrigin, rateLimit, saoPauloDay, sendDelivery, sendReceipt, settings } from './express-store.js';
 
 const clean = (value: unknown, length: number) =>
   typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, length) : '';
 const canBuy = (mode: string) => mode === 'live' || mode === 'test';
+const visualOwner = async (req: Request) => {
+  if (!req.headers.authorization) return false;
+  const email = await getAuthenticatedEmail(req, true);
+  return Boolean(email && email.toLowerCase() === (process.env.ATLAS_CONTACT_OWNER_EMAIL || 'samuelfsc89@gmail.com').trim().toLowerCase());
+};
 
 async function startCheckout(req: Request, res: Response) {
   const { previewId, id, email, acceptsScope, projectType } = req.body || {};
@@ -104,10 +111,25 @@ async function admin(req: Request, res: Response) {
     return res.json({ orders: snapshots.docs.map(doc => {
       const { previewId, business, email, status, amount, createdAt, dueAt, receiptSentAt, deliveredAt, finalUrl, mode, deliveryAttempt } = doc.data();
       return { id: doc.id, previewId, business, email, status, amount, createdAt, dueAt, receiptSentAt, deliveredAt, finalUrl, mode, deliveryUrl: deliveryAttempt?.url };
-    }), capacity: config.data()?.capacity ?? defaultCapacity });
+    }), capacity: config.data()?.capacity ?? defaultCapacity,
+      visualPrompt: config.data()?.visualPrompt ?? DEFAULT_VISUAL_PROMPT,
+      visualEnabled: config.data()?.visualEnabled === true });
   }
   if (req.method !== 'POST') return res.status(405).end();
-  const { id, action, capacity } = req.body || {};
+  const { id, action, capacity, visualPrompt, visualEnabled } = req.body || {};
+  if (action === 'visualEnabled') {
+    if (typeof visualEnabled !== 'boolean') return res.status(400).json({ error: 'Configuração inválida.' });
+    await settings().set({ visualEnabled }, { merge: true });
+    return res.json({ ok: true });
+  }
+  if (action === 'visualPrompt') {
+    if (typeof visualPrompt !== 'string' || !visualPrompt.trim() || visualPrompt.length > 8000 ||
+      /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(visualPrompt)) {
+      return res.status(400).json({ error: 'Escreva instruções com até 8.000 caracteres.' });
+    }
+    await settings().set({ visualPrompt: visualPrompt.trim(), visualPromptUpdatedAt: Date.now() }, { merge: true });
+    return res.json({ ok: true });
+  }
   if (action === 'capacity') {
     if (!Number.isInteger(capacity) || capacity < 1 || capacity > 30) return res.status(400).json({ error: 'Defina de 1 a 30 vagas por dia.' });
     await settings().set({ capacity }, { merge: true });
@@ -143,10 +165,30 @@ export default async function siteExpress(req: Request, res: Response) {
   try {
     const view = req.query.view;
     if (view === 'admin') return await admin(req, res);
+    if (view === 'visual' && req.method === 'POST') {
+      if (!orderId(req.body?.id)) return res.status(400).json({ error: 'Prévia inválida.' });
+      const visual = await advanceVisualPreview(req.body.id);
+      return visual ? res.json({ visual }) : res.status(404).json({ error: 'Prévia visual não encontrada.' });
+    }
     if (req.method === 'GET') {
-      if (view === 'config') return res.json({ checkout: checkoutEnabled() && canBuy(process.env.ATLAS_EXPRESS_CHECKOUT_MODE || ''),
-        sandbox: process.env.ATLAS_EXPRESS_CHECKOUT_MODE === 'test' });
+      if (view === 'config') {
+        const config = (await settings().get()).data();
+        return res.json({ checkout: checkoutEnabled() && canBuy(process.env.ATLAS_EXPRESS_CHECKOUT_MODE || ''),
+          sandbox: process.env.ATLAS_EXPRESS_CHECKOUT_MODE === 'test',
+          visualAvailable: config?.visualEnabled === true || await visualOwner(req) });
+      }
       if (!orderId(req.query.id)) return res.status(400).json({ error: 'Link inválido.' });
+      if (view === 'image') {
+        const page = PREVIEW_PAGES.find(item => item.id === req.query.page);
+        if (!page) return res.status(400).json({ error: 'Tela inválida.' });
+        const image = await readVisualImage(req.query.id, page.id);
+        if (!image) return res.status(410).json({ error: 'Esta imagem expirou ou ainda não está pronta.' });
+        res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+        res.setHeader('Content-Type', image.mimeType);
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Content-Disposition', `inline; filename="atlas-previa-${page.id}.jpg"`);
+        return res.send(image.buffer);
+      }
       if (view === 'order') {
         const order = (await orders().doc(req.query.id).get()).data();
         if (!order) return res.status(404).json({ error: 'Pedido não encontrado.' });
@@ -184,10 +226,24 @@ export default async function siteExpress(req: Request, res: Response) {
       return res.status(400).json({ error: 'Confira os campos e use um WhatsApp brasileiro com DDD. Para foto, informe um link HTTPS.' });
     }
     if (!process.env.GEMINI_API_KEY?.trim()) return res.status(503).json({ error: 'O gerador está indisponível no momento.' });
+    if (req.body?.visual !== true) {
+      const content = await generateExpressContent(business);
+      const id = randomUUID();
+      await previews().doc(id).create({ business, ...content, createdAt: Date.now() });
+      return res.json({ id, business, ...content });
+    }
+    if ((await settings().get()).data()?.visualEnabled !== true && !(await visualOwner(req))) {
+      return res.status(403).json({ error: 'A prévia em imagens está sendo preparada. Gere a prévia atual ou fale com a Atlas.' });
+    }
+    const brandColor = clean(req.body?.brandColor, 7);
+    if (brandColor && !/^#[a-f\d]{6}$/i.test(brandColor)) return res.status(400).json({ error: 'Informe uma cor no formato #123456 ou deixe em branco.' });
+    const device = req.body?.device === 'desktop' ? 'desktop' : 'mobile';
+    if (!(await reserveVisualBudget(ip))) return res.status(429).json({ error: 'O limite de prévias visuais gratuitas foi atingido. Fale com a Atlas para continuar.' });
     const content = await generateExpressContent(business);
     const id = randomUUID();
-    await previews().doc(id).create({ business, ...content, createdAt: Date.now() });
-    return res.json({ id, business, ...content });
+    const visual = initialVisual(device);
+    await createVisualPreview(id, { business, ...content, visual }, brandColor);
+    return res.json({ id, business, ...content, visual });
   } catch (error) {
     console.error('[Site Express]', req.query.view, error instanceof Error ? error.name : 'unknown');
     return res.status(503).json({ error: 'Não conseguimos concluir agora. Tente novamente em instantes.' });

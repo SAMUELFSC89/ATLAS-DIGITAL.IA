@@ -2,9 +2,10 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ExternalLink, RefreshCw } from 'lucide-react';
 import { auth } from '../lib/firebase';
 import { expressDate, expressMoney, type ExpressOrder, type ExpressStatus } from '../lib/expressOrder';
+import { DEFAULT_VISUAL_PROMPT } from '../lib/expressVisualPrompt';
 
 type PanelOrder = ExpressOrder & { mode?: 'test' | 'live'; deliveryUrl?: string };
-type List = { orders: PanelOrder[]; capacity: number };
+type List = { orders: PanelOrder[]; capacity: number; visualPrompt?: string; visualEnabled?: boolean };
 
 const labels: Record<ExpressStatus, string> = {
   pending: 'Aguardando pagamento', paid: 'Pago', production: 'Em produção',
@@ -30,6 +31,9 @@ async function request<T>(body?: object): Promise<T> {
 export default function ExpressOrdersPanel() {
   const [orders, setOrders] = useState<PanelOrder[]>([]);
   const [capacity, setCapacity] = useState('');
+  const [visualPrompt, setVisualPrompt] = useState(DEFAULT_VISUAL_PROMPT);
+  const [savedPrompt, setSavedPrompt] = useState(DEFAULT_VISUAL_PROMPT);
+  const [visualEnabled, setVisualEnabled] = useState(false);
   const [filter, setFilter] = useState<'active' | 'all' | ExpressStatus>('active');
   const [busy, setBusy] = useState('load');
   const [message, setMessage] = useState('');
@@ -39,12 +43,16 @@ export default function ExpressOrdersPanel() {
     const data = await request<List>();
     setOrders(data.orders);
     setCapacity(String(data.capacity));
+    setVisualPrompt(data.visualPrompt || DEFAULT_VISUAL_PROMPT);
+    setSavedPrompt(data.visualPrompt || DEFAULT_VISUAL_PROMPT);
+    setVisualEnabled(data.visualEnabled === true);
   }
 
   useEffect(() => {
     let active = true;
     request<List>().then(data => {
-      if (active) { setOrders(data.orders); setCapacity(String(data.capacity)); }
+      if (active) { setOrders(data.orders); setCapacity(String(data.capacity));
+        setVisualPrompt(data.visualPrompt || DEFAULT_VISUAL_PROMPT); setSavedPrompt(data.visualPrompt || DEFAULT_VISUAL_PROMPT); setVisualEnabled(data.visualEnabled === true); }
     }).catch(e => { if (active) setError(e.message); }).finally(() => { if (active) setBusy(''); });
     return () => { active = false; };
   }, []);
@@ -91,6 +99,29 @@ export default function ExpressOrdersPanel() {
       {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
       {message && <p role="status" className="text-sm text-emerald-300">{message}</p>}
       {busy === 'load' && <p role="status" className="text-sm text-zinc-300">Carregando pedidos…</p>}
+      <details className="rounded-xl border border-[#E2B755]/25 bg-zinc-900/70 p-4 sm:p-5">
+        <summary className="cursor-pointer font-semibold text-[#E2B755]">Prompt do Gemini · Direção criativa das prévias</summary>
+        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-300">Defina como a Atlas deve criar os mockups: estilo, tipografia, fotografias, cores, organização das páginas e o que evitar. Suas instruções serão usadas junto às três referências pesquisadas do ramo em cada nova prévia.</p>
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-white/10 p-3">
+          <p className="min-w-0 flex-1 text-sm text-zinc-300">{visualEnabled ? 'Prévias em imagens disponíveis para os visitantes.' : 'Prévias em imagens em validação. A conta da Atlas pode testar antes de liberar para os visitantes.'}</p>
+          <a className={button} href="/site-express" target="_blank" rel="noreferrer">Testar uma prévia</a>
+          <button type="button" className={button} disabled={Boolean(busy)} onClick={() => void run({ action: 'visualEnabled', visualEnabled: !visualEnabled }, visualEnabled ? 'Prévia em imagens reservada à conta da Atlas.' : 'Prévia em imagens liberada para os visitantes.')}>{visualEnabled ? 'Reservar para testes' : 'Liberar para visitantes'}</button>
+        </div>
+        <form className="mt-4 space-y-3" onSubmit={event => {
+          event.preventDefault();
+          void run({ action: 'visualPrompt', visualPrompt }, 'Instruções salvas. As próximas prévias usarão este prompt.');
+        }}>
+          <label className="block text-sm font-medium" htmlFor="express-visual-prompt">Suas instruções para o Gemini</label>
+          <textarea id="express-visual-prompt" className={input + ' block min-h-80 w-full leading-relaxed'} value={visualPrompt}
+            onChange={event => setVisualPrompt(event.target.value)} required maxLength={8000} rows={14} />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-zinc-400">{visualPrompt.length.toLocaleString('pt-BR')} / 8.000 caracteres · {visualPrompt !== savedPrompt ? 'Alterações não salvas' : 'Instruções atuais'}</p>
+            <div className="flex flex-wrap gap-2"><button type="button" className={button} disabled={Boolean(busy)} onClick={() => setVisualPrompt(DEFAULT_VISUAL_PROMPT)}>Usar sugestão da Atlas</button>
+              <button className={button + ' border-[#E2B755]/60 text-[#E2B755]'} disabled={Boolean(busy) || !visualPrompt.trim() || visualPrompt === savedPrompt}>Salvar instruções</button></div>
+          </div>
+          <p className="text-xs leading-relaxed text-zinc-500">Cada prévia mantém as instruções usadas no início da geração para preservar a identidade entre as telas. O prompt se aplica ao visual; preço e condições do pacote continuam definidos pela Atlas.</p>
+        </form>
+      </details>
       {!busy && !error && !visible.length && <p className="text-sm text-zinc-400">Nenhum pedido neste filtro.</p>}
       <div className="grid gap-4">
         {visible.map(order => (
