@@ -230,6 +230,12 @@ export default function SiteExpressPage() {
             <p className="flex items-center gap-2 text-sm font-semibold text-[#E2B755]"><Sparkles size={18} /> Atlas Site Express</p>
             <h1 className="mt-3 font-display text-4xl font-bold tracking-tight md:text-5xl">Veja como pode ficar o site da sua empresa</h1>
             <p className="mt-4 text-zinc-300">Gere uma prévia gratuita com os dados do seu negócio.</p>
+            <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+              Site de uma página por <strong className="text-[#E2B755]">{expressMoney(EXPRESS_PRICE)}</strong>, com entrega por e-mail em até {EXPRESS_HOURS} horas após a aprovação do pagamento.
+            </p>
+            <p className="mt-2 text-sm text-zinc-300">
+              Precisa de várias páginas, loja virtual ou integrações? <a href={quote} target="_blank" rel="noreferrer" className="font-semibold text-[#E2B755] underline underline-offset-4">Solicite um orçamento personalizado</a>.
+            </p>
             <form onSubmit={generate} className="mt-7 space-y-5 rounded-3xl border border-white/10 bg-[#14161a] p-5 sm:p-7">
               <div className="border-b border-white/10 pb-5">
                 <label className="block text-sm font-medium" htmlFor="express-google">Link do Google Maps (opcional)</label>
@@ -258,7 +264,6 @@ export default function SiteExpressPage() {
               <p className="text-xs leading-relaxed text-zinc-400">Use dados comerciais. Qualquer pessoa com o link poderá abrir a prévia.</p>
               <button className={primary} disabled={Boolean(busy)}>{busy === 'generate' ? <><LoaderCircle className="animate-spin" size={16} /> Gerando sua prévia…</> : <>Gerar prévia <ArrowRight size={17} /></>}</button>
             </form>
-            <p className="mt-5 text-sm text-zinc-300">Precisa de várias páginas, loja virtual ou integrações? <a href={quote} target="_blank" rel="noreferrer" className="font-semibold text-[#E2B755] underline underline-offset-4">Solicite um orçamento personalizado</a>.</p>
           </div>
         )}
         {error && <p role="alert" className="mx-auto mt-4 max-w-2xl rounded-xl border border-red-400/30 bg-red-950/60 p-3 text-sm text-red-100">{error}</p>}
