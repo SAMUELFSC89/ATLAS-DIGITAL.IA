@@ -150,7 +150,7 @@ export default async function siteExpress(req: Request, res: Response) {
       if (view === 'order') {
         const order = (await orders().doc(req.query.id).get()).data();
         if (!order) return res.status(404).json({ error: 'Pedido não encontrado.' });
-        const reconciled = order.status === 'pending' ? await reconcileExpressPayment(req.query.id).catch(() => {
+        const reconciled = order.status === 'pending' ? await reconcileExpressPayment(req.query.id, req.query.paymentId).catch(() => {
           console.warn('[Site Express] Não foi possível consultar o pagamento.');
           return null;
         }) : null;

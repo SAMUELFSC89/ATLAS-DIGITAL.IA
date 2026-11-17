@@ -31,7 +31,7 @@ export async function recordExpressPayment(payment: any, expectedId?: string): P
   });
 }
 
-export async function reconcileExpressPayment(id: string) {
+export async function reconcileExpressPayment(id: string, reportedPaymentId: unknown) {
   const ref = orders().doc(id);
   const now = Date.now();
   const claimed = await db().runTransaction(async tx => {
@@ -44,9 +44,15 @@ export async function reconcileExpressPayment(id: string) {
     return true;
   });
   if (!claimed) return null;
-  const filter = new URLSearchParams({ external_reference: id, sort: 'date_created', criteria: 'desc', limit: '10' });
-  const search = await mercadoPagoRequest('v1/payments/search?' + filter);
-  for (const candidate of Array.isArray(search.results) ? search.results : []) {
+  const filter = new URLSearchParams({
+    external_reference: id, sort: 'date_created', criteria: 'desc', limit: '10',
+    range: 'date_created', begin_date: 'NOW-2DAYS', end_date: 'NOW',
+  });
+  const direct = typeof reportedPaymentId === 'string' && /^\d{1,25}$/.test(reportedPaymentId)
+    ? await mercadoPagoRequest('v1/payments/' + reportedPaymentId).catch(() => null)
+    : null;
+  const payments = direct?.external_reference === id ? [direct] : (await mercadoPagoRequest('v1/payments/search?' + filter)).results;
+  for (const candidate of Array.isArray(payments) ? payments : []) {
     const order = await recordExpressPayment(candidate, id);
     if (order) {
       try { await sendReceipt(id, order); }
