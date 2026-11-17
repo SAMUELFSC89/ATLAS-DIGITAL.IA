@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, Check, Clock, ExternalLink, Globe2, LoaderCircle, Sparkles } from 'lucide-react';
 import AtlasLogo from './AtlasLogo';
+import ExpressVisualGallery from './ExpressVisualGallery';
+import { auth } from '../lib/firebase';
 import { EXPRESS_HOURS, EXPRESS_PRICE, EXPRESS_WHATSAPP, expressDate, expressMoney, type ExpressBusiness, type ExpressPreview, type ExpressStatus } from '../lib/expressOrder';
 
 const blank: ExpressBusiness = { name: '', segment: '', city: '', services: '', whatsapp: '', photo: '' };
@@ -9,9 +11,14 @@ const primary = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-
 const secondary = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold text-white hover:border-[#E2B755] disabled:opacity-50';
 
 async function api<T>(query: string, body?: object): Promise<T> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (query === 'view=config' || query === 'view=generate') {
+    await auth.authStateReady();
+    if (auth.currentUser) headers.Authorization = 'Bearer ' + await auth.currentUser.getIdToken();
+  }
   const response = await fetch('/api/site-express?' + query, body ? {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-  } : undefined);
+    method: 'POST', headers, body: JSON.stringify(body),
+  } : { headers });
   const data = await response.json().catch(() => null);
   if (!response.ok || !data) throw new Error(data?.error || 'Não foi possível concluir agora.');
   return data;
@@ -32,12 +39,15 @@ export default function SiteExpressPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [editing, setEditing] = useState(false);
+  const [brandColor, setBrandColor] = useState('');
+  const [device, setDevice] = useState<'mobile' | 'desktop'>('mobile');
+  const [visualAvailable, setVisualAvailable] = useState(false);
   const [orderId] = useState(() => new URLSearchParams(location.search).get('pedido'));
 
   useEffect(() => {
     let mounted = true;
-    api<{ checkout: boolean; sandbox: boolean }>('view=config').then(config => {
-      if (mounted) { setCheckout(config.checkout); setSandbox(config.sandbox); }
+    api<{ checkout: boolean; sandbox: boolean; visualAvailable?: boolean }>('view=config').then(config => {
+      if (mounted) { setCheckout(config.checkout); setSandbox(config.sandbox); setVisualAvailable(config.visualAvailable === true); }
     }).catch(() => {});
     const draft = new URLSearchParams(location.search).get('previa');
     if (draft && !orderId) {
@@ -90,7 +100,7 @@ export default function SiteExpressPage() {
     event.preventDefault();
     setBusy('generate'); setError(''); setNotice('');
     try {
-      const result = await api<ExpressPreview>('view=generate', { business });
+      const result = await api<ExpressPreview>('view=generate', { business, brandColor, device, visual: visualAvailable });
       setPreview(result);
       setBusiness(result.business);
       setEditing(false);
@@ -163,7 +173,7 @@ export default function SiteExpressPage() {
               </div>
             </div>
             <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_21rem]">
-              <article className="overflow-hidden rounded-2xl bg-[#ebeee5] text-[#182b23]" aria-label="Prévia do site">
+              {preview.visual ? <ExpressVisualGallery key={preview.id} preview={preview as ExpressPreview & { visual: NonNullable<ExpressPreview['visual']> }} /> : <article className="overflow-hidden rounded-2xl bg-[#ebeee5] text-[#182b23]" aria-label="Prévia do site">
                 <div className="flex items-center gap-2 px-5 py-4 text-sm font-bold"><Globe2 size={16} /> {preview.business.name}</div>
                 <div className="relative isolate overflow-hidden bg-[#19372c] px-5 py-12 text-white sm:px-8 md:py-16">
                   {preview.business.photo && <>
@@ -185,7 +195,7 @@ export default function SiteExpressPage() {
                     </div>
                   ))}</div>
                 </div>}
-              </article>
+              </article>}
               <aside className="rounded-2xl border border-white/15 bg-[#14161a] p-5">
                 <fieldset className="mb-5 space-y-2 border-b border-white/10 pb-4">
                   <legend className="mb-2 text-sm font-bold">Qual tipo de projeto você precisa?</legend>
@@ -233,7 +243,7 @@ export default function SiteExpressPage() {
           <div className="mx-auto max-w-2xl">
             <p className="flex items-center gap-2 text-sm font-semibold text-[#E2B755]"><Sparkles size={18} /> Atlas Site Express</p>
             <h1 className="mt-3 font-display text-4xl font-bold tracking-tight md:text-5xl">Veja como pode ficar o site da sua empresa</h1>
-            <p className="mt-4 text-zinc-300">Gere uma prévia gratuita com os dados do seu negócio.</p>
+            <p className="mt-4 text-zinc-300">{visualAvailable ? 'Conheça uma proposta visual para sua empresa: quatro telas em imagens de alta qualidade, com uma identidade pensada para o seu ramo.' : 'Gere uma prévia gratuita com os dados do seu negócio.'}</p>
             <p className="mt-3 text-sm leading-relaxed text-zinc-300">
               Site de uma página por <strong className="text-[#E2B755]">{expressMoney(EXPRESS_PRICE)}</strong>, com entrega por e-mail em até {EXPRESS_HOURS} horas após a aprovação do pagamento.
             </p>
@@ -265,8 +275,19 @@ export default function SiteExpressPage() {
               <label className="block text-sm font-medium">Link de uma foto da empresa (opcional)
                 <input className={inputStyle + ' mt-1'} type="url" value={business.photo} onChange={e => update('photo', e.target.value)} maxLength={800} />
               </label>
-              <p className="text-xs leading-relaxed text-zinc-400">Use dados comerciais. Qualquer pessoa com o link poderá abrir a prévia.</p>
-              <button className={primary} disabled={Boolean(busy)}>{busy === 'generate' ? <><LoaderCircle className="animate-spin" size={16} /> Gerando sua prévia…</> : <>Gerar prévia <ArrowRight size={17} /></>}</button>
+              {visualAvailable && <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm font-medium">Cor principal da marca (opcional)
+                  <input className={inputStyle + ' mt-1'} value={brandColor} onChange={e => setBrandColor(e.target.value)} pattern="#[a-fA-F0-9]{6}" maxLength={7} placeholder="#123456" />
+                  <span className="mt-1 block text-xs font-normal text-zinc-500">Deixe em branco para uma sugestão adequada ao seu setor.</span>
+                </label>
+                <label className="block text-sm font-medium">Formato das imagens
+                  <select className={inputStyle + ' mt-1 bg-[#14161a]'} value={device} onChange={e => setDevice(e.target.value as 'mobile' | 'desktop')}>
+                    <option value="mobile">Mobile · foco no celular</option><option value="desktop">Desktop · tela ampla</option>
+                  </select>
+                </label>
+              </div>}
+              <p className="text-xs leading-relaxed text-zinc-400">{visualAvailable && 'Pesquisamos três referências do setor para orientar uma proposta original. A criação das imagens pode levar alguns minutos. '}Use dados comerciais: qualquer pessoa com o link poderá abrir a prévia.</p>
+              <button className={primary} disabled={Boolean(busy)}>{busy === 'generate' ? <><LoaderCircle className="animate-spin" size={16} /> Preparando sua prévia…</> : <>{visualAvailable ? 'Gerar prévia visual' : 'Gerar prévia'} <ArrowRight size={17} /></>}</button>
             </form>
           </div>
         )}

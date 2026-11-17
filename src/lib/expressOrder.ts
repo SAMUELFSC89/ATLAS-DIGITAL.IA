@@ -17,6 +17,23 @@ export interface ExpressPreview {
   title: string;
   introduction: string;
   offers: { title: string; description: string }[];
+  visual?: ExpressVisual;
+}
+
+export const PREVIEW_PAGES = [
+  { id: 'home', title: 'Início' }, { id: 'services', title: 'Serviços' },
+  { id: 'about', title: 'Sobre' }, { id: 'contact', title: 'Contato' },
+] as const;
+export type PreviewPageId = typeof PREVIEW_PAGES[number]['id'];
+export interface PreviewReference { title: string; url: string; insight: string }
+export interface ExpressVisual {
+  status: 'researching' | 'generating' | 'ready' | 'error';
+  device: 'mobile' | 'desktop';
+  expiresAt: number;
+  references: PreviewReference[];
+  searchSuggestions?: string;
+  message?: string;
+  pages: { id: PreviewPageId; title: string; status: 'pending' | 'generating' | 'ready'; imageUrl?: string; width?: number; height?: number }[];
 }
 
 export type ExpressStatus = 'pending' | 'paid' | 'production' | 'delivered' | 'expired' | 'refunded';
