@@ -25,6 +25,24 @@
   "functions": {
     "api/radar.ts": {
       "maxDuration": 60
+    },
+    "api/site-express.ts": {
+      "maxDuration": 45
     }
-  }
+  },
+  "headers": [
+    {
+      "source": "/site-express",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    }
+  ]
 }
