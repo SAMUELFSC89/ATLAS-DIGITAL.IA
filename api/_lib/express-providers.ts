@@ -117,12 +117,23 @@ export async function mercadoPagoRequest(path: string, data?: object) {
 export function verifyMercadoPagoSignature(paymentId: string, requestId: string, signature: string, secret: string, now = Date.now()) {
   const parts = signature.split(',').map(part => part.trim());
   const timestamp = parts.find(part => part.startsWith('ts='))?.slice(3) || '';
-  if (!/^\d{10,13}$/.test(timestamp) || !/^[a-z0-9-]{1,128}$/i.test(requestId)) return false;
+  const timestampValid = /^\d{10,13}$/.test(timestamp);
+  const requestIdValid = /^[a-z0-9-]{1,128}$/i.test(requestId);
+  if (!timestampValid || !requestIdValid) {
+    console.warn('[Site Express Signature] Formato inválido.', { timestampValid, requestIdValid });
+    return false;
+  }
   const time = Number(timestamp) * (timestamp.length > 10 ? 1 : 1000);
-  if (Math.abs(now - time) > 10 * 60 * 1000) return false;
   const manifest = `id:${paymentId};request-id:${requestId};ts:${timestamp};`;
   const expected = createHmac('sha256', secret).update(manifest).digest();
-  return parts.some(part => /^v1=[a-f0-9]{64}$/i.test(part) && timingSafeEqual(expected, Buffer.from(part.slice(3), 'hex')));
+  const matches = parts.some(part => /^v1=[a-f0-9]{64}$/i.test(part) && timingSafeEqual(expected, Buffer.from(part.slice(3), 'hex')));
+  const timestampFresh = Math.abs(now - time) <= 10 * 60 * 1000;
+  if (!matches || !timestampFresh) {
+    console.warn('[Site Express Signature] Validação rejeitada.', {
+      signatureMatches: matches, timestampFresh, ageSeconds: Math.round((now - time) / 1000),
+    });
+  }
+  return matches && timestampFresh;
 }
 
 export async function sendExpressEmail(to: string, subject: string, text: string, idempotency: string) {
