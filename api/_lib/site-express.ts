@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { getAuthenticatedEmail } from '../radar.js';
+import { reconcileExpressPayment } from './express-payment.js';
 import { normalizeBrazilianWhatsApp } from '../../src/lib/contact.js';
 import { EXPRESS_PRICE, type ExpressBusiness, type ExpressOrder } from '../../src/lib/expressOrder.js';
 import { findExpressPlace, generateExpressContent, publicUrl, mercadoPagoRequest } from './express-providers.js';
@@ -149,7 +150,12 @@ export default async function siteExpress(req: Request, res: Response) {
       if (view === 'order') {
         const order = (await orders().doc(req.query.id).get()).data();
         if (!order) return res.status(404).json({ error: 'Pedido não encontrado.' });
-        return res.json({ status: order.status, dueAt: order.dueAt, deliveredAt: order.deliveredAt });
+        const reconciled = order.status === 'pending' ? await reconcileExpressPayment(req.query.id, req.query.paymentId).catch(() => {
+          console.warn('[Site Express] Não foi possível consultar o pagamento.');
+          return null;
+        }) : null;
+        const current = reconciled || order;
+        return res.json({ status: current.status, dueAt: current.dueAt, deliveredAt: current.deliveredAt });
       }
       const preview = (await previews().doc(req.query.id).get()).data();
       if (!preview) return res.status(404).json({ error: 'Prévia não encontrada.' });

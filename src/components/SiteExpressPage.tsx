@@ -51,12 +51,16 @@ export default function SiteExpressPage() {
 
   useEffect(() => {
     if (!orderId) return;
+    const checkoutReturn = new URLSearchParams(location.search);
+    const statusParams = new URLSearchParams({ view: 'order', id: orderId });
+    const paymentId = checkoutReturn.get('payment_id') || checkoutReturn.get('collection_id');
+    if (paymentId && /^\d{1,25}$/.test(paymentId)) statusParams.set('paymentId', paymentId);
     let active = true;
     let timer: number;
     let attempts = 0;
     async function check() {
       try {
-        const result = await api<{ status: ExpressStatus; dueAt?: number }>('view=order&id=' + encodeURIComponent(orderId!));
+        const result = await api<{ status: ExpressStatus; dueAt?: number }>(statusParams.toString());
         if (!active) return;
         setOrder(result);
         setError('');
