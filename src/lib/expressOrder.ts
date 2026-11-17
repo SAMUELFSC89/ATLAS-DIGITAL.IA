@@ -1,4 +1,4 @@
-export const EXPRESS_PRICE = 9990;
+export const EXPRESS_PRICE = 29700;
 export const EXPRESS_HOURS = 48;
 export const EXPRESS_WHATSAPP = 'https://wa.me/5551994578544';
 

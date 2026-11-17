@@ -99,26 +99,29 @@ export async function generateExpressContent(business: ExpressBusiness): Promise
   };
 }
 
-export async function stripeRequest(path: string, data?: URLSearchParams, idempotency?: string) {
-  const response = await fetch('https://api.stripe.com/v1/' + path, {
+export async function mercadoPagoRequest(path: string, data?: object) {
+  const token = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
+  const response = await fetch('https://api.mercadopago.com/' + path, {
     method: data ? 'POST' : 'GET',
     headers: {
-      Authorization: 'Bearer ' + process.env.STRIPE_SECRET_KEY?.trim(),
-      ...(data && { 'Content-Type': 'application/x-www-form-urlencoded' }),
-      ...(idempotency && { 'Idempotency-Key': idempotency }),
+      Authorization: 'Bearer ' + token,
+      ...(data && { 'Content-Type': 'application/json' }),
     },
-    ...(data && { body: data }),
+    ...(data && { body: JSON.stringify(data) }),
     signal: AbortSignal.timeout(10000),
   });
-  if (!response.ok) throw new Error('Stripe request failed');
+  if (!response.ok) throw new Error('Mercado Pago request failed');
   return response.json();
 }
 
-export function verifyExpressSignature(body: Buffer, signature: string, secret: string, now = Date.now()) {
-  const parts = signature.split(',');
-  const timestamp = parts.find(part => part.startsWith('t='))?.slice(2) || '';
-  if (!/^\d{10}$/.test(timestamp) || Math.abs(now / 1000 - Number(timestamp)) > 300) return false;
-  const expected = createHmac('sha256', secret).update(timestamp + '.').update(body).digest();
+export function verifyMercadoPagoSignature(paymentId: string, requestId: string, signature: string, secret: string, now = Date.now()) {
+  const parts = signature.split(',').map(part => part.trim());
+  const timestamp = parts.find(part => part.startsWith('ts='))?.slice(3) || '';
+  if (!/^\d{10,13}$/.test(timestamp) || !/^[a-z0-9-]{1,128}$/i.test(requestId)) return false;
+  const time = Number(timestamp) * (timestamp.length > 10 ? 1 : 1000);
+  if (Math.abs(now - time) > 10 * 60 * 1000) return false;
+  const manifest = `id:${paymentId};request-id:${requestId};ts:${timestamp};`;
+  const expected = createHmac('sha256', secret).update(manifest).digest();
   return parts.some(part => /^v1=[a-f0-9]{64}$/i.test(part) && timingSafeEqual(expected, Buffer.from(part.slice(3), 'hex')));
 }
 

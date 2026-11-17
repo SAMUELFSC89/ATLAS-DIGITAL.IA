@@ -22,7 +22,8 @@ View your app in AI Studio: https://ai.studio/apps/4891cb7b-96c9-4c4e-9aa7-16118
 ## Site Express
 
 - Fluxo público em `/site-express`. Gemini e a busca do Maps usam as chaves de servidor existentes.
-- O pedido de uma página custa R$ 99,90. O prazo é de 48 horas corridas a partir do evento de pagamento e o pagamento é único.
-- O checkout permanece fechado enquanto `ATLAS_EXPRESS_CHECKOUT_MODE` estiver em `off` ou faltarem credenciais. Para testes, configure `test`, uma chave Stripe de teste, um remetente verificado do Resend e `ATLAS_EXPRESS_PUBLIC_ORIGIN` com a origem do ambiente.
-- Registre na Stripe o endpoint HTTPS `/api/site-express-webhook` para `checkout.session.completed`, `checkout.session.expired` e `charge.refunded`. Configure o segredo do endpoint em `STRIPE_EXPRESS_WEBHOOK_SECRET`. Teste a confirmação e os dois e-mails antes de usar `live` com as chaves de produção.
+- O pedido de uma página custa R$ 297,00. O prazo é de 48 horas corridas a partir da aprovação do pagamento e o pagamento é único.
+- O checkout permanece fechado enquanto `ATLAS_EXPRESS_CHECKOUT_MODE` estiver em `off` ou faltarem credenciais. Para testes, configure `test`, as credenciais de teste do Checkout Pro do Mercado Pago, um remetente verificado do Resend e `ATLAS_EXPRESS_PUBLIC_ORIGIN` com a origem do ambiente.
+- No painel do seu aplicativo Mercado Pago, configure Webhooks para **Pagamentos** com a URL HTTPS `/api/site-express-webhook`. Salve `MERCADO_PAGO_ACCESS_TOKEN` e `MERCADO_PAGO_WEBHOOK_SECRET` no servidor, usando as credenciais do ambiente correspondente. Teste o checkout, a aprovação e os dois e-mails antes de ativar `live`.
+- A opção **Projeto personalizado** abre um orçamento pelo WhatsApp. O checkout é exclusivo do pacote de uma página.
 - A conta verificada em `ATLAS_CONTACT_OWNER_EMAIL` tem acesso a **Pedidos de Site** no Portal SaaS. A entrega é iniciada pelo operador após inserir o endereço HTTPS do site final.
