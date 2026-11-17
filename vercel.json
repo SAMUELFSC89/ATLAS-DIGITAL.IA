@@ -2,6 +2,14 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/api/site-express",
+      "destination": "/api/contact?expressEndpoint=site"
+    },
+    {
+      "source": "/api/site-express-webhook",
+      "destination": "/api/contact?expressEndpoint=webhook"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },
@@ -25,6 +33,24 @@
   "functions": {
     "api/radar.ts": {
       "maxDuration": 60
+    },
+    "api/contact.ts": {
+      "maxDuration": 45
     }
-  }
+  },
+  "headers": [
+    {
+      "source": "/site-express",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    }
+  ]
 }

@@ -6,6 +6,8 @@ import dotenv from "dotenv";
 import metaHandler from "./api/meta.ts";
 import metaCallbackHandler from "./api/meta-callback.ts";
 import webhookHandler from "./api/webhook.ts";
+import siteExpress from "./api/_lib/site-express.ts";
+import expressWebhook from "./api/_lib/site-express-webhook.ts";
 import contactHandler from "./api/contact.ts";
 import aiTrainingHandler from "./api/ai-training.ts";
 import crmHandler from "./api/crm.ts";
@@ -50,7 +52,9 @@ async function startServer() {
   const PORT = 3000;
 
   app.all("/api/webhook", (req, res) => webhookHandler(req, res));
+  app.post("/api/site-express-webhook", (req, res) => expressWebhook(req, res));
   app.use(express.json());
+  app.all("/api/site-express", (req, res) => siteExpress(req, res));
 
   // Meta Integration Routes
   app.get("/api/meta", async (req, res) => {

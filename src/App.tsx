@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from './lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -73,6 +73,10 @@ import PrecosPlanos from './components/PrecosPlanos';
 import SegmentPages from './components/SegmentPages';
 import AuthPage from './components/AuthPage';
 import { Lead, LeadStatus, IntegrationConfig, LocalSearchPosition } from './types';
+
+const SiteExpressPage = lazy(() => import('./components/SiteExpressPage'));
+const ExpressOrdersPanel = lazy(() => import('./components/ExpressOrdersPanel'));
+const expressLoading = <p role="status" className="p-5 text-sm text-zinc-400">Carregando Site Express…</p>;
 
 export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -269,6 +273,8 @@ export default function App() {
     }
   }
 
+  if (window.location.pathname.replace(/\/$/, '') === '/site-express') return <Suspense fallback={expressLoading}><SiteExpressPage /></Suspense>;
+
   if (isPortalActive) {
     return (
       <div className="min-h-screen bg-[#060608] text-[#F3F4F6] font-sans antialiased flex selection:bg-[#E2B755]/20 selection:text-white">
@@ -295,6 +301,7 @@ export default function App() {
                 { id: 'radar', label: 'Radar de Mercado', icon: Compass },
                 { id: 'atlas-score', label: 'Atlas Score', icon: Award },
                 { id: 'crm', label: 'CRM Inteligente', icon: ClipboardList },
+                ...(canAccessSiteContacts ? [{ id: 'express-orders', label: 'Pedidos de Site', icon: FileText }] : []),
                 { id: 'copilot', label: 'Atlas Copilot IA', icon: Bot },
                 { id: 'ai-training', label: 'Treinar IA', icon: Bot },
                 { id: 'automacoes', label: 'APIs & Conexões', icon: Settings },
@@ -378,6 +385,8 @@ export default function App() {
           {currentUser && <div className="border-b border-zinc-900 px-6 py-2 md:hidden">
             <button type="button" onClick={() => setActivePortalTab('ai-training')}
               className="rounded-lg px-2 py-2 text-xs font-semibold text-[#E2B755]">Treinar IA</button>
+            {canAccessSiteContacts && <button type="button" onClick={() => setActivePortalTab('express-orders')}
+              className="rounded-lg px-2 py-2 text-xs font-semibold text-[#E2B755]">Pedidos de Site</button>}
           </div>}
 
           {/* Main workspace scrollable container */}
@@ -389,6 +398,7 @@ export default function App() {
               <AuthPage />
             ) : (
               <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
+                {activePortalTab === 'express-orders' && canAccessSiteContacts && <Suspense fallback={expressLoading}><ExpressOrdersPanel /></Suspense>}
                 {activePortalTab === 'dashboard' && (
                   <ExecutiveDashboard 
                     leads={crmLeads}
@@ -619,6 +629,9 @@ export default function App() {
               >
                 Solicitar diagnóstico digital
               </button>
+              <a href="/site-express" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#E2B755]/50 px-5 py-3 text-sm font-semibold text-[#E2B755] transition-colors hover:bg-[#E2B755]/10">
+                Gerar prévia grátis <ArrowRight size={16} />
+              </a>
               
               <button
                 onClick={() => openContactWithPrefill('Solicitação de Diagnóstico Gratuito - Home')}
