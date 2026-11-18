@@ -51,8 +51,9 @@ import {
   Layers
 } from 'lucide-react';
 
-import { PROBLEMS, SOLUTIONS, PORTFOLIO, STEPS, DIFFERENTIALS, TESTIMONIALS, TARGET_SEGMENTS } from './data';
+import { PROBLEMS, SOLUTIONS, STEPS, DIFFERENTIALS, TESTIMONIALS, TARGET_SEGMENTS } from './data';
 import MockupShowcase from './components/MockupShowcase';
+import PortfolioShowcase from './components/PortfolioShowcase';
 import BudgetSimulator from './components/BudgetSimulator';
 import InteractiveContactModal from './components/InteractiveContactModal';
 import SegmentDemoShowcase from './components/SegmentDemoShowcase';
@@ -748,84 +749,7 @@ export default function App() {
         </div>
       </section>
 
-      {/* PORTFÓLIO */}
-      <section id="portfolio" className="py-32 border-y border-zinc-900/40 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          {/* Section Header */}
-          <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
-            <span className="text-[10px] text-zinc-400 uppercase tracking-[0.2em] font-mono font-bold">Portfólio Selecionado</span>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-white tracking-tight leading-tight">
-              Experiências Digitais Sob Medida
-            </h2>
-            <p className="text-sm md:text-base text-zinc-300 leading-relaxed max-w-2xl mx-auto">
-              Cada segmento exige uma engenharia exclusiva. Conheça a anatomia de alguns de nossos projetos desenvolvidos para máxima performance.
-            </p>
-          </div>
-
-          {/* 3 Large Portfolio Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {PORTFOLIO.map((item) => (
-              <div 
-                key={item.id}
-                className="group flex flex-col justify-between bg-zinc-950/50 border border-zinc-900 rounded-[32px] overflow-hidden transition-all duration-300 hover:border-zinc-300 hover:shadow-lg h-full"
-              >
-                {/* Image Container with Hover Zoom */}
-                <div className="relative aspect-[16/10] overflow-hidden bg-zinc-950">
-                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent z-10 opacity-60" />
-                  <img 
-                    src={item.image} 
-                    alt={item.title} 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-102"
-                    referrerPolicy="no-referrer"
-                  />
-                  <span className="absolute top-4 left-4 z-20 bg-black/80 backdrop-blur-md border border-zinc-800 text-white text-[10px] font-medium tracking-wider uppercase py-1 px-3 rounded-full">
-                    {item.segment}
-                  </span>
-                </div>
-
-                {/* Info Container */}
-                <div className="p-8 space-y-6 flex-1 flex flex-col justify-between text-left">
-                  <div className="space-y-4">
-                    <div>
-                      <span className="text-[10px] uppercase font-mono font-medium tracking-wider text-zinc-400">{item.subtitle}</span>
-                      <h3 className="text-lg font-semibold text-white group-hover:text-zinc-200 transition-colors leading-tight mt-1">
-                        {item.title}
-                      </h3>
-                    </div>
-                    
-                    <p className="text-sm text-zinc-700 leading-relaxed">
-                      {item.description}
-                    </p>
-
-                    {/* Features badges */}
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {item.features.map((feat, idx) => (
-                        <span key={idx} className="text-[9px] font-medium bg-black text-zinc-300 py-1.5 px-3 rounded-full border border-zinc-900 flex items-center gap-1.5">
-                          <span className="w-1 h-1 rounded-full bg-zinc-400"></span>
-                          {feat}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* CTA button */}
-                  <div className="pt-6 border-t border-zinc-900">
-                    <button
-                      onClick={() => openContactWithPrefill(item.segment)}
-                      className="w-full bg-black hover:bg-white text-zinc-300 hover:text-black border border-zinc-900 hover:border-white font-medium text-xs uppercase tracking-wider py-3 px-5 rounded-full flex items-center justify-center gap-1.5 transition-all duration-300"
-                    >
-                      Solicitar Projeto Similar
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-        </div>
-      </section>
+      <PortfolioShowcase openContact={openContactWithPrefill} />
 
       {/* SEÇÃO PREMIUM: VISUALIZAR MODELO INTERATIVO (DEMONSTRAÇÃO AO VIVO) */}
       <SegmentDemoShowcase openContactWithPrefill={openContactWithPrefill} />
