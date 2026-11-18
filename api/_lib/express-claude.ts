@@ -47,6 +47,7 @@ export async function claudeText(system: string, user: string, timeoutMs: number
     }
   }
   if (stop === 'max_tokens') throw new ClaudeError(413, false);
+  if (stop === 'refusal') throw new ClaudeError(422, true);
   return text;
 }
 
