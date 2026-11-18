@@ -1,4 +1,3 @@
-import { claudeConfigured } from './express-claude.js';
 import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { getAuthenticatedEmail } from '../radar.js';
@@ -9,6 +8,8 @@ import { advanceVisualPreview, createVisualPreview, initialVisual, readVisualIma
 import { DEFAULT_VISUAL_PROMPT } from '../../src/lib/expressVisualPrompt.js';
 import { generateExpressContent, publicUrl, mercadoPagoRequest } from './express-providers.js';
 import { ExpressAssetError, readExpressAsset, resolveExpressAssets, saveExpressAsset } from './express-assets.js';
+import { claudeConfigured } from './express-claude.js';
+import { connectDomain, finalizeSite, publishedUrl, saveSiteAssets, saveSiteNotes, servePublished } from './express-finalize.js';
 import { checkoutEnabled, db, defaultCapacity, orderId, orders, previews, publicOrigin, rateLimit, saoPauloDay, sendDelivery, sendReceipt, settings } from './express-store.js';
 
 const clean = (value: unknown, length: number) =>
@@ -111,9 +112,12 @@ async function admin(req: Request, res: Response) {
       orders().orderBy('createdAt', 'desc').limit(100).get(), settings().get(),
     ]);
     return res.json({ orders: snapshots.docs.map(doc => {
-      const { previewId, business, email, status, amount, createdAt, dueAt, receiptSentAt, deliveredAt, finalUrl, mode, deliveryAttempt } = doc.data();
-      return { id: doc.id, previewId, business, email, status, amount, createdAt, dueAt, receiptSentAt, deliveredAt, finalUrl, mode, deliveryUrl: deliveryAttempt?.url };
-    }), capacity: config.data()?.capacity ?? defaultCapacity,
+      const { previewId, business, email, status, amount, createdAt, dueAt, receiptSentAt, deliveredAt, finalUrl, mode, deliveryAttempt,
+        siteNotes, siteSlug, siteVersion, siteFinalAt, siteDomain } = doc.data();
+      return { id: doc.id, previewId, business, email, status, amount, createdAt, dueAt, receiptSentAt, deliveredAt, finalUrl, mode, deliveryUrl: deliveryAttempt?.url,
+        siteNotes: siteNotes || '', siteUrl: siteSlug ? publishedUrl(siteSlug) : undefined, siteVersion, siteFinalAt, siteDomain };
+    }), capacity: config.data()?.capacity ?? defaultCapacity, claudeReady: claudeConfigured(),
+      domainAutomatic: Boolean(process.env.VERCEL_TOKEN?.trim() && process.env.VERCEL_PROJECT_ID?.trim()),
       visualPrompt: config.data()?.visualPrompt ?? DEFAULT_VISUAL_PROMPT,
       visualEnabled: config.data()?.visualEnabled === true, visualLastIssue: config.data()?.visualLastIssue || null });
   }
@@ -142,6 +146,22 @@ async function admin(req: Request, res: Response) {
     return res.json({ ok: true });
   }
   if (!orderId(id)) return res.status(400).json({ error: 'Pedido inválido.' });
+  if (action === 'siteNotes') {
+    const problem = await saveSiteNotes(id, req.body.notes);
+    return problem ? res.status(400).json({ error: problem }) : res.json({ ok: true });
+  }
+  if (action === 'siteAssets') {
+    const problem = await saveSiteAssets(id, req.body);
+    return problem ? res.status(409).json({ error: problem }) : res.json({ ok: true });
+  }
+  if (action === 'finalize') {
+    const result = await finalizeSite(id);
+    return 'error' in result ? res.status(409).json(result) : res.json(result);
+  }
+  if (action === 'domain') {
+    const result = await connectDomain(id, req.body.domain);
+    return 'error' in result ? res.status(400).json(result) : res.json(result);
+  }
   const ref = orders().doc(id);
   if (action === 'production') {
     const changed = await db().runTransaction(async tx => {
@@ -177,6 +197,7 @@ export default async function siteExpress(req: Request, res: Response) {
       return visual ? res.json({ visual }) : res.status(404).json({ error: 'Prévia visual não encontrada.' });
     }
     if (req.method === 'GET') {
+      if (view === 'published') return await servePublished(req, res);
       if (view === 'config') {
         const config = (await settings().get()).data();
         return res.json({ checkout: checkoutEnabled() && canBuy(process.env.ATLAS_EXPRESS_CHECKOUT_MODE || ''),
@@ -243,7 +264,7 @@ export default async function siteExpress(req: Request, res: Response) {
     const id = randomUUID();
     business.assets = await resolveExpressAssets(req.body, id);
     business.photo = business.assets.find(asset => asset.kind === 'photo')?.url || '';
-    if (req.body?.visual !== true) {
+    if (!visualRequested) {
       const content = await generateExpressContent(business);
       await previews().doc(id).create({ business, ...content, createdAt: Date.now() });
       return res.json({ id, business, ...content });

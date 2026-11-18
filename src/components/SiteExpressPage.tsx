@@ -237,7 +237,7 @@ export default function SiteExpressPage() {
           <div className="mx-auto max-w-2xl">
             <p className="flex items-center gap-2 text-sm font-semibold text-[#E2B755]"><Sparkles size={18} /> Atlas Site Express</p>
             <h1 className="mt-3 font-display text-4xl font-bold tracking-tight md:text-5xl">Veja como pode ficar o site da sua empresa</h1>
-            <p className="mt-4 text-zinc-300">{visualAvailable ? 'Conheça uma proposta visual para sua empresa: quatro telas em imagens de alta qualidade, com uma identidade pensada para o seu ramo.' : 'Gere uma prévia gratuita com os dados do seu negócio.'}</p>
+            <p className="mt-4 text-zinc-300">{visualAvailable ? 'Veja o seu site antes de comprar: criamos uma página com a identidade do seu ramo e mostramos as seções Início, Serviços, Sobre e Contato.' : 'Gere uma prévia gratuita com os dados do seu negócio.'}</p>
             <p className="mt-3 text-sm leading-relaxed text-zinc-300">
               Site de uma página por <strong className="text-[#E2B755]">{expressMoney(EXPRESS_PRICE)}</strong>, com entrega por e-mail em até {EXPRESS_HOURS} horas após a aprovação do pagamento.
             </p>
@@ -264,7 +264,7 @@ export default function SiteExpressPage() {
                   <input className={inputStyle + ' mt-1'} value={brandColor} onChange={e => setBrandColor(e.target.value)} pattern="#[a-fA-F0-9]{6}" maxLength={7} placeholder="#123456" />
                   <span className="mt-1 block text-xs font-normal text-zinc-500">Deixe em branco para uma sugestão adequada ao seu setor.</span>
                 </label>
-                <label className="block text-sm font-medium">Formato das imagens
+                <label className="block text-sm font-medium">Visualizar como
                   <select className={inputStyle + ' mt-1 bg-[#14161a]'} value={device} onChange={e => setDevice(e.target.value as 'mobile' | 'desktop')}>
                     <option value="mobile">Mobile · foco no celular</option><option value="desktop">Desktop · tela ampla</option>
                   </select>

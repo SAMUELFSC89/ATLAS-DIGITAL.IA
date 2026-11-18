@@ -10,6 +10,10 @@
       "destination": "/api/contact?expressEndpoint=webhook"
     },
     {
+      "source": "/s/:slug",
+      "destination": "/api/contact?expressEndpoint=site&view=published&slug=:slug"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },
