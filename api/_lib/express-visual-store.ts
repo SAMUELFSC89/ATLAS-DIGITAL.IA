@@ -1,12 +1,17 @@
 import { createHash } from 'node:crypto';
-import { PREVIEW_PAGES, type ExpressBusiness, type ExpressPreview, type ExpressVisual, type PreviewPageId } from '../../src/lib/expressOrder.js';
-import { db, previews, saoPauloDay, settings } from './express-store.js';
+import { PREVIEW_PAGES, type ExpressPreview, type ExpressVisual, type PreviewPageId } from '../../src/lib/expressOrder.js';
+import { db, previews, publicOrigin, saoPauloDay, settings } from './express-store.js';
 import { DEFAULT_VISUAL_PROMPT } from '../../src/lib/expressVisualPrompt.js';
-import { visualAssetInputs } from './express-assets.js';
-import { extractVisualImage, getVisualInteraction, parseVisualPlan, requireActiveInteraction, startVisualImage, startVisualResearch, type VisualPlan } from './express-visual-provider.js';
+import { claudeText, extractSiteHtml, previewPrompt, SITE_SECTIONS } from './express-claude.js';
+import { renderSiteShots } from './express-render.js';
 
 const jobs = () => db().collection('expressVisualJobs');
+/** Private: generated markup never goes to the visitor, only the screenshots. */
+export const sites = () => db().collection('expressSites');
+const shots = () => db().collection('expressSiteShots');
 const nowPlusWeek = () => Date.now() + 7 * 24 * 3600000;
+export const sectionFor: Record<PreviewPageId, typeof SITE_SECTIONS[number]> = { home: 'inicio', services: 'servicos', about: 'sobre', contact: 'contato' };
+
 export function initialVisual(device: 'mobile' | 'desktop'): ExpressVisual {
   return { status: 'researching', device, expiresAt: nowPlusWeek(), references: [],
     pages: PREVIEW_PAGES.map(page => ({ ...page, status: 'pending' })) };
@@ -35,17 +40,18 @@ export async function createVisualPreview(id: string, preview: Omit<ExpressPrevi
   const creativePrompt = typeof config?.visualPrompt === 'string' ? config.visualPrompt.slice(0, 8000) : DEFAULT_VISUAL_PROMPT;
   const batch = db().batch();
   batch.create(previews().doc(id), { ...preview, createdAt: Date.now() });
-  batch.create(jobs().doc(id), { phase: 'research', operation: 'idle', activeId: '',
-    activePage: '', interactions: {}, brandColor, creativePrompt, promptUpdatedAt: config?.visualPromptUpdatedAt || 0,
-    createdAt: Date.now(), leaseUntil: 0, nextPollAt: 0 });
+  batch.create(jobs().doc(id), { phase: 'site', engine: 'claude', brandColor, creativePrompt,
+    promptUpdatedAt: config?.visualPromptUpdatedAt || 0, createdAt: Date.now(), leaseUntil: 0 });
   await batch.commit();
 }
 
 const safeFailure = (status?: number) => status === 429
   ? 'A criação da prévia está temporariamente indisponível. Seus dados foram salvos. Fale com a Atlas para continuar.'
-  : status === 403 || status === 404 || status === 400
-    ? 'A geração visual ainda não está disponível para esta configuração. Fale com a Atlas para preparar sua prévia.'
-    : 'Não foi possível concluir todas as imagens agora. As telas prontas foram preservadas. Fale com a Atlas para continuar.';
+  : status === 401 || status === 403 || status === 404 || status === 400
+    ? 'A geração da prévia ainda não está disponível para esta configuração. Fale com a Atlas para preparar sua prévia.'
+    : 'Não foi possível concluir a prévia agora. Seus dados foram salvos. Fale com a Atlas para continuar.';
+
+const LEASE = { site: 290000, shots: 120000 } as const;
 
 export async function advanceVisualPreview(id: string): Promise<ExpressVisual | null> {
   const jobRef = jobs().doc(id), previewRef = previews().doc(id);
@@ -56,102 +62,81 @@ export async function advanceVisualPreview(id: string): Promise<ExpressVisual | 
     if (!preview?.visual || !job) return null;
     const now = Date.now();
     if (['ready', 'error'].includes(preview.visual.status)) return { preview, job, claimed: false };
-    if (preview.visual.expiresAt <= now ||
-      (job.operation === 'starting' && job.leaseUntil <= now)) {
+    if (preview.visual.expiresAt <= now || job.engine !== 'claude') {
       const visual: ExpressVisual = { ...preview.visual, status: 'error', message: 'Esta geração foi interrompida. Fale com a Atlas para continuar a partir dos dados salvos.' };
       tx.update(previewRef, { visual });
       return { preview: { ...preview, visual }, job, claimed: false };
     }
-    if (job.leaseUntil > now || job.nextPollAt > now) return { preview, job, claimed: false };
-    const operation = job.activeId ? 'polling' : 'starting';
-    tx.update(jobRef, { operation, leaseUntil: now + 35000, nextPollAt: now + 5000 });
+    if (job.leaseUntil > now) return { preview, job, claimed: false };
+    tx.update(jobRef, { leaseUntil: now + LEASE[job.phase as keyof typeof LEASE] });
     return { preview, job, claimed: true };
   });
   if (!claimed) return null;
   if (!claimed.claimed) return claimed.preview.visual;
   const { preview, job } = claimed;
+  const started = Date.now();
+  let phase = job.phase as 'site' | 'shots';
+  let visual: ExpressVisual = preview.visual;
   try {
-    const page = job.phase === 'research' ? null : preview.visual.pages.find(item => item.status !== 'ready');
-    if (job.phase !== 'research' && !page) {
-      const visual: ExpressVisual = { ...preview.visual, status: 'ready' };
-      await previewRef.update({ visual });
-      await jobRef.update({ operation: 'idle', leaseUntil: 0 });
-      return visual;
+    if (phase === 'site') {
+      const prompt = previewPrompt(preview.business, { creativePrompt: job.creativePrompt || DEFAULT_VISUAL_PROMPT,
+        brandColor: job.brandColor || '', origin: publicOrigin() });
+      const html = extractSiteHtml(await claudeText(prompt.system, prompt.user, 270000));
+      visual = { ...visual, status: 'generating', pages: visual.pages.map(item => ({ ...item, status: 'generating' })) };
+      const batch = db().batch();
+      batch.set(sites().doc(id), { html, createdAt: Date.now() }, { merge: true });
+      batch.update(previewRef, { visual });
+      // Keep the lease while rendering in this same request; release it only if there is no time left.
+      const continueNow = Date.now() - started < 170000;
+      batch.update(jobRef, { phase: 'shots', leaseUntil: continueNow ? Date.now() + LEASE.shots : 0 });
+      await batch.commit();
+      if (!continueNow) return visual;
+      phase = 'shots';
     }
-    const result = job.activeId
-      ? await getVisualInteraction(job.activeId)
-      : job.phase === 'research' ? await startVisualResearch(preview.business, job.creativePrompt || DEFAULT_VISUAL_PROMPT)
-        : await startVisualImage({ business: preview.business, plan: job.plan as VisualPlan,
-          page: page!.id, device: preview.visual.device, brandColor: job.brandColor || '',
-          creativePrompt: job.creativePrompt || DEFAULT_VISUAL_PROMPT, firstInteraction: job.interactions?.home,
-          assetInputs: job.interactions?.home ? [] : await visualAssetInputs(preview.business.assets) });
-    if (!result.id) throw new Error('Missing visual interaction');
-    // Persist the provider ID before processing output, so refreshes resume instead of regenerating.
-    await jobRef.update({ activeId: result.id, activePage: page?.id || '', operation: 'polling' });
-    requireActiveInteraction(result);
-    let visual: ExpressVisual = { ...preview.visual };
-    let patch: Record<string, unknown>;
-    if (result.status === 'completed') {
-      if (job.phase === 'research') {
-        const plan = parseVisualPlan(result);
-        visual = { ...visual, status: 'generating', references: plan.references, searchSuggestions: plan.searchSuggestions };
-        patch = { phase: 'pages', plan, activeId: '', activePage: '', operation: 'idle', leaseUntil: 0 };
-      } else {
-        const image = extractVisualImage(result);
-        visual = { ...visual, pages: visual.pages.map(item => item.id === page!.id ? {
-          ...item, status: 'ready', imageUrl: `/api/site-express?view=image&id=${id}&page=${item.id}`,
-          width: image.width, height: image.height,
-        } : item) };
-        if (visual.pages.every(item => item.status === 'ready')) visual.status = 'ready';
-        patch = { [`interactions.${page!.id}`]: result.id, activeId: '', activePage: '', operation: 'idle', leaseUntil: 0 };
-      }
-    } else {
-      if (page) visual = { ...visual, pages: visual.pages.map(item => item.id === page.id ? { ...item, status: 'generating' } : item) };
-      patch = { leaseUntil: 0, nextPollAt: Date.now() + 5000 };
-    }
+    const site = (await sites().doc(id).get()).data();
+    if (typeof site?.html !== 'string') throw new Error('Missing generated site');
+    const images = await renderSiteShots(site.html, visual.device, publicOrigin());
     const batch = db().batch();
-    batch.update(jobRef, patch);
+    for (const image of images) {
+      batch.set(shots().doc(`${id}_${image.section}`), { data: image.buffer, width: image.width, height: image.height, createdAt: Date.now() });
+    }
+    visual = { ...visual, status: 'ready', pages: visual.pages.map(item => {
+      const image = images.find(shot => shot.section === sectionFor[item.id]);
+      return { ...item, status: 'ready', imageUrl: `/api/site-express?view=image&id=${id}&page=${item.id}&v=${Date.now()}`, width: image?.width, height: image?.height };
+    }) };
     batch.update(previewRef, { visual });
+    batch.update(jobRef, { phase: 'done', leaseUntil: 0 });
     await batch.commit();
     return visual;
   } catch (error) {
-    const issue = error as { status?: number; statusCode?: number; terminal?: boolean };
-    const status = Number(issue.status || issue.statusCode) || 0;
-    const visual: ExpressVisual = { ...preview.visual, status: 'error', message: safeFailure(status) };
-    console.warn('[Site Express Visual] Etapa interrompida.', { phase: job.phase, status, reason: error instanceof Error ? error.name : 'unknown' });
-    await previewRef.update({ visual });
-    await jobRef.update({ leaseUntil: 0, operation: 'failed', lastError: { status, terminal: issue.terminal === true, at: Date.now() } });
-    await settings().set({ visualLastIssue: { status, phase: job.phase, at: Date.now() } }, { merge: true });
-    return visual;
+    const issue = error as { status?: number; terminal?: boolean };
+    const status = Number(issue.status) || 0;
+    const failed: ExpressVisual = { ...visual, status: 'error', message: safeFailure(status) };
+    console.warn('[Site Express Claude] Etapa interrompida.', { phase, status, reason: error instanceof Error ? error.message.slice(0, 80) : 'unknown' });
+    await previewRef.update({ visual: failed });
+    await jobRef.update({ phase, leaseUntil: 0, lastError: { status, terminal: issue.terminal === true, at: Date.now() } });
+    await settings().set({ visualLastIssue: { status, phase, at: Date.now() } }, { merge: true });
+    return failed;
   }
 }
 
 export async function resumeVisualPreview(id: string) {
   const ref = previews().doc(id), task = jobs().doc(id);
-  const previous = (await task.get()).data();
-  let terminalId = '';
-  if (previous?.activeId && !previous.lastError) {
-    const operation = await getVisualInteraction(previous.activeId);
-    if (!['in_progress', 'completed'].includes(operation.status)) terminalId = previous.activeId;
-  }
   return db().runTransaction(async tx => {
     const [p, j] = await tx.getAll(ref, task);
     const visual = p.data()?.visual as ExpressVisual | undefined, job = j.data();
-    if (!visual || !job || visual.status !== 'error' || visual.expiresAt <= Date.now() || (job.retries || 0) >= 3) return false;
+    if (!visual || !job || job.engine !== 'claude' || visual.status !== 'error' || visual.expiresAt <= Date.now() || (job.retries || 0) >= 3) return false;
     const { message: _message, ...saved } = visual;
-    tx.update(ref, { visual: { ...saved, status: job.phase === 'research' ? 'researching' : 'generating' } });
-    tx.update(task, { operation: 'idle', leaseUntil: 0, nextPollAt: 0, retries: (job.retries || 0) + 1,
-      ...((job.lastError?.terminal || job.activeId === terminalId) && { activeId: '' }) });
+    tx.update(ref, { visual: { ...saved, status: job.phase === 'site' ? 'researching' : 'generating' } });
+    tx.update(task, { leaseUntil: 0, retries: (job.retries || 0) + 1 });
     return true;
   });
 }
 
 export async function readVisualImage(id: string, page: PreviewPageId) {
-  const [p, j] = await Promise.all([previews().doc(id).get(), jobs().doc(id).get()]);
+  const [p, s] = await Promise.all([previews().doc(id).get(), shots().doc(`${id}_${sectionFor[page]}`).get()]);
   const visual = p.data()?.visual as ExpressVisual | undefined;
-  const interactionId = j.data()?.interactions?.[page];
-  if (!visual || visual.expiresAt <= Date.now() || !interactionId ||
-    visual.pages.find(item => item.id === page)?.status !== 'ready') return null;
-  const result = await getVisualInteraction(interactionId);
-  return extractVisualImage(result);
+  const data = s.data()?.data;
+  if (!visual || visual.expiresAt <= Date.now() || !data) return null;
+  return { buffer: Buffer.from(data), mimeType: 'image/jpeg' };
 }

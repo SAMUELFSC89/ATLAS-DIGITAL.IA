@@ -10,7 +10,6 @@ export default function ExpressVisualGallery({ preview }: { key?: string; previe
   const [zoom, setZoom] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const touchStart = useRef<number | null>(null);
-  const completed = visual.pages.filter(page => page.status === 'ready').length;
   const page = visual.pages[active];
   const working = visual.status === 'researching' || visual.status === 'generating';
   const expired = visual.expiresAt <= Date.now();
@@ -61,11 +60,11 @@ export default function ExpressVisualGallery({ preview }: { key?: string; previe
       <div role="status" aria-live="polite" className="mt-4 flex items-start gap-2 text-sm leading-relaxed text-zinc-300">
         {working && !problem && !expired ? <LoaderCircle size={17} className="mt-0.5 shrink-0 animate-spin text-[#E2B755]" /> : visual.status === 'ready' ? <Check size={17} className="mt-0.5 shrink-0 text-[#E2B755]" /> : null}
         <span>{expired ? 'O prazo de disponibilidade destas imagens terminou.' : problem || visual.message ||
-          (visual.status === 'researching' ? 'Preparando sua prévia…' :
+          (visual.status === 'researching' ? 'Criando o seu site. Isso leva de 2 a 4 minutos…' :
             visual.status === 'ready' ? 'Suas quatro telas estão prontas. Deslize para conhecer a proposta.' :
-              `Criando as imagens com a mesma identidade visual. ${completed} de ${visual.pages.length} telas prontas.`)}</span>
+              'Site criado. Preparando as telas da prévia…')}</span>
       </div>
-      {working && <p className="mt-2 text-xs leading-relaxed text-zinc-500">As telas aparecem conforme ficam prontas. Você pode voltar a este link para acompanhar.</p>}
+      {working && <p className="mt-2 text-xs leading-relaxed text-zinc-500">Pode deixar esta página aberta ou voltar a este link depois para acompanhar.</p>}
     </div>
 
     <div role="tablist" aria-label="Páginas da prévia" className="grid grid-cols-4 gap-1 border-b border-white/10 bg-black/20 p-2">
@@ -87,14 +86,14 @@ export default function ExpressVisualGallery({ preview }: { key?: string; previe
       onTouchEnd={event => { if (touchStart.current !== null) { const delta = (event.changedTouches[0]?.clientX || 0) - touchStart.current; if (Math.abs(delta) > 60) move(delta < 0 ? 1 : -1); } touchStart.current = null; }}
       className="flex min-h-96 items-center justify-center bg-[#e7e6e1] p-2 sm:p-4">
       {page.imageUrl && !expired && !imageError ? <button className="block w-full cursor-zoom-in" aria-label={`Ampliar imagem da página ${page.title}`} onClick={() => setZoom(true)}>
-        <img src={page.imageUrl} alt={`Conceito visual da página ${page.title} de ${preview.business.name}`} width={page.width} height={page.height}
+        <img src={page.imageUrl} alt={`Prévia da seção ${page.title} do site de ${preview.business.name}`} width={page.width} height={page.height}
           onError={() => setImageError('Não foi possível abrir esta imagem agora. Atualize a página ou fale com a Atlas.')}
           className="mx-auto max-h-[76vh] w-full object-contain shadow-xl" />
       </button> : <div className="max-w-sm px-5 py-16 text-center text-[#282b31]">
         {working && !expired && !problem ? <LoaderCircle className="mx-auto mb-4 animate-spin" size={28} /> : <Sparkles className="mx-auto mb-4" size={28} />}
         <h3 className="text-xl font-bold">{page.title}</h3>
         <p className="mt-3 text-sm leading-relaxed">{imageError || (expired ? 'As imagens desta prévia já expiraram. Fale com a Atlas para continuar seu projeto.' : visual.status === 'error' ? visual.message :
-          visual.status === 'researching' ? 'Estamos preparando uma proposta que combine com a sua empresa.' : 'Esta tela aparecerá aqui assim que estiver pronta.')}</p>
+          visual.status === 'researching' ? 'Estamos criando um site que combine com a sua empresa.' : 'Esta tela aparecerá aqui assim que estiver pronta.')}</p>
       </div>}
     </div>
 
@@ -105,7 +104,7 @@ export default function ExpressVisualGallery({ preview }: { key?: string; previe
       <button type="button" aria-label="Próxima página" onClick={() => move(1)} className="flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-white/15 hover:bg-white/5"><ArrowRight size={18} /></button>
     </div>
     <div className="border-t border-white/10 px-4 py-4 text-xs leading-relaxed text-zinc-400 sm:px-5">
-      <p>Prévia conceitual com imagens ilustrativas. Os detalhes finais serão revisados com a Atlas. Imagens disponíveis por até 7 dias.</p>
+      <p>Prévia do seu site com marca d'água. Depois da compra, a Atlas aplica seus ajustes e entrega o site publicado, sem marca d'água. Prévia disponível por até 7 dias.</p>
       <p className="mt-2">No Site Express de uma página, os conteúdos são reunidos em uma única página. Páginas separadas e recursos especiais têm orçamento personalizado.</p>
     </div>
 
