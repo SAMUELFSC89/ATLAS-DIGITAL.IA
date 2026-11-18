@@ -3,7 +3,7 @@ import { ImagePlus, LoaderCircle, Upload, X } from 'lucide-react';
 import type { ExpressAsset } from '../lib/expressOrder';
 
 export interface UploadSession { projectId: string; writeKey: string }
-async function prepareImage(file: File, kind: 'photo' | 'logo') {
+export async function prepareImage(file: File, kind: 'photo' | 'logo') {
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 15 * 1024 * 1024) throw new Error('Escolha uma imagem JPG, PNG ou WebP de até 15 MB.');
   const source = URL.createObjectURL(file);
   try {
