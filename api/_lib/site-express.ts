@@ -1,3 +1,4 @@
+import { claudeConfigured } from './express-claude.js';
 import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { getAuthenticatedEmail } from '../radar.js';
@@ -180,7 +181,7 @@ export default async function siteExpress(req: Request, res: Response) {
         const config = (await settings().get()).data();
         return res.json({ checkout: checkoutEnabled() && canBuy(process.env.ATLAS_EXPRESS_CHECKOUT_MODE || ''),
           sandbox: process.env.ATLAS_EXPRESS_CHECKOUT_MODE === 'test',
-          visualAvailable: config?.visualEnabled === true || await visualOwner(req) });
+          visualAvailable: claudeConfigured() && (config?.visualEnabled === true || await visualOwner(req)) });
       }
       if (!orderId(req.query.id)) return res.status(400).json({ error: 'Link inválido.' });
       if (view === 'asset') {
@@ -237,7 +238,8 @@ export default async function siteExpress(req: Request, res: Response) {
     if (!business.name || !business.city || !business.segment || !business.services || !whatsapp) {
       return res.status(400).json({ error: 'Confira os campos e use um WhatsApp brasileiro com DDD.' });
     }
-    if (!process.env.GEMINI_API_KEY?.trim()) return res.status(503).json({ error: 'O gerador está indisponível no momento.' });
+    const visualRequested = req.body?.visual === true;
+    if (visualRequested ? !claudeConfigured() : !claudeConfigured() && !process.env.GEMINI_API_KEY?.trim()) return res.status(503).json({ error: 'O gerador está indisponível no momento.' });
     const id = randomUUID();
     business.assets = await resolveExpressAssets(req.body, id);
     business.photo = business.assets.find(asset => asset.kind === 'photo')?.url || '';
@@ -253,7 +255,7 @@ export default async function siteExpress(req: Request, res: Response) {
     if (brandColor && !/^#[a-f\d]{6}$/i.test(brandColor)) return res.status(400).json({ error: 'Informe uma cor no formato #123456 ou deixe em branco.' });
     const device = req.body?.device === 'desktop' ? 'desktop' : 'mobile';
     if (!(await reserveVisualBudget(ip))) return res.status(429).json({ error: 'O limite de prévias visuais gratuitas foi atingido. Fale com a Atlas para continuar.' });
-    const content = await generateExpressContent(business);
+    const content = { title: business.name, introduction: '', offers: [] };
     const visual = initialVisual(device);
     await createVisualPreview(id, { business, ...content, visual }, brandColor);
     return res.json({ id, business, ...content, visual });

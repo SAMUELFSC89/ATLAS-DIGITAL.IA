@@ -1,6 +1,6 @@
 export const DEFAULT_VISUAL_PROMPT = `Atue como diretor de arte e especialista em experiência do usuário de uma agência premium.
 
-Crie uma proposta original e comercialmente convincente, adequada ao ramo, aos serviços e à cidade da empresa. Use as três referências pesquisadas para entender o setor e melhorar a estrutura da proposta.
+Crie uma proposta original e comercialmente convincente, adequada ao ramo, aos serviços e à cidade da empresa.
 
 Priorize o celular: títulos legíveis, textos curtos, áreas de toque confortáveis e botão de WhatsApp evidente. Use fotografias pertinentes ao negócio, hierarquia clara, tipografia refinada, alinhamento preciso e espaçamento generoso. A área inicial deve ter uma fotografia marcante, título forte e chamada para ação bem posicionada.
 
