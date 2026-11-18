@@ -35,7 +35,8 @@
       "maxDuration": 60
     },
     "api/contact.ts": {
-      "maxDuration": 45
+      "maxDuration": 300,
+      "includeFiles": "node_modules/@sparticuz/chromium/bin/**"
     }
   },
   "headers": [

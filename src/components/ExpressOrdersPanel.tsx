@@ -103,9 +103,9 @@ export default function ExpressOrdersPanel() {
       {message && <p role="status" className="text-sm text-emerald-300">{message}</p>}
       {busy === 'load' && <p role="status" className="text-sm text-zinc-300">Carregando pedidos…</p>}
       <details className="rounded-xl border border-[#E2B755]/25 bg-zinc-900/70 p-4 sm:p-5">
-        <summary className="cursor-pointer font-semibold text-[#E2B755]">Prompt do Gemini · Direção criativa das prévias</summary>
-        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-300">Defina como a Atlas deve criar os mockups: estilo, tipografia, fotografias, cores, organização das páginas e o que evitar. Suas instruções serão usadas junto às três referências pesquisadas do ramo em cada nova prévia.</p>
-        {visualLastIssue && <p className="mt-3 rounded-lg border border-amber-300/20 bg-amber-900/15 p-3 text-sm text-amber-200">{visualLastIssue.status === 429 ? 'O Google recusou a última geração por limite de uso (429). Confira o faturamento e os limites do projeto da Atlas no Google AI Studio antes de retomar.' : `A última geração foi interrompida pelo serviço (${visualLastIssue.status || 'sem código'}).`} <a className="underline" href="https://aistudio.google.com/projects" target="_blank" rel="noreferrer">Abrir Google AI Studio</a></p>}
+        <summary className="cursor-pointer font-semibold text-[#E2B755]">Prompt do Claude · Direção criativa das prévias</summary>
+        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-300">Defina como a Atlas deve criar os mockups: estilo, tipografia, fotografias, cores, organização das páginas e o que evitar. Suas instruções orientarão o design de cada nova prévia.</p>
+        {visualLastIssue && <p className="mt-3 rounded-lg border border-amber-300/20 bg-amber-900/15 p-3 text-sm text-amber-200">{visualLastIssue.status === 429 ? 'A última geração atingiu o limite de uso (429). Confira os créditos e limites da API do Claude antes de retomar.' : `A última geração foi interrompida pelo serviço (${visualLastIssue.status || 'sem código'}).`} <a className="underline" href="https://platform.claude.com/dashboard" target="_blank" rel="noreferrer">Abrir painel do Claude</a></p>}
         <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-white/10 p-3">
           <p className="min-w-0 flex-1 text-sm text-zinc-300">{visualEnabled ? 'Prévias em imagens disponíveis para os visitantes.' : 'Prévias em imagens em validação. A conta da Atlas pode testar antes de liberar para os visitantes.'}</p>
           <a className={button} href="/site-express" target="_blank" rel="noreferrer">Testar uma prévia</a>
@@ -115,7 +115,7 @@ export default function ExpressOrdersPanel() {
           event.preventDefault();
           void run({ action: 'visualPrompt', visualPrompt }, 'Instruções salvas. As próximas prévias usarão este prompt.');
         }}>
-          <label className="block text-sm font-medium" htmlFor="express-visual-prompt">Suas instruções para o Gemini</label>
+          <label className="block text-sm font-medium" htmlFor="express-visual-prompt">Suas instruções para o Claude</label>
           <textarea id="express-visual-prompt" className={input + ' block min-h-80 w-full leading-relaxed'} value={visualPrompt}
             onChange={event => setVisualPrompt(event.target.value)} required maxLength={8000} rows={14} />
           <div className="flex flex-wrap items-center justify-between gap-3">
