@@ -6,7 +6,8 @@ export class ClaudeError extends Error {
   constructor(public status: number, public terminal: boolean) { super('Claude request failed'); }
 }
 
-export const claudeConfigured = () => Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+export const claudeKey = () => process.env.ANTHROPIC_API_KEY?.trim() || process.env.CHAVE_API_ANTROPICA?.trim() || '';
+export const claudeConfigured = () => Boolean(claudeKey());
 const model = () => process.env.ATLAS_EXPRESS_CLAUDE_MODEL?.trim() || 'claude-sonnet-5-5';
 
 /** Streams one Messages API call and returns the concatenated text. Streaming keeps long generations alive. */
@@ -14,7 +15,7 @@ export async function claudeText(system: string, user: string, timeoutMs: number
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
-      'x-api-key': process.env.ANTHROPIC_API_KEY?.trim() || '',
+      'x-api-key': claudeKey(),
       'anthropic-version': '2023-06-01',
       'content-type': 'application/json',
     },
@@ -48,6 +49,7 @@ export async function claudeText(system: string, user: string, timeoutMs: number
   }
   if (stop === 'max_tokens') throw new ClaudeError(413, false);
   if (stop === 'refusal') throw new ClaudeError(422, true);
+  if (stop !== 'end_turn' || !text.trim()) throw new ClaudeError(502, false);
   return text;
 }
 
@@ -73,7 +75,7 @@ const assetList = (assets: ExpressAsset[] = [], origin: string) => assets.map(as
 
 const RULES = `Regras obrigatórias:
 - Responda somente com um documento HTML completo, começando por <!DOCTYPE html>, sem explicações.
-- Um único arquivo: CSS em <style>, JavaScript mínimo opcional em <script> (só para menu mobile). Nada de frameworks ou bibliotecas. Fontes do Google Fonts são permitidas.
+- Um único arquivo: CSS em <style>, sem JavaScript; use menu mobile com <details>. Nada de frameworks ou bibliotecas. Fontes do Google Fonts são permitidas.
 - Página única com quatro seções nesta ordem e com estes ids exatos: id="inicio", id="servicos", id="sobre", id="contato". Menu com âncoras para elas.
 - Totalmente responsiva, pensada primeiro para celular (390px) e elegante no desktop (1440px).
 - Nenhum conteúdo pode depender de rolagem, animação ou JavaScript para aparecer: tudo visível ao carregar.
@@ -102,3 +104,4 @@ export function finalPrompt(business: ExpressBusiness, input: { previewHtml: str
   })}</empresa>\n<ajustes_do_cliente>${input.notes || 'Nenhum ajuste além da revisão final.'}</ajustes_do_cliente>\n<previa_aprovada>\n${input.previewHtml}\n</previa_aprovada>`;
   return { system, user };
 }
+

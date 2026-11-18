@@ -27,26 +27,29 @@ const markHtml = '<div id="atlas-preview-mark" aria-hidden="true"></div>';
  * Only our own asset origin and Google Fonts may be fetched, so generated markup cannot reach other hosts.
  */
 export async function renderSiteShots(html: string, device: 'mobile' | 'desktop', assetOrigin: string): Promise<SiteShot[]> {
-  const allowed = new Set([...ALLOWED_HOSTS, new URL(assetOrigin).hostname]);
   const browser = await launch();
   try {
     const page = await browser.newPage();
     const mobile = device === 'mobile';
-    await page.setViewport({ width: mobile ? 390 : 1440, height: mobile ? 844 : 900, deviceScaleFactor: mobile ? 2 : 1.25, isMobile: mobile, hasTouch: mobile });
+    await page.setViewport({ width: mobile ? 390 : 1440, height: mobile ? 844 : 900, deviceScaleFactor: mobile ? 3 : 1.5, isMobile: mobile, hasTouch: mobile });
+    await page.setJavaScriptEnabled(false);
+    const assetUrls = new Set([...html.matchAll(/https:\/\/[^\s"'<>]+/g)].map(match => match[0].replaceAll('&amp;', '&')).filter(value => {
+      try { const url = new URL(value); return url.origin === assetOrigin && url.pathname === '/api/site-express' && url.searchParams.get('view') === 'asset'; } catch { return false; }
+    }));
     await page.setRequestInterception(true);
     page.on('request', request => {
       const url = request.url();
       if (url.startsWith('data:') || url === 'about:blank') return void request.continue();
       try {
         const parsed = new URL(url);
-        if (parsed.protocol === 'https:' && allowed.has(parsed.hostname)) return void request.continue();
+        if (parsed.protocol === 'https:' && !parsed.username && !parsed.password && !parsed.port && (ALLOWED_HOSTS.has(parsed.hostname) || assetUrls.has(parsed.href)) && ['GET', 'HEAD'].includes(request.method())) return void request.continue();
       } catch {}
       void request.abort();
     });
     const locked = html.replace(/<\/head>/i, watermark + '</head>').replace(/<\/body>/i, markHtml + '</body>');
-    await page.setContent(locked, { waitUntil: 'load', timeout: 25000 }).catch(() => undefined);
+    await page.setContent(locked, { waitUntil: 'domcontentloaded', timeout: 20000 });
     await page.waitForNetworkIdle({ idleTime: 500, timeout: 10000 }).catch(() => undefined);
-    await page.evaluate(() => document.fonts.ready.then(() => undefined)).catch(() => undefined);
+    await Promise.race([page.evaluate(() => document.fonts.ready.then(() => undefined)), new Promise(resolve => setTimeout(resolve, 5000))]);
     // The mark covers the whole document, so every section image carries it.
     await page.evaluate(() => {
       const mark = document.getElementById('atlas-preview-mark');
@@ -72,7 +75,7 @@ export async function renderSiteShots(html: string, device: 'mobile' | 'desktop'
         quality -= 12;
       } while (buffer.length > MAX_BYTES && quality > 30);
       if (buffer.length > MAX_BYTES) throw new Error('Screenshot too large');
-      const scale = mobile ? 2 : 1.25;
+      const scale = mobile ? 3 : 1.5;
       shots.push({ section, buffer, width: Math.round(width * scale), height: Math.round(height * scale) });
     }
     return shots;
@@ -80,3 +83,4 @@ export async function renderSiteShots(html: string, device: 'mobile' | 'desktop'
     await browser.close().catch(() => undefined);
   }
 }
+

@@ -74,7 +74,6 @@ export async function advanceVisualPreview(id: string): Promise<ExpressVisual | 
   if (!claimed) return null;
   if (!claimed.claimed) return claimed.preview.visual;
   const { preview, job } = claimed;
-  const started = Date.now();
   let phase = job.phase as 'site' | 'shots';
   let visual: ExpressVisual = preview.visual;
   try {
@@ -86,12 +85,10 @@ export async function advanceVisualPreview(id: string): Promise<ExpressVisual | 
       const batch = db().batch();
       batch.set(sites().doc(id), { html, createdAt: Date.now() }, { merge: true });
       batch.update(previewRef, { visual });
-      // Keep the lease while rendering in this same request; release it only if there is no time left.
-      const continueNow = Date.now() - started < 170000;
-      batch.update(jobRef, { phase: 'shots', leaseUntil: continueNow ? Date.now() + LEASE.shots : 0 });
+      // Persist the complete site before a separate request starts the renderer.
+      batch.update(jobRef, { phase: 'shots', leaseUntil: 0 });
       await batch.commit();
-      if (!continueNow) return visual;
-      phase = 'shots';
+      return visual;
     }
     const site = (await sites().doc(id).get()).data();
     if (typeof site?.html !== 'string') throw new Error('Missing generated site');
@@ -113,8 +110,10 @@ export async function advanceVisualPreview(id: string): Promise<ExpressVisual | 
     const status = Number(issue.status) || 0;
     const failed: ExpressVisual = { ...visual, status: 'error', message: safeFailure(status) };
     console.warn('[Site Express Claude] Etapa interrompida.', { phase, status, reason: error instanceof Error ? error.message.slice(0, 80) : 'unknown' });
-    await previewRef.update({ visual: failed });
-    await jobRef.update({ phase, leaseUntil: 0, lastError: { status, terminal: issue.terminal === true, at: Date.now() } });
+    const failure = db().batch();
+    failure.update(previewRef, { visual: failed });
+    failure.update(jobRef, { phase, leaseUntil: 0, lastError: { status, terminal: issue.terminal === true, at: Date.now() } });
+    await failure.commit();
     await settings().set({ visualLastIssue: { status, phase, at: Date.now() } }, { merge: true });
     return failed;
   }
@@ -125,10 +124,11 @@ export async function resumeVisualPreview(id: string) {
   return db().runTransaction(async tx => {
     const [p, j] = await tx.getAll(ref, task);
     const visual = p.data()?.visual as ExpressVisual | undefined, job = j.data();
-    if (!visual || !job || job.engine !== 'claude' || visual.status !== 'error' || visual.expiresAt <= Date.now() || (job.retries || 0) >= 3) return false;
+    if (!visual || !job || visual.status !== 'error' || visual.expiresAt <= Date.now() || (job.retries || 0) >= 3) return false;
+    const phase = job.engine === 'claude' && job.phase === 'shots' ? 'shots' : 'site';
     const { message: _message, ...saved } = visual;
-    tx.update(ref, { visual: { ...saved, status: job.phase === 'site' ? 'researching' : 'generating' } });
-    tx.update(task, { leaseUntil: 0, retries: (job.retries || 0) + 1 });
+    tx.update(ref, { visual: { ...saved, status: phase === 'site' ? 'researching' : 'generating' } });
+    tx.update(task, { engine: 'claude', phase, leaseUntil: 0, retries: (job.retries || 0) + 1 });
     return true;
   });
 }
@@ -140,3 +140,4 @@ export async function readVisualImage(id: string, page: PreviewPageId) {
   if (!visual || visual.expiresAt <= Date.now() || !data) return null;
   return { buffer: Buffer.from(data), mimeType: 'image/jpeg' };
 }
+
