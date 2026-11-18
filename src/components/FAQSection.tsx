@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, HelpCircle, MessageSquare } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 
 interface FAQItem {
   question: string;
@@ -52,6 +52,7 @@ const FAQ_ITEMS: FAQItem[] = [
 
 export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const reduceMotion = useReducedMotion();
 
   const toggleItem = (index: number) => {
     setOpenIndex(openIndex === index ? null : index);
@@ -66,14 +67,14 @@ export default function FAQSection() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
-          <span className="text-[10px] text-[#E2B755] uppercase tracking-widest font-mono font-bold">Tire Suas Dúvidas</span>
-          <h2 className="text-2xl sm:text-3xl font-display font-black text-white uppercase tracking-tight">
+        <div className="text-center max-w-3xl mx-auto mb-12 space-y-4" data-reveal>
+          <span className="text-xs text-[#E2B755] uppercase tracking-widest font-mono font-bold">Tire Suas Dúvidas</span>
+          <h2 className="text-3xl sm:text-4xl font-display font-bold text-white tracking-tight">
             Perguntas <span className="text-[#E2B755]">Frequentes</span>
           </h2>
           <div className="w-16 h-1 bg-[#E2B755] mx-auto rounded-full mt-2" />
-          <p className="text-xs md:text-sm text-zinc-400">
-            Reunimos as dúvidas mais comuns sobre nossos services para que você tenha total transparência antes de iniciar seu projeto.
+          <p className="text-base leading-relaxed text-zinc-200">
+            Reunimos as dúvidas mais comuns sobre nossos serviços para que você tenha total transparência antes de iniciar seu projeto.
           </p>
         </div>
 
@@ -84,33 +85,39 @@ export default function FAQSection() {
             return (
               <div 
                 key={idx}
-                className="bg-[#121214]/40 border border-zinc-900 hover:border-zinc-800/80 rounded-xl overflow-hidden transition-all duration-300"
+                data-reveal
+                className={`overflow-hidden rounded-2xl border bg-[#faf9f6] shadow-lg transition-colors ${isOpen ? 'border-[#E2B755]' : 'border-white/60 hover:border-[#E2B755]/80'}`}
               >
                 <button
                   onClick={() => toggleItem(idx)}
-                  className="w-full text-left p-5 md:p-6 flex justify-between items-center gap-4 group focus:outline-none"
+                  id={`faq-question-${idx}`}
+                  aria-controls={`faq-answer-${idx}`}
+                  className="w-full min-h-16 text-left p-5 sm:p-6 flex justify-between items-center gap-4 focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-[#8b651e]"
                   aria-expanded={isOpen}
                 >
                   <div className="flex items-center gap-3">
-                    <HelpCircle className="w-4 h-4 text-[#E2B755]/80 shrink-0" />
-                    <span className="text-xs md:text-sm font-bold text-zinc-200 group-hover:text-white transition-colors">
+                    <HelpCircle className="w-5 h-5 text-[#795a20] shrink-0" />
+                    <span className="text-base sm:text-lg leading-snug font-semibold text-[#171b22]">
                       {item.question}
                     </span>
                   </div>
-                  <div className={`p-1 rounded-lg bg-zinc-950 border border-zinc-800 transition-transform duration-300 ${isOpen ? 'rotate-180 border-[#E2B755]/40' : ''}`}>
-                    <ChevronDown className={`w-4 h-4 ${isOpen ? 'text-[#E2B755]' : 'text-zinc-500'}`} />
+                  <div className={`p-2 rounded-full shrink-0 bg-[#eee9df] text-[#65491c] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
+                    <ChevronDown className="w-4 h-4" />
                   </div>
                 </button>
 
                 <AnimatePresence initial={false}>
                   {isOpen && (
                     <motion.div
+                      id={`faq-answer-${idx}`}
+                      role="region"
+                      aria-labelledby={`faq-question-${idx}`}
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.25, ease: "easeInOut" }}
+                      transition={{ duration: reduceMotion ? 0 : 0.25, ease: "easeInOut" }}
                     >
-                      <div className="px-5 pb-5 md:px-6 md:pb-6 pt-0 text-xs md:text-[13px] text-zinc-400 leading-relaxed border-t border-zinc-900/60 font-sans">
+                      <div className="mx-5 border-t border-[#ddd9d0] py-5 text-base leading-[1.8] text-[#344054] sm:mx-6 sm:py-6 sm:pl-8 font-sans">
                         {item.answer}
                       </div>
                     </motion.div>
@@ -122,21 +129,21 @@ export default function FAQSection() {
         </div>
 
         {/* Contact CTA banner under FAQ */}
-        <div className="mt-12 p-6 rounded-2xl bg-gradient-to-r from-zinc-950 to-zinc-900/60 border border-zinc-900 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+        <div className="mt-10 p-6 rounded-2xl bg-[#12161d] border border-white/15 flex flex-col sm:flex-row items-center justify-between gap-5 text-center sm:text-left" data-reveal>
           <div className="flex items-center gap-3 flex-col sm:flex-row">
             <div className="p-3 bg-[#E2B755]/10 rounded-xl text-[#E2B755] shrink-0">
               <MessageSquare className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="text-white text-xs font-bold uppercase tracking-wider">Ainda tem alguma dúvida específica?</h4>
-              <p className="text-[11px] text-zinc-500">Nossa equipe comercial está pronta para lhe atender sem compromisso.</p>
+              <h4 className="text-white text-base font-semibold">Ainda tem alguma dúvida específica?</h4>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-300">Nossa equipe comercial está pronta para lhe atender sem compromisso.</p>
             </div>
           </div>
           <a
             href="https://wa.me/5551994578544?text=Ol%C3%A1!%20Li%20o%20FAQ%20mas%20tenho%20uma%20d%C3%BAvida%20espec%C3%ADfica."
             target="_blank"
             rel="noopener noreferrer"
-            className="px-5 py-2.5 bg-[#E2B755] hover:bg-[#c5a25d] text-[#0B0B0E] text-[10px] font-black uppercase tracking-wider rounded-xl transition-all hover:scale-105"
+            className="inline-flex min-h-12 shrink-0 items-center justify-center px-5 py-3 bg-[#E2B755] hover:bg-[#f2ca6c] text-[#0B0B0E] text-sm font-bold rounded-xl transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
           >
             Falar pelo WhatsApp
           </a>
