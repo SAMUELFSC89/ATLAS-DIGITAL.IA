@@ -8,7 +8,7 @@ const examples: { id: Demo; segment: string; category: string; name: string; des
   { id: 'glass', segment: 'Vidraçaria', category: 'Vidros & fachadas', name: 'Cristal Glass', description: 'Uma experiência visual à altura da arquitetura.' },
 ];
 const photos = {
-  kitchen: '1600566753190-17f0baa2a6c3', solar: '1509391366360-2e959784a276',
+  kitchen: '1682888813789-c39fe30921e2', solar: '1509391366360-2e959784a276',
   glass: '1600585154340-be6161a56a0c', interior: '1600607687939-ce8a6c25118c',
 };
 function Photo({ photo, className = '' }: { photo: string; className?: string }) {
