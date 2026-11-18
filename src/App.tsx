@@ -72,11 +72,12 @@ import SaaSDocs from './components/SaaSDocs';
 import PrecosPlanos from './components/PrecosPlanos';
 import SegmentPages from './components/SegmentPages';
 import AuthPage from './components/AuthPage';
+import { useScrollReveal } from './lib/useScrollReveal';
 import { Lead, LeadStatus, IntegrationConfig, LocalSearchPosition } from './types';
 
 const SiteExpressPage = lazy(() => import('./components/SiteExpressPage'));
 const ExpressOrdersPanel = lazy(() => import('./components/ExpressOrdersPanel'));
-const expressLoading = <p role="status" className="p-5 text-sm text-zinc-400">Carregando Site Express…</p>;
+const expressLoading = <p role="status" className="p-5 text-sm text-zinc-300">Carregando Site Express…</p>;
 
 export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -92,6 +93,8 @@ export default function App() {
   const [activePortalTab, setActivePortalTab] = useState<string>('dashboard');
   const [auditLead, setAuditLead] = useState<Lead>();
   const [selectedLeadForCopilot, setSelectedLeadForCopilot] = useState<Lead | null>(null);
+
+  useScrollReveal(!isPortalActive && window.location.pathname.replace(/\/$/, '') !== '/site-express');
 
   useEffect(() => onAuthStateChanged(auth, (user) => {
     setCrmLeads([]);
@@ -290,7 +293,7 @@ export default function App() {
               </div>
               <div>
                 <span className="text-white text-xs font-black font-display block tracking-tight">ATLAS INTELLIGENCE</span>
-                <span className="text-[8px] font-mono font-bold text-zinc-500 uppercase tracking-widest block">SAAS PLATFORM</span>
+                <span className="text-[8px] font-mono font-bold text-zinc-400 uppercase tracking-widest block">SAAS PLATFORM</span>
               </div>
             </div>
 
@@ -319,10 +322,10 @@ export default function App() {
                     className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all flex items-center gap-2.5 ${
                       isSelected 
                         ? 'bg-zinc-900 text-[#E2B755] font-semibold border-l-2 border-[#E2B755]' 
-                        : 'text-zinc-400 hover:text-white hover:bg-zinc-950'
+                        : 'text-zinc-300 hover:text-white hover:bg-zinc-950'
                     }`}
                   >
-                    <Icon className={`w-4 h-4 ${isSelected ? 'text-[#E2B755]' : 'text-zinc-500'}`} />
+                    <Icon className={`w-4 h-4 ${isSelected ? 'text-[#E2B755]' : 'text-zinc-400'}`} />
                     <span>{tab.label}</span>
                   </button>
                 );
@@ -338,13 +341,13 @@ export default function App() {
               </div>
               <div className="overflow-hidden">
                 <span className="text-white text-[10px] font-bold block truncate">{currentUser || "Consultor Sênior"}</span>
-                <span className="text-zinc-500 text-[8px] font-mono block truncate">Acesso Administrativo</span>
+                <span className="text-zinc-400 text-[8px] font-mono block truncate">Acesso Administrativo</span>
               </div>
             </div>
 
             <button
               onClick={handlePortalSignOut}
-              className="w-full py-2 bg-zinc-950 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 border border-zinc-900 hover:border-red-900/40 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+              className="w-full py-2 bg-zinc-950 hover:bg-red-500/10 text-zinc-300 hover:text-red-400 border border-zinc-900 hover:border-red-900/40 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
             >
               <LogOut className="w-3.5 h-3.5" />
               Sair do Portal
@@ -360,7 +363,7 @@ export default function App() {
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => setIsPortalActive(false)}
-                className="text-zinc-400 hover:text-white text-xs font-mono font-bold flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-900"
+                className="text-zinc-300 hover:text-white text-xs font-mono font-bold flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-900"
               >
                 &larr; Voltar para o Site
               </button>
@@ -368,7 +371,7 @@ export default function App() {
 
             {currentUser && <button type="button" onClick={() => openAtlasScore()} className="md:hidden px-2 text-xs font-semibold text-[#E2B755]">Atlas Score</button>}
             <div className="flex items-center gap-3">
-              <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest hidden sm:inline">Status do Cluster: <strong className="text-emerald-400 font-bold">ONLINE</strong></span>
+              <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest hidden sm:inline">Status do Cluster: <strong className="text-emerald-400 font-bold">ONLINE</strong></span>
               <div className="h-4 w-px bg-zinc-900 hidden sm:inline" />
               <div className="text-right">
                 <span className="text-white text-[11px] font-semibold block">{currentUser || "Acesso ao portal"}</span>
@@ -393,7 +396,7 @@ export default function App() {
           <main className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8">
             
             {currentUser === undefined ? (
-              <p role="status" className="text-sm text-zinc-400">Verificando sua sessão...</p>
+              <p role="status" className="text-sm text-zinc-300">Verificando sua sessão...</p>
             ) : !currentUser ? (
               <AuthPage />
             ) : (
@@ -501,7 +504,7 @@ export default function App() {
           </div>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-8 text-[11px] font-medium tracking-widest uppercase text-zinc-400">
+          <nav className="hidden lg:flex items-center gap-8 text-[11px] font-medium tracking-widest uppercase text-zinc-300">
             <button onClick={() => scrollToSection('home')} className="hover:text-white transition-colors">Início</button>
             <button onClick={() => scrollToSection('solucoes')} className="hover:text-white transition-colors">Soluções</button>
             <button onClick={() => scrollToSection('portfolio')} className="hover:text-white transition-colors">Portfólio</button>
@@ -600,7 +603,7 @@ export default function App() {
           <div className="lg:col-span-6 space-y-10 text-center lg:text-left">
             
             {/* Dynamic Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-950/80 border border-zinc-900 text-[10px] uppercase font-semibold tracking-[0.15em] text-zinc-400">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-950/80 border border-zinc-900 text-[10px] uppercase font-semibold tracking-[0.15em] text-zinc-300">
               <span className="w-1.5 h-1.5 rounded-full bg-[#E2B755]"></span>
               <span>Atlas Digital &bull; Experiência Premium</span>
             </div>
@@ -612,7 +615,7 @@ export default function App() {
               </h1>
 
               {/* Persuasive Subheading */}
-              <p className="text-base sm:text-lg text-zinc-400 max-w-xl mx-auto lg:mx-0 leading-relaxed font-sans font-light">
+              <p className="text-base sm:text-lg text-zinc-300 max-w-xl mx-auto lg:mx-0 leading-relaxed font-sans">
                 Sites premium, SEO e inteligência artificial para gerar mais oportunidades comerciais.
               </p>
             </div>
@@ -644,12 +647,12 @@ export default function App() {
 
             {/* Targeted Segments Small Slider */}
             <div className="pt-6 border-t border-zinc-900/60 max-w-lg mx-auto lg:mx-0">
-              <span className="block text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest mb-3">Atendimento especializado em alto padrão</span>
+              <span className="block text-[9px] font-mono font-bold text-zinc-400 uppercase tracking-widest mb-3">Atendimento especializado em alto padrão</span>
               <div className="flex flex-wrap justify-center lg:justify-start gap-2">
                 {TARGET_SEGMENTS.map((seg, idx) => (
                   <span 
                     key={idx} 
-                    className="text-[10px] font-bold bg-[#121214] text-zinc-400 py-1.5 px-3 rounded-lg border border-zinc-800 hover:border-[#E2B755]/30 hover:text-white transition-colors cursor-default"
+                    className="text-[10px] font-bold bg-[#121214] text-zinc-300 py-1.5 px-3 rounded-lg border border-zinc-800 hover:border-[#E2B755]/30 hover:text-white transition-colors cursor-default"
                   >
                     {seg}
                   </span>
@@ -676,11 +679,11 @@ export default function App() {
           
           {/* Section Header */}
           <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
-            <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-mono font-bold">O Diagnóstico Real</span>
+            <span className="text-[10px] text-zinc-400 uppercase tracking-[0.2em] font-mono font-bold">O Diagnóstico Real</span>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-white tracking-tight leading-tight">
               Seu site está gerando clientes ou apenas existe?
             </h2>
-            <p className="text-sm md:text-base text-zinc-400 font-light leading-relaxed max-w-2xl mx-auto">
+            <p className="text-sm md:text-base text-zinc-300 leading-relaxed max-w-2xl mx-auto">
               Ter um site defasado afasta seus melhores leads e desvaloriza a percepção sobre a sua entrega.
             </p>
           </div>
@@ -690,14 +693,14 @@ export default function App() {
             {PROBLEMS.map((prob) => (
               <div 
                 key={prob.id}
-                className="p-8 bg-zinc-950/40 border border-zinc-900 rounded-3xl transition-all duration-300 hover:border-zinc-800 flex flex-col gap-5 text-left"
+                className="p-8 bg-white border border-zinc-200 shadow-sm rounded-3xl transition-all duration-300 hover:border-zinc-300 hover:shadow-lg flex flex-col gap-5 text-left"
               >
-                <div className="w-10 h-10 rounded-full flex items-center justify-center border border-zinc-900 bg-zinc-950 text-zinc-300">
-                  {renderIcon(prob.iconName, "w-4 h-4 text-zinc-300")}
+                <div className="w-10 h-10 rounded-full flex items-center justify-center border border-zinc-200 bg-zinc-100 text-zinc-900">
+                  {renderIcon(prob.iconName, "w-4 h-4 text-zinc-900")}
                 </div>
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-white text-base tracking-tight">{prob.title}</h3>
-                  <p className="text-xs text-zinc-400 leading-relaxed font-light">{prob.description}</p>
+                  <h3 className="font-semibold text-zinc-950 text-lg tracking-tight">{prob.title}</h3>
+                  <p className="text-sm text-zinc-700 leading-relaxed">{prob.description}</p>
                 </div>
               </div>
             ))}
@@ -715,11 +718,11 @@ export default function App() {
           
           {/* Section Header */}
           <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
-            <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-mono font-bold">Nosso DNA</span>
+            <span className="text-[10px] text-zinc-400 uppercase tracking-[0.2em] font-mono font-bold">Nosso DNA</span>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-white tracking-tight leading-tight">
               A Solução que Sua Empresa Precisa
             </h2>
-            <p className="text-sm md:text-base text-zinc-400 font-light leading-relaxed max-w-2xl mx-auto">
+            <p className="text-sm md:text-base text-zinc-300 leading-relaxed max-w-2xl mx-auto">
               Não fazemos sites comuns. Desenvolvemos plataformas corporativas e catálogos interativos de altíssimo padrão, desenhados cirurgicamente para gerar oportunidades e novos negócios.
             </p>
           </div>
@@ -729,14 +732,14 @@ export default function App() {
             {SOLUTIONS.map((sol) => (
               <div 
                 key={sol.id}
-                className="p-6 bg-zinc-950/40 border border-zinc-900 rounded-3xl flex flex-col justify-between transition-all duration-300 hover:border-zinc-800"
+                className="p-6 bg-white border border-zinc-200 shadow-sm rounded-3xl flex flex-col justify-between transition-all duration-300 hover:border-zinc-300 hover:shadow-lg"
               >
                 <div className="space-y-4 text-left">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center border border-zinc-900 bg-zinc-950 text-zinc-300">
-                    {renderIcon(sol.iconName, "w-4 h-4 text-zinc-300")}
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center border border-zinc-200 bg-zinc-100 text-zinc-900">
+                    {renderIcon(sol.iconName, "w-4 h-4 text-zinc-900")}
                   </div>
-                  <h3 className="font-semibold text-sm text-white tracking-tight">{sol.title}</h3>
-                  <p className="text-xs text-zinc-400 leading-relaxed font-light">{sol.description}</p>
+                  <h3 className="font-semibold text-base text-zinc-950 tracking-tight">{sol.title}</h3>
+                  <p className="text-sm text-zinc-700 leading-relaxed">{sol.description}</p>
                 </div>
               </div>
             ))}
@@ -751,11 +754,11 @@ export default function App() {
           
           {/* Section Header */}
           <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
-            <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-mono font-bold">Portfólio Selecionado</span>
+            <span className="text-[10px] text-zinc-400 uppercase tracking-[0.2em] font-mono font-bold">Portfólio Selecionado</span>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-white tracking-tight leading-tight">
               Experiências Digitais Sob Medida
             </h2>
-            <p className="text-sm md:text-base text-zinc-400 font-light leading-relaxed max-w-2xl mx-auto">
+            <p className="text-sm md:text-base text-zinc-300 leading-relaxed max-w-2xl mx-auto">
               Cada segmento exige uma engenharia exclusiva. Conheça a anatomia de alguns de nossos projetos desenvolvidos para máxima performance.
             </p>
           </div>
@@ -765,7 +768,7 @@ export default function App() {
             {PORTFOLIO.map((item) => (
               <div 
                 key={item.id}
-                className="group flex flex-col justify-between bg-zinc-950/50 border border-zinc-900 rounded-[32px] overflow-hidden transition-all duration-300 hover:border-zinc-800 h-full"
+                className="group flex flex-col justify-between bg-zinc-950/50 border border-zinc-900 rounded-[32px] overflow-hidden transition-all duration-300 hover:border-zinc-300 hover:shadow-lg h-full"
               >
                 {/* Image Container with Hover Zoom */}
                 <div className="relative aspect-[16/10] overflow-hidden bg-zinc-950">
@@ -785,20 +788,20 @@ export default function App() {
                 <div className="p-8 space-y-6 flex-1 flex flex-col justify-between text-left">
                   <div className="space-y-4">
                     <div>
-                      <span className="text-[10px] uppercase font-mono font-medium tracking-wider text-zinc-500">{item.subtitle}</span>
+                      <span className="text-[10px] uppercase font-mono font-medium tracking-wider text-zinc-400">{item.subtitle}</span>
                       <h3 className="text-lg font-semibold text-white group-hover:text-zinc-200 transition-colors leading-tight mt-1">
                         {item.title}
                       </h3>
                     </div>
                     
-                    <p className="text-xs text-zinc-400 leading-relaxed font-light">
+                    <p className="text-sm text-zinc-700 leading-relaxed">
                       {item.description}
                     </p>
 
                     {/* Features badges */}
                     <div className="flex flex-wrap gap-1.5 pt-1">
                       {item.features.map((feat, idx) => (
-                        <span key={idx} className="text-[9px] font-medium bg-black text-zinc-400 py-1.5 px-3 rounded-full border border-zinc-900 flex items-center gap-1.5">
+                        <span key={idx} className="text-[9px] font-medium bg-black text-zinc-300 py-1.5 px-3 rounded-full border border-zinc-900 flex items-center gap-1.5">
                           <span className="w-1 h-1 rounded-full bg-zinc-400"></span>
                           {feat}
                         </span>
@@ -810,7 +813,7 @@ export default function App() {
                   <div className="pt-6 border-t border-zinc-900">
                     <button
                       onClick={() => openContactWithPrefill(item.segment)}
-                      className="w-full bg-black hover:bg-white text-zinc-400 hover:text-black border border-zinc-900 hover:border-white font-medium text-xs uppercase tracking-wider py-3 px-5 rounded-full flex items-center justify-center gap-1.5 transition-all duration-300"
+                      className="w-full bg-black hover:bg-white text-zinc-300 hover:text-black border border-zinc-900 hover:border-white font-medium text-xs uppercase tracking-wider py-3 px-5 rounded-full flex items-center justify-center gap-1.5 transition-all duration-300"
                     >
                       Solicitar Projeto Similar
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -832,11 +835,11 @@ export default function App() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           
           <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
-            <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-mono font-bold">Personalização</span>
+            <span className="text-[10px] text-zinc-400 uppercase tracking-[0.2em] font-mono font-bold">Personalização</span>
             <h2 className="text-3xl sm:text-4xl font-display font-black text-white tracking-tight leading-tight">
               Personalize seu projeto
             </h2>
-            <p className="text-sm text-zinc-400 font-light leading-relaxed">
+            <p className="text-sm text-zinc-300 leading-relaxed">
               Defina os recursos de que sua marca necessita e envie a configuração para receber uma proposta sob medida sem qualquer compromisso.
             </p>
           </div>
@@ -848,7 +851,7 @@ export default function App() {
 
       <section id="diagnostico" className="scroll-mt-24 border-y border-zinc-900/60 px-4 py-20 text-center">
         <h2 className="font-display text-3xl font-black text-white">Atlas Score</h2>
-        <p className="mx-auto mt-3 max-w-lg text-sm text-zinc-400">Veja a posição da sua empresa nos resultados locais do Google para o termo e a cidade que você escolher.</p>
+        <p className="mx-auto mt-3 max-w-lg text-sm text-zinc-300">Veja a posição da sua empresa nos resultados locais do Google para o termo e a cidade que você escolher.</p>
         <button type="button" onClick={() => openAtlasScore()} className="mt-6 rounded-lg bg-[#E2B755] px-4 py-2.5 text-sm font-semibold text-black">
           Consultar posicionamento
         </button>
@@ -860,11 +863,11 @@ export default function App() {
           
           {/* Section Header */}
           <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
-            <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-mono font-bold">Metodologia</span>
+            <span className="text-[10px] text-zinc-400 uppercase tracking-[0.2em] font-mono font-bold">Metodologia</span>
             <h2 className="text-3xl sm:text-4xl font-display font-black text-white tracking-tight leading-tight">
               Do conceito ao resultado
             </h2>
-            <p className="text-sm md:text-base text-zinc-400 font-light leading-relaxed max-w-2xl mx-auto">
+            <p className="text-sm md:text-base text-zinc-300 leading-relaxed max-w-2xl mx-auto">
               Garantimos velocidade e excelência técnica, desde a concepção do diagnóstico até a entrega do projeto com suporte contínuo.
             </p>
           </div>
@@ -878,7 +881,7 @@ export default function App() {
               {STEPS.map((step, idx) => (
                 <div 
                   key={idx}
-                  className="bg-zinc-950/40 border border-zinc-900 p-6 rounded-3xl flex flex-col justify-between relative hover:border-zinc-800 transition-all duration-300 text-left"
+                  className="bg-white border border-zinc-200 shadow-sm p-6 rounded-3xl flex flex-col justify-between relative hover:border-zinc-300 hover:shadow-lg transition-all duration-300 text-left"
                 >
                   <div className="space-y-4">
                     {/* Circle counter */}
@@ -886,13 +889,13 @@ export default function App() {
                       <span className="text-xs font-semibold font-mono text-white bg-zinc-900 w-8 h-8 rounded-full flex items-center justify-center">
                         {step.number}
                       </span>
-                      <div className="text-zinc-500">
-                        {renderIcon(step.iconName, "w-4 h-4 text-zinc-500")}
+                      <div className="text-zinc-600">
+                        {renderIcon(step.iconName, "w-4 h-4 text-zinc-600")}
                       </div>
                     </div>
                     
-                    <h3 className="font-semibold text-sm text-white tracking-tight">{step.title}</h3>
-                    <p className="text-xs text-zinc-400 leading-relaxed font-light">{step.description}</p>
+                    <h3 className="font-semibold text-base text-zinc-950 tracking-tight">{step.title}</h3>
+                    <p className="text-sm text-zinc-700 leading-relaxed">{step.description}</p>
                   </div>
                 </div>
               ))}
@@ -900,14 +903,14 @@ export default function App() {
           </div>
 
           {/* Call to action card right below timeline */}
-          <div className="mt-16 bg-zinc-950/40 border border-zinc-900 rounded-[32px] p-8 flex flex-col md:flex-row items-center justify-between gap-6 text-left">
+          <div className="mt-16 bg-white border border-zinc-200 shadow-sm rounded-[32px] p-8 flex flex-col md:flex-row items-center justify-between gap-6 text-left">
             <div className="flex items-start gap-4">
               <div className="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center shrink-0 border border-zinc-800 text-white">
                 <CheckCircle2 className="w-4 h-4" />
               </div>
               <div className="space-y-1">
-                <h4 className="text-base font-semibold text-white">Pronto para dar o próximo passo na sua presença digital?</h4>
-                <p className="text-xs text-zinc-400 max-w-xl font-light">
+                <h4 className="text-lg font-semibold text-zinc-950">Pronto para dar o próximo passo na sua presença digital?</h4>
+                <p className="text-sm text-zinc-700 max-w-xl">
                   Criamos um diagnóstico gratuito exclusivo avaliando sua concorrência local, as palavras-chave mais buscadas e os recursos recomendados.
                 </p>
               </div>
@@ -915,7 +918,7 @@ export default function App() {
             
             <button
               onClick={() => openContactWithPrefill('Diagnóstico Gratuito - Timeline')}
-              className="w-full md:w-auto bg-white hover:bg-zinc-200 text-black text-xs font-semibold py-3.5 px-6 rounded-full shrink-0 transition-all hover:scale-[1.02]"
+              className="w-full md:w-auto bg-zinc-950 hover:bg-zinc-800 text-white text-sm font-semibold py-3.5 px-6 rounded-full shrink-0 transition-all hover:scale-[1.02]"
             >
               Solicitar Diagnóstico Gratuito
             </button>
@@ -930,11 +933,11 @@ export default function App() {
           
           {/* Section Header */}
           <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
-            <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-mono font-bold">Excelência</span>
+            <span className="text-[10px] text-zinc-400 uppercase tracking-[0.2em] font-mono font-bold">Excelência</span>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-white tracking-tight leading-tight">
               Os diferenciais de nossa engenharia
             </h2>
-            <p className="text-sm md:text-base text-zinc-400 font-light leading-relaxed max-w-2xl mx-auto">
+            <p className="text-sm md:text-base text-zinc-300 leading-relaxed max-w-2xl mx-auto">
               Não entregamos apenas layouts limpos. Nossa prioridade absoluta é velocidade extrema, SEO de alto impacto local e código sob medida de alta segurança.
             </p>
           </div>
@@ -944,14 +947,14 @@ export default function App() {
             {DIFFERENTIALS.map((diff) => (
               <div 
                 key={diff.id}
-                className="p-6 bg-zinc-950/40 border border-zinc-900 rounded-[32px] flex flex-col justify-between transition-all duration-300 hover:border-zinc-800 text-left"
+                className="p-6 bg-white border border-zinc-200 shadow-sm rounded-[32px] flex flex-col justify-between transition-all duration-300 hover:border-zinc-300 hover:shadow-lg text-left"
               >
                 <div className="space-y-4">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center border border-zinc-900 bg-zinc-950 text-zinc-300">
-                    {renderIcon(diff.iconName, "w-4 h-4 text-zinc-300")}
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center border border-zinc-200 bg-zinc-100 text-zinc-900">
+                    {renderIcon(diff.iconName, "w-4 h-4 text-zinc-900")}
                   </div>
-                  <h3 className="font-semibold text-sm text-white tracking-tight">{diff.title}</h3>
-                  <p className="text-xs text-zinc-400 leading-relaxed font-light">{diff.description}</p>
+                  <h3 className="font-semibold text-base text-zinc-950 tracking-tight">{diff.title}</h3>
+                  <p className="text-sm text-zinc-700 leading-relaxed">{diff.description}</p>
                 </div>
               </div>
             ))}
@@ -966,11 +969,11 @@ export default function App() {
           
           {/* Section Header */}
           <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
-            <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-mono font-bold">Resultados</span>
+            <span className="text-[10px] text-zinc-400 uppercase tracking-[0.2em] font-mono font-bold">Resultados</span>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-white tracking-tight leading-tight">
               Quem confia na Atlas
             </h2>
-            <p className="text-sm md:text-base text-zinc-400 font-light leading-relaxed max-w-2xl mx-auto">
+            <p className="text-sm md:text-base text-zinc-300 leading-relaxed max-w-2xl mx-auto">
               Veja depoimentos de empresários da marmoraria, energia solar e vidraçarias que viram seus pedidos de orçamento decolarem.
             </p>
           </div>
@@ -980,7 +983,7 @@ export default function App() {
             {TESTIMONIALS.map((test) => (
               <div 
                 key={test.id}
-                className="bg-zinc-950/40 border border-zinc-900 rounded-[32px] p-8 flex flex-col justify-between gap-6 text-left"
+                className="bg-white border border-zinc-200 shadow-sm rounded-[32px] p-8 flex flex-col justify-between gap-6 text-left"
               >
                 <div className="space-y-4">
                   {/* Rating Stars */}
@@ -991,14 +994,14 @@ export default function App() {
                   </div>
 
                   {/* Text */}
-                  <p className="text-xs text-zinc-300 leading-relaxed font-light italic">
+                  <p className="text-sm text-zinc-800 leading-relaxed italic">
                     "{test.text}"
                   </p>
                 </div>
 
                 {/* Profile Card */}
-                <div className="flex items-center gap-3 pt-4 border-t border-zinc-900">
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-zinc-950 shrink-0 border border-zinc-900">
+                <div className="flex items-center gap-3 pt-4 border-t border-zinc-200">
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-zinc-100 shrink-0 border border-zinc-200">
                     <img 
                       src={test.avatar} 
                       alt={test.name} 
@@ -1007,8 +1010,8 @@ export default function App() {
                     />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-xs text-white leading-none">{test.name}</h4>
-                    <span className="text-[10px] text-zinc-500 font-medium">{test.company}</span>
+                    <h4 className="font-semibold text-sm text-zinc-950 leading-none">{test.name}</h4>
+                    <span className="text-xs text-zinc-600 font-medium">{test.company}</span>
                   </div>
                 </div>
               </div>
@@ -1029,7 +1032,7 @@ export default function App() {
         
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-10">
           
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-zinc-950 border border-zinc-900 text-zinc-400 text-[10px] font-mono font-bold uppercase rounded-full">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-zinc-950 border border-zinc-900 text-zinc-300 text-[10px] font-mono font-bold uppercase rounded-full">
             <Sparkles className="w-3.5 h-3.5" />
             Parceria de Sucesso Comercial
           </div>
@@ -1040,7 +1043,7 @@ export default function App() {
               um site de alta performance.
             </h2>
             
-            <p className="text-sm text-zinc-400 max-w-xl mx-auto leading-relaxed font-light">
+            <p className="text-sm text-zinc-300 max-w-xl mx-auto leading-relaxed">
               Chega de perder clientes qualificados por ter uma presença digital fraca. Solicite agora uma análise gratuita e descubra como podemos aumentar seus pedidos de orçamento.
             </p>
           </div>
@@ -1058,7 +1061,7 @@ export default function App() {
               href="https://wa.me/5551994578544?text=Ol%C3%A1!%20Gostaria%20de%20solicitar%20uma%20an%C3%A1lise%20gratuita%20do%20meu%20site%20e%20saber%20dos%20or%C3%A7amentos."
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full bg-zinc-950/90 hover:bg-zinc-900 border border-zinc-900 hover:border-zinc-800 text-white font-semibold text-xs uppercase tracking-wider py-4 px-6 rounded-full flex items-center justify-center gap-2 transition-colors"
+              className="w-full bg-zinc-950/90 hover:bg-zinc-900 border border-zinc-900 hover:border-zinc-300 hover:shadow-lg text-white font-semibold text-xs uppercase tracking-wider py-4 px-6 rounded-full flex items-center justify-center gap-2 transition-colors"
             >
               <MessageCircle className="w-4 h-4 text-green-500 fill-green-500" />
               WhatsApp Direto
@@ -1066,7 +1069,7 @@ export default function App() {
           </div>
 
           {/* Quick Stats list under CTA */}
-          <div className="pt-10 flex flex-wrap justify-center gap-6 md:gap-12 text-center text-zinc-500 text-[11px] uppercase tracking-wider font-mono">
+          <div className="pt-10 flex flex-wrap justify-center gap-6 md:gap-12 text-center text-zinc-400 text-[11px] uppercase tracking-wider font-mono">
             <div>
               <div className="text-white text-base font-semibold">100%</div>
               <div className="mt-1">Exclusivo</div>
@@ -1087,13 +1090,13 @@ export default function App() {
       </section>
 
       {/* FOOTER */}
-      <footer className="border-t border-zinc-900/60 py-16 md:py-20 text-zinc-400 text-xs">
+      <footer className="border-t border-zinc-900/60 py-16 md:py-20 text-zinc-300 text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 md:gap-12">
           
           {/* Col 1: Brand details */}
           <div className="space-y-4">
             <AtlasLogo />
-            <p className="text-[11px] text-zinc-500 leading-relaxed font-light">
+            <p className="text-[11px] text-zinc-400 leading-relaxed">
               Especialistas em engenharia de conversão e sites de alto padrão para marmorarias, vidraçarias, energia solar e construtoras.
             </p>
           </div>
@@ -1136,7 +1139,7 @@ export default function App() {
             <h4 className="text-white font-semibold uppercase tracking-widest text-[10px]">Setores</h4>
             <ul className="space-y-1.5 text-[11px] font-light">
               {TARGET_SEGMENTS.map((seg, idx) => (
-                <li key={idx} className="flex items-center gap-1.5 text-zinc-500">
+                <li key={idx} className="flex items-center gap-1.5 text-zinc-400">
                   <span className="w-1 h-1 rounded-full bg-zinc-700"></span>
                   <span>{seg}</span>
                 </li>
@@ -1149,19 +1152,19 @@ export default function App() {
             <h4 className="text-white font-semibold uppercase tracking-widest text-[10px]">Fale Conosco</h4>
             <ul className="space-y-2.5 text-[11px] font-light">
               <li className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-zinc-500 shrink-0" />
+                <Phone className="w-4 h-4 text-zinc-400 shrink-0" />
                 <a href="https://wa.me/5551994578544" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
                   +55 (51) 99457-8544
                 </a>
               </li>
               <li className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-zinc-500 shrink-0" />
+                <Mail className="w-4 h-4 text-zinc-400 shrink-0" />
                 <a href="mailto:contato@atlasdigital.ia.br" className="hover:text-white transition-colors">
                   contato@atlasdigital.ia.br
                 </a>
               </li>
-              <li className="flex items-start gap-2 text-zinc-500 leading-tight">
-                <MapPin className="w-4 h-4 text-zinc-500 shrink-0 animate-pulse" />
+              <li className="flex items-start gap-2 text-zinc-400 leading-tight">
+                <MapPin className="w-4 h-4 text-zinc-400 shrink-0 animate-pulse" />
                 <span>Atendimento presencial e remoto em todo o território nacional.</span>
               </li>
             </ul>
