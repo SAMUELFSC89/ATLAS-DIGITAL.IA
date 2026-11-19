@@ -307,6 +307,8 @@ export default function App() {
             {/* Sidebar Tab Selectors */}
             {currentUser && <nav className="space-y-1 text-left">
               <a href="/criar-site" className="flex min-h-11 items-center gap-2.5 rounded-xl border border-[#E2B755]/25 bg-[#E2B755]/10 px-3.5 py-2.5 text-sm font-semibold text-[#E2B755]"><Sparkles className="h-4 w-4" />Criar meu site</a>
+              <a href="/meu-portfolio" className="flex min-h-11 items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-zinc-300 hover:text-[#E2B755]"><FolderEdit className="h-4 w-4"/> Meu portfólio</a>
+              <a href="/criadores" className="flex min-h-11 items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-zinc-300 hover:text-[#E2B755]"><Layers className="h-4 w-4"/> Comunidade de criadores</a>
               {[
                 { id: 'dashboard', label: 'Painel Executivo', icon: Layout },
                 { id: 'radar', label: 'Radar de Mercado', icon: Compass },
@@ -517,6 +519,7 @@ export default function App() {
             <button onClick={() => scrollToSection('home')} className="hover:text-white transition-colors">Início</button>
             <button onClick={() => scrollToSection('solucoes')} className="hover:text-white transition-colors">Soluções</button>
             <button onClick={() => scrollToSection('portfolio')} className="hover:text-white transition-colors">Portfólio</button>
+            <a href="/criadores" className="hover:text-white transition-colors">Criadores</a>
             <button onClick={() => scrollToSection('diagnostico')} className="text-zinc-200 hover:text-white transition-all font-semibold flex items-center gap-1.5 border border-zinc-800 rounded-full px-3 py-1 bg-zinc-900/30 hover:bg-zinc-900/80">
               <Award className="w-3.5 h-3.5" />
               Atlas Score
@@ -572,6 +575,8 @@ export default function App() {
             <button onClick={() => scrollToSection('home')} className="text-left py-2 hover:text-[#E2B755]">Início</button>
             <button onClick={() => scrollToSection('solucoes')} className="text-left py-2 hover:text-[#E2B755]">Soluções</button>
             <button onClick={() => scrollToSection('portfolio')} className="text-left py-2 hover:text-[#E2B755]">Portfólio</button>
+            <a href="/criadores" className="text-left py-2 hover:text-[#E2B755]">Comunidade de criadores</a>
+            <a href="/meu-portfolio" className="text-left py-2 hover:text-[#E2B755]">Meu portfólio</a>
             <button onClick={() => { setIsMenuOpen(false); scrollToSection('diagnostico'); }} className="text-left py-2 text-[#E2B755] font-bold flex items-center gap-1.5">
               <Award className="w-4 h-4" />
               Diagnóstico Atlas Score
