@@ -10,6 +10,10 @@
       "destination": "/api/contact?expressEndpoint=webhook"
     },
     {
+      "source": "/s/:slug",
+      "destination": "/api/contact?expressEndpoint=site&view=builder&action=published&slug=:slug"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },
@@ -42,6 +46,19 @@
   "headers": [
     {
       "source": "/site-express",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    },
+    {
+      "source": "/criar-site",
       "headers": [
         {
           "key": "X-Robots-Tag",

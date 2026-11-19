@@ -1,3 +1,4 @@
+import builder from './express-builder.js';
 import { claudeConfigured } from './express-claude.js';
 import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
@@ -170,6 +171,7 @@ export default async function siteExpress(req: Request, res: Response) {
   res.setHeader('Cache-Control', 'no-store');
   try {
     const view = req.query.view;
+    if (view === 'builder') return await builder(req, res);
     if (view === 'admin') return await admin(req, res);
     if (view === 'visual' && req.method === 'POST') {
       if (!orderId(req.body?.id)) return res.status(400).json({ error: 'Prévia inválida.' });

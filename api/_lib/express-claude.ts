@@ -8,10 +8,10 @@ export class ClaudeError extends Error {
 
 export const claudeKey = () => process.env.ANTHROPIC_API_KEY?.trim() || process.env.CHAVE_API_ANTROPICA?.trim() || '';
 export const claudeConfigured = () => Boolean(claudeKey());
-const model = () => process.env.ATLAS_EXPRESS_CLAUDE_MODEL?.trim() || 'claude-sonnet-5-5';
+export const claudeModel = () => process.env.ATLAS_EXPRESS_CLAUDE_MODEL?.trim() || 'claude-sonnet-5-5';
 
 /** Streams one Messages API call and returns the concatenated text. Streaming keeps long generations alive. */
-export async function claudeText(system: string, user: string, timeoutMs: number, maxTokens = 32000) {
+export async function claudeText(system: string, user: string | ({ type: 'text'; text: string } | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } })[], timeoutMs: number, maxTokens = 32000) {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -19,7 +19,7 @@ export async function claudeText(system: string, user: string, timeoutMs: number
       'anthropic-version': '2023-06-01',
       'content-type': 'application/json',
     },
-    body: JSON.stringify({ model: model(), max_tokens: maxTokens, stream: true, system, messages: [{ role: 'user', content: user }] }),
+    body: JSON.stringify({ model: claudeModel(), max_tokens: maxTokens, stream: true, system, messages: [{ role: 'user', content: user }] }),
     signal: AbortSignal.timeout(timeoutMs),
   });
   if (!response.ok || !response.body) {
@@ -70,7 +70,7 @@ export function extractSiteHtml(reply: string) {
 
 const assetList = (assets: ExpressAsset[] = [], origin: string) => assets.map(asset => ({
   tipo: asset.kind === 'logo' ? 'logo' : 'foto', nome: asset.name, largura: asset.width, altura: asset.height,
-  url: origin + asset.url,
+  url: new URL(asset.url || '', origin).href,
 }));
 
 const RULES = `Regras obrigatórias:
