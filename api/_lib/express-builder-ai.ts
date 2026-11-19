@@ -166,10 +166,10 @@ export async function generateDesignMockup(business:ExpressBusiness,options:Rese
   return await compressOpenAIImage(data);
 }
 
-export async function generateBuilderPhoto(business:ExpressBusiness,prompt:string,aspect:'16:9'|'3:4'='16:9', reference?:{buffer:Buffer;mimeType:string}){
+export async function generateBuilderPhoto(business:ExpressBusiness,prompt:string,aspect:'16:9'|'3:4'='16:9', reference?:{buffer:Buffer;mimeType:string;isMockup?:boolean}){
   const description='Fotografia editorial ilustrativa, sem textos, logotipos ou marcas. Não apresente como trabalho real da empresa. Ramo: '+JSON.stringify(business.segment)+'. Serviços: '+JSON.stringify(business.services)+'. Direção: '+JSON.stringify(prompt.slice(0,1500));
   const input=reference
-    ? [{type:'text' as const,text:description},{type:'image' as const,source:{media_type:reference.mimeType,data:reference.buffer.toString('base64')}}]
+    ? [{type:'text' as const,text:description+(reference.isMockup?' A imagem de referência é um mockup do site aprovado. Recrie somente sua fotografia principal, com o mesmo motivo, enquadramento, luz, materiais e paleta. Retire por completo textos, navegação, botões e qualquer interface do mockup.':'')},{type:'image' as const,source:{media_type:reference.mimeType,data:reference.buffer.toString('base64')}}]
     : description;
   return await compressOpenAIImage(await openaiImage('Gere somente a fotografia solicitada. Preserve a continuidade visual de temas, iluminação e elementos da referência quando fornecida.',input,aspect==='3:4'?'1024x1536':'1536x1024'));
 }

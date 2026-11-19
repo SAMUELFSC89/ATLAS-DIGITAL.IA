@@ -6,7 +6,7 @@ import { db, previews, settings, orders, orderId, publicOrigin, saoPauloDay, rat
 import { resolveExpressAssets, rasterInfo, ASSET_MAX_BYTES, ExpressAssetError } from './express-assets.js';
 import { extractSiteHtml } from './express-claude.js';
 import { openaiAccessMessage, openaiConfigured, openaiText } from './express-openai.js';
-import { prepareBuilderHtml, modifyBuilderHtml, builderCsp, builderImageUrl } from './express-builder-html.js';
+import { prepareBuilderHtml, modifyBuilderHtml, builderCsp, builderImageUrl, hasLegacyBuilderOpening } from './express-builder-html.js';
 import { researchBuilder, planBuilder, builderPrompt, generateBuilderPhoto, generateDesignMockup } from './express-builder-ai.js';
 import { auditBuilderSite, feedbackForPrompt } from './atlas-builder-skill.js';
 import { PortfolioError, getOwnerPortfolio, saveCreatorProfile, togglePortfolioSite, savePortfolioCaption, getPublicCreator, getPublicCreatorDirectory } from './builder-portfolio.js';
@@ -33,7 +33,7 @@ function businessInput(input:any):ExpressBusiness{
 function complete(b:ExpressBusiness){if(!b.name||!b.segment||!b.city||!b.services)fail(400,'Não foi possível identificar todos os dados básicos. Confira nome, ramo, localidade e descrição dos serviços.');if(!b.whatsapp&&(!b.phone||b.phone.replace(/\D/g,'').length<8))fail(400,'Informe um WhatsApp ou telefone comercial válido para o site ter um contato funcional.');}
 async function owned(id:any,email:string){if(!orderId(id))fail(400,'Projeto inválido.');const p=(await projects().doc(id).get()).data();if(!p||p.ownerEmail!==email)fail(404,'Projeto não encontrado nesta conta.');return p;}
 const publicMediaUrl=(id:string,file:string)=>`${publicOrigin()}/api/site-express?view=builder&action=media&id=${id}&file=${file}`;
-async function state(id:string,p:any):Promise<BuilderProject>{const messages=await projects().doc(id).collection('messages').orderBy('createdAt','desc').limit(30).get();return {id,business:p.business,locale:parseSiteLanguage(p.locale)||DEFAULT_SITE_LANGUAGE,references:p.references||[],directions:p.directions||BUILDER_DIRECTIONS,directionId:p.directionId||'editorial',sources:p.sources||[],researchNotice:p.researchNotice||'',creativePlan:p.creativePlan||null,designOptions:p.designOptions||[],awaitingDesign:Boolean(p.pendingDesign),html:p.html||'',sections:p.sections||[],version:p.version||0,status:p.status||'draft',job:p.job?{id:p.job.id,type:p.job.type,phase:p.job.phase,leaseUntil:p.job.leaseUntil||0}:null,message:p.message||'',imageNotice:p.imageNotice||'',publishedUrl:p.publishedSlug?`${publicOrigin()}/s/${p.publishedSlug}`:undefined,publishedVersion:p.publishedVersion||0,portfolioVisible:p.portfolioVisible===true,updatedAt:p.updatedAt,media:p.media||[],quality:p.quality,feedback:p.feedback,messages:messages.docs.reverse().map(doc=>({id:doc.id,...doc.data()} as any))};}
+async function state(id:string,p:any):Promise<BuilderProject>{const messages=await projects().doc(id).collection('messages').orderBy('createdAt','desc').limit(30).get();const legacy=p.html&&hasLegacyBuilderOpening(p.html)?prepareBuilderHtml(p.html,publicOrigin(),parseSiteLanguage(p.locale)||undefined):null;return {id,business:p.business,locale:parseSiteLanguage(p.locale)||DEFAULT_SITE_LANGUAGE,references:p.references||[],directions:p.directions||BUILDER_DIRECTIONS,directionId:p.directionId||'editorial',sources:p.sources||[],researchNotice:p.researchNotice||'',creativePlan:p.creativePlan||null,designOptions:p.designOptions||[],selectedDesign:p.selectedDesign||undefined,awaitingDesign:Boolean(p.pendingDesign),html:legacy?.html||p.html||'',sections:legacy?.sections||p.sections||[],version:p.version||0,status:p.status||'draft',job:p.job?{id:p.job.id,type:p.job.type,phase:p.job.phase,leaseUntil:p.job.leaseUntil||0}:null,message:p.message||'',imageNotice:p.imageNotice||'',publishedUrl:p.publishedSlug?`${publicOrigin()}/s/${p.publishedSlug}`:undefined,publishedVersion:p.publishedVersion||0,portfolioVisible:p.portfolioVisible===true,updatedAt:p.updatedAt,media:p.media||[],quality:p.quality,feedback:p.feedback,messages:messages.docs.reverse().map(doc=>({id:doc.id,...doc.data()} as any))};}
 async function addMessage(id:string,role:'user'|'assistant',text:string,referenceIds:string[]=[],key:string=randomUUID()){await projects().doc(id).collection('messages').doc(key).set({role,text:text.slice(0,3000),referenceIds,createdAt:Date.now()});}
 async function saveVersion(id:string,p:any,document:{html:string;sections:any[]},extra:any={}){return db().runTransaction(async tx=>{const ref=projects().doc(id);const current=(await tx.get(ref)).data();if(!current||current.version!==p.version||current.job)fail(409,'O site foi atualizado. Recarregue antes de salvar.');const version=(current.version||0)+1;tx.create(ref.collection('versions').doc(String(version)),{...document,locale:parseSiteLanguage(extra.locale)||parseSiteLanguage(current.locale)||DEFAULT_SITE_LANGUAGE,version,createdAt:Date.now()});tx.update(ref,{...document,...extra,quality:auditBuilderSite(document.html),feedback:null,version,status:'ready',message:'',updatedAt:Date.now()});return {...current,...document,...extra,quality:auditBuilderSite(document.html),feedback:null,version,status:'ready',message:'',updatedAt:Date.now()};});}
 async function startJob(id:string,email:string,type:string,body:any){
@@ -59,10 +59,15 @@ async function startJob(id:string,email:string,type:string,body:any){
     const ownCount=used?.data()?.count||0;
     const totalCount=all?.data()?.count||0;
     if(limit&&(ownCount>=limit||totalCount>=100))fail(429,'O limite desta operação foi atingido hoje. Seus projetos continuam salvos.');
-    const job={id:body.requestId,type,...(targetLocale?{targetLocale}:{}),phase:type==='generate'?'planning':type==='research'?'references':type==='image'?'image':'building',instruction,referenceIds:(p.references||[]).map((r:any)=>r.id),leaseUntil:0,aspect:body.aspect==='3:4'?'3:4':'16:9',createdAt:Date.now()};
+    const reuseDesign=type==='generate'&&body.reuseSelectedDesign===true;
+    if(reuseDesign&&!p.designOptions?.some((option:BuilderDesignOption)=>option.id===p.selectedDesign)){
+      fail(409,'Escolha uma proposta antes de refazer o site.');
+    }
+    const newDesign=type==='generate'&&!reuseDesign;
+    const job={id:body.requestId,type,...(targetLocale?{targetLocale}:{}),phase:reuseDesign?'selected-planning':newDesign?'planning':type==='research'?'references':type==='image'?'image':'building',instruction:reuseDesign?(p.selectedInstruction||instruction):instruction,referenceIds:(p.references||[]).map((r:any)=>r.id),leaseUntil:0,aspect:body.aspect==='3:4'?'3:4':'16:9',createdAt:Date.now()};
     if(budget&&own){tx.set(budget,{count:totalCount+1});tx.set(own,{count:ownCount+1});}
-    const reset=type==='generate'?{designOptions:[],selectedDesign:null}:{};
-    if(type==='generate')for(const option of p.designOptions||[])tx.delete(ref.collection('designs').doc(option.id));
+    const reset=newDesign?{designOptions:[],selectedDesign:null,selectedInstruction:''}:{};
+    if(newDesign)for(const option of p.designOptions||[])tx.delete(ref.collection('designs').doc(option.id));
     const update={...reset,job,lastRequestId:body.requestId,status:'working',message:'',updatedAt:Date.now()};
     tx.update(ref,update);
     return {...p,...update};
@@ -88,7 +93,7 @@ function advancePhase(ref:DocumentReference,token:string,phase:string,patch:Reco
 }
 
 function afterDesign(project:any){
-  const photos=[...(project.business.assets||[]),...(project.media||[])];
+  const photos:ExpressAsset[]=project.business.assets||[];
   return photos.some((asset:ExpressAsset)=>asset.kind==='photo')?'building':'images';
 }
 
@@ -101,7 +106,7 @@ async function chooseDesign(ref:DocumentReference,email:string,optionId:string|n
     const option=current.designOptions?.find((entry:BuilderDesignOption)=>entry.id===optionId);
     if(optionId&&!option)fail(400,'Selecione uma das três propostas.');
     const update=option
-      ? {pendingDesign:null,selectedDesign:option.id,directionId:option.direction.id,
+      ? {pendingDesign:null,selectedDesign:option.id,selectedInstruction:current.pendingDesign.instruction||'',directionId:option.direction.id,
          job:{...current.pendingDesign,phase:'selected-planning',leaseUntil:0},status:'working',message:'',updatedAt:Date.now()}
       : {pendingDesign:null,job:null,status:current.html?'ready':'draft',message:'',updatedAt:Date.now()};
     tx.update(ref,update);
@@ -166,8 +171,10 @@ async function advance(id:string,email:string){
       try{
         const automatic=job.phase==='images';
         const planned=claim.creativePlan?.heroImagePrompt||job.instruction||`Fotografia de destaque para ${claim.business.segment}.`;
-        const direction=automatic?planned+' Enquadramento fechado, objeto ou ação em destaque no lado direito, luz dramática e área escura à esquerda para a legenda.':'';
-        const close=await generateBuilderPhoto(claim.business,direction||job.instruction,automatic?'16:9':job.aspect);
+        const picked=automatic&&claim.selectedDesign?(await ref.collection('designs').doc(claim.selectedDesign).get()).data():null;
+        const reference=picked?.data?{buffer:Buffer.from(picked.data),mimeType:picked.mimeType,isMockup:true}:undefined;
+        const direction=automatic?planned+' Enquadramento fechado, com o assunto visível no lado direito e espaço negativo para a chamada no lado esquerdo. Preserve a luz e a paleta da proposta.':'';
+        const close=await generateBuilderPhoto(claim.business,direction||job.instruction,automatic?'16:9':job.aspect,reference);
         const assets=[await storeGenerated(id,close)];
         if(automatic){
           try{

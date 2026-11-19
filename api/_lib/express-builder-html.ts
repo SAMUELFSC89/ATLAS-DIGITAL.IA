@@ -33,11 +33,12 @@ const CINEMATIC_STYLES = `
 html:has([data-atlas-cinematic]), body:has([data-atlas-cinematic]), main:has(> [data-atlas-cinematic]) { overflow-x: clip !important; }
 section[data-atlas-cinematic] { display:block !important; padding:0 !important; min-height:0 !important; }
 [data-atlas-shot] { position:relative; isolation:isolate; display:grid; align-items:center; min-height:78svh; background:#151419; }
-[data-atlas-shot-media] { position:absolute; inset:0; z-index:-2; margin:0 !important; overflow:hidden; }
+[data-atlas-shot-media] { position:absolute; inset:0; z-index:0; margin:0 !important; overflow:hidden; pointer-events:none; }
 [data-atlas-shot-media] img { position:absolute !important; inset:0; width:100% !important; height:100% !important; max-width:none !important; object-fit:cover !important; border-radius:0 !important; }
 [data-atlas-shot-media] img + img { opacity:0; }
-[data-atlas-shot]::before { content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; background:linear-gradient(90deg,rgba(12,11,15,.94),rgba(12,11,15,.64) 46%,rgba(12,11,15,.12) 100%); }
-[data-atlas-shot-copy] { box-sizing:border-box; width:100%; padding:clamp(2rem,7vw,7rem); color:#fff !important; }
+[data-atlas-shot]::before { content:""; position:absolute; inset:0; z-index:1; pointer-events:none; background:linear-gradient(90deg,rgba(12,11,15,.84),rgba(12,11,15,.48) 46%,rgba(12,11,15,.04) 100%); }
+[data-atlas-shot-copy] { position:relative; z-index:2; box-sizing:border-box; width:100%; padding:clamp(2rem,7vw,7rem); color:#fff !important; }
+[data-atlas-shot-copy] [data-atlas-shot-decoration] { display:none !important; }
 [data-atlas-shot-copy] :is(h1,h2,p) { color:inherit; }
 @keyframes atlas-camera-pullback { from { transform:scale(1.42) translateX(5%); } to { transform:scale(1.015); } }
 @keyframes atlas-camera-cut { 0%,25% { opacity:0; transform:scale(1.14); } 75%,100% { opacity:1; transform:scale(1.015); } }
@@ -147,6 +148,12 @@ export function prepareBuilderHtml(raw: string, origin: string, preferredLocale?
   $('head').append(`<meta name="atlas-builder-policy" content="1"><meta http-equiv="Content-Security-Policy" content="${builderCsp(origin)}"><meta name="referrer" content="no-referrer">`);
   if(!$('meta[name="viewport"]').length)$('head').append('<meta name="viewport" content="width=device-width,initial-scale=1">');
   composeCinematicOpening($,origin,openingAssets);
+  const copy=$('[data-atlas-shot]:has([data-atlas-shot-media] img[src]) > [data-atlas-shot-copy]');
+  copy.find('[data-atlas-shot-decoration]').removeAttr('data-atlas-shot-decoration');
+  copy.find('figure,[data-atlas-scene-visual]').each((_index,node)=>{
+    const item=$(node);
+    if(!item.is('a,button')&&!item.text().trim()&&!item.find('img[src],a,button').length)item.attr('data-atlas-shot-decoration','true');
+  });
   if(storyboard?.scenes.length)applyStoryboard($,storyboard);
   const sections:BuilderSection[]=[];const used=new Set<string>();
   $('section').each((index,section)=>{let id=$(section).attr('id')||`secao-${index+1}`;id=id.replace(/[^a-z0-9_-]/gi,'').slice(0,80)||`secao-${index+1}`;if(used.has(id))id+='-'+index;used.add(id);$(section).attr('id',id);
@@ -159,6 +166,10 @@ export function prepareBuilderHtml(raw: string, origin: string, preferredLocale?
   $('#atlas-runtime-style').append(SCENE_STYLES+CINEMATIC_STYLES+STORY_STYLES);
   $('body').append('<script>'+RUNTIME+'</script>');
   return {html:'<!DOCTYPE html>\n'+$.html(),sections};
+}
+
+export function hasLegacyBuilderOpening(html:string) {
+  return html.includes('data-atlas-shot-media="true"') && !html.includes('[data-atlas-shot-copy] [data-atlas-shot-decoration]');
 }
 export function modifyBuilderHtml(html:string, operation:any,origin:string){
   const $=load(html);
