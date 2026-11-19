@@ -51,6 +51,8 @@ export default function ParticleField({ color, shape = 'nuvem', motion = true }:
       renderer.setSize(width, height, false);
       camera.aspect = width / Math.max(1, height);
       camera.updateProjectionMatrix();
+      // Without motion there is no animation loop, so the still frame is redrawn here.
+      if (!motion) renderer.render(scene, camera);
     };
     resize();
     const observer = new ResizeObserver(resize);
