@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ClipboardEvent } from 'react';
 import { ImagePlus, LoaderCircle, Upload, X } from 'lucide-react';
 import type { ExpressAsset } from '../lib/expressOrder';
 
@@ -38,9 +38,8 @@ export default function ExpressAssetUpload({ assets, session, onChange, onBusy, 
   const latest = useRef(assets); latest.current = assets;
   useEffect(() => () => { onBusy(false); }, []);
 
-  async function choose(event: ChangeEvent<HTMLInputElement>, kind: 'photo' | 'logo') {
-    const selected = Array.from(event.target.files || []) as File[]; event.target.value = '';
-    if (lock.current || !selected.length) return;
+  async function uploadFiles(selected: File[], kind: 'photo' | 'logo') {
+    if (disabled || lock.current || !selected.length) return;
     const existing = latest.current.filter(asset => asset.kind === kind);
     if (kind === 'photo' && existing.length + selected.length > 6) { setError('Você pode enviar até seis fotos.'); return; }
     lock.current = true; onBusy(true); setBusy(kind); setError('');
@@ -60,6 +59,13 @@ export default function ExpressAssetUpload({ assets, session, onChange, onBusy, 
     finally { lock.current = false; setBusy(''); onBusy(false); }
   }
 
+  function pastePhoto(event: ClipboardEvent<HTMLTextAreaElement>) {
+    event.preventDefault();
+    const files=Array.from(event.clipboardData.files as FileList).filter(file=>file.type.startsWith('image/'));
+    if(files.length)void uploadFiles(files,'photo');
+    else setError('Copie uma imagem JPG, PNG ou WebP para colar aqui.');
+  }
+
   return <fieldset disabled={Boolean(busy) || disabled} className="space-y-4 border-t border-white/10 pt-5">
     <legend className="mb-1 text-base font-bold">Imagens da sua empresa</legend>
     <p className="text-sm leading-relaxed text-zinc-400">Envie sua logo e fotos dos produtos, serviços ou ambientes que deseja mostrar.</p>
@@ -67,14 +73,15 @@ export default function ExpressAssetUpload({ assets, session, onChange, onBusy, 
       <label className="relative flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/25 bg-black/15 p-4 text-center hover:border-[#E2B755] focus-within:ring-2 focus-within:ring-[#E2B755]">
         {busy === 'logo' ? <LoaderCircle size={22} className="animate-spin text-[#E2B755]" /> : <Upload size={22} className="text-[#E2B755]" />}
         <span className="text-sm font-semibold">{busy === 'logo' ? 'Enviando logo…' : 'Enviar logo'}</span><span className="text-xs text-zinc-500">Uma imagem · opcional</span>
-        <input type="file" aria-label="Enviar logo" accept="image/jpeg,image/png,image/webp" className="absolute inset-0 h-full w-full cursor-pointer opacity-0" onChange={event => void choose(event, 'logo')} />
+        <input type="file" aria-label="Enviar logo" accept="image/jpeg,image/png,image/webp" className="absolute inset-0 h-full w-full cursor-pointer opacity-0" onChange={event => { const files=Array.from((event.currentTarget.files as FileList|null)||[]); event.currentTarget.value=''; void uploadFiles(files,'logo'); }} />
       </label>
       <label className="relative flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/25 bg-black/15 p-4 text-center hover:border-[#E2B755] focus-within:ring-2 focus-within:ring-[#E2B755]">
         {busy === 'photo' ? <LoaderCircle size={22} className="animate-spin text-[#E2B755]" /> : <ImagePlus size={22} className="text-[#E2B755]" />}
         <span className="text-sm font-semibold">{busy === 'photo' ? 'Enviando fotos…' : 'Enviar fotos'}</span><span className="text-xs text-zinc-500">Até seis imagens · opcional</span>
-        <input type="file" multiple aria-label="Enviar fotos" accept="image/jpeg,image/png,image/webp" className="absolute inset-0 h-full w-full cursor-pointer opacity-0" onChange={event => void choose(event, 'photo')} />
+        <input type="file" multiple aria-label="Enviar fotos" accept="image/jpeg,image/png,image/webp" className="absolute inset-0 h-full w-full cursor-pointer opacity-0" onChange={event => { const files=Array.from((event.currentTarget.files as FileList|null)||[]); event.currentTarget.value=''; void uploadFiles(files,'photo'); }} />
       </label>
     </div>
+    <textarea rows={1} aria-label="Colar uma foto" placeholder="Ou cole uma foto aqui" onPaste={pastePhoto} readOnly className="w-full resize-none rounded-lg border border-white/20 bg-black/15 p-3 text-sm text-zinc-300" />
     {assets.length > 0 && <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">{assets.map(asset => <li key={asset.id} className="relative overflow-hidden rounded-xl border border-white/15 bg-black/15">
       <img src={thumbnails[asset.id] || asset.url} alt={`${asset.kind === 'logo' ? 'Logo' : 'Foto'} enviada: ${asset.name}`} className={`h-28 w-full ${asset.kind === 'logo' ? 'bg-white p-3 object-contain' : 'object-cover'}`} />
       <button type="button" onClick={() => onChange(latest.current.filter(item => item.id !== asset.id))} aria-label={`Remover ${asset.name}`} className="absolute right-1 top-1 flex min-h-10 min-w-10 items-center justify-center rounded-full bg-black/75 text-white"><X size={16} /></button>

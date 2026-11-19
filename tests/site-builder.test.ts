@@ -289,5 +289,16 @@ test('Pinterest research only displays real search URLs; four uploaded images ar
  assert.match(englishPrompt.system,/English \(UK\)/);assert.doesNotMatch(englishPrompt.system,/Português brasileiro correto\./);
  assert.match(englishPrompt.system,/title e meta description/i);
  const png=await sharp({create:{width:80,height:60,channels:3,background:'#667788'}}).png().toBuffer();globalThis.fetch=async()=>new Response(JSON.stringify({output_image:{data:png.toString('base64')}}));const photo=await ai.generateBuilderPhoto(business,'Ambiente','16:9');assert.equal(photo.mimeType,'image/webp');assert.equal(photo.width,80);assert.ok(photo.buffer.length>40);
+ let imageCalls=0;
+ globalThis.fetch=async(url:any,init:any)=>{
+   imageCalls++;
+   if(imageCalls===1)return new Response('',{status:404});
+   assert.match(url,/gemini-3.1-flash-image:generateContent$/);
+   assert.equal(JSON.parse(init.body).contents[0].parts[1].inlineData.mimeType,'image/webp');
+   return new Response(JSON.stringify({candidates:[{content:{parts:[{inlineData:{mimeType:'image/png',data:png.toString('base64')}}]}}]}));
+ };
+ assert.equal((await ai.generateBuilderPhoto(business,'Abra o enquadramento','16:9',photo)).width,80);
+ assert.equal(imageCalls,2);
+
  }finally{globalThis.fetch=originalFetch;if(oldClaude===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=oldClaude;if(oldGemini===undefined)delete process.env.GEMINI_API_KEY;else process.env.GEMINI_API_KEY=oldGemini;await rm(temp,{recursive:true,force:true});}
 });

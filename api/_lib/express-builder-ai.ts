@@ -152,24 +152,48 @@ export async function builderPrompt(business:ExpressBusiness,direction:BuilderDi
   for(const image of (await visualAssetInputs(business.assets)).slice(0,4))content.push({type:'text',text:image.kind==='logo'?'Logo original da empresa; preserve a identidade.':'Foto real da empresa; use-a no site.'},{type:'image',source:{type:'base64',media_type:image.mimeType,data:image.data}});
   return {system,content};
 }
+async function responseImage(response:Response,read:(result:any)=>unknown){
+  if(!response.ok)throw Object.assign(new Error('O Gemini recusou a geração de imagem.'),{status:response.status});
+  const data=read(await response.json());
+  if(typeof data!=='string'||!data.length||data.length>20*1024*1024)throw new Error('O Gemini não retornou uma imagem utilizável.');
+  return data;
+}
+
 export async function generateBuilderPhoto(business:ExpressBusiness,prompt:string,aspect:'16:9'|'3:4'='16:9', reference?:{buffer:Buffer;mimeType:string}){
   const key=process.env.GEMINI_API_KEY?.trim();if(!key)throw new Error('O gerador de imagens ainda não está configurado.');
   const description='Crie uma fotografia editorial realista, sem textos, logotipos, pessoas identificáveis nem marca d’água visível. Imagem ilustrativa, nunca represente como projeto real executado pela empresa. Ramo: '+JSON.stringify(business.segment)+'. Serviços: '+JSON.stringify(business.services)+'. Direção: '+JSON.stringify(prompt.slice(0,1500));
   const input=reference
     ? [{type:'text',text:description},{type:'image',mime_type:reference.mimeType,data:reference.buffer.toString('base64')}]
     : description;
-  const response=await fetch('https://generativelanguage.googleapis.com/v1beta/interactions',{
-    method:'POST',
-    headers:{'x-goog-api-key':key,'content-type':'application/json','Api-Revision':'2026-05-20'},
-    signal:AbortSignal.timeout(85000),
-    body:JSON.stringify({model:process.env.ATLAS_BUILDER_IMAGE_MODEL?.trim()||'gemini-nano-banana-2.1',input,response_format:{type:'image',aspect_ratio:aspect,image_size:'2K',delivery:'inline'}}),
-  });
-  if(!response.ok)throw Object.assign(new Error('Não foi possível gerar a imagem agora.'),{status:response.status});
-  const result:any=await response.json();let data=result.output_image?.data;
-  if(!data){const blocks=[...(result.outputs||[]),...(result.output||[]),...(result.steps||[]).flatMap((s:any)=>s.content||[])];data=blocks.find((b:any)=>b.type==='image'&&b.data)?.data;}
-  if(typeof data!=='string'||data.length>20*1024*1024)throw new Error('O serviço não retornou uma imagem utilizável.');
+  const headers={'x-goog-api-key':key,'content-type':'application/json'};
+  const model=process.env.ATLAS_BUILDER_IMAGE_MODEL?.trim()||'gemini-nano-banana-2.1';
+  const signal=AbortSignal.timeout(110000);
+  let data:string;
+  try{
+    const response=await fetch('https://generativelanguage.googleapis.com/v1beta/interactions',{
+      method:'POST',headers:{...headers,'Api-Revision':'2026-05-20'},signal,
+      body:JSON.stringify({model,input,response_format:{type:'image',aspect_ratio:aspect,image_size:'2K'}}),
+    });
+    data=await responseImage(response,result=>{
+      if(result.output_image?.data)return result.output_image.data;
+      const blocks=[...(result.outputs||[]),...(result.output||[]),...(result.steps||[]).flatMap((step:any)=>step.content||[])];
+      return blocks.find((block:any)=>block.type==='image'&&block.data)?.data;
+    });
+  }catch(error){
+    const status=Number((error as any)?.status)||0;
+    console.warn('[Atlas Builder] Gemini Interactions indisponível.',{status,name:error instanceof Error?error.name:'unknown'});
+    if(signal.aborted||status===429||status===401)throw error;
+    const parts=[{text:description},...(reference?[{inlineData:{mimeType:reference.mimeType,data:reference.buffer.toString('base64')}}]:[])];
+    const response=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent',{
+      method:'POST',headers,signal,
+      body:JSON.stringify({contents:[{role:'user',parts}],generationConfig:{responseModalities:['IMAGE'],imageConfig:{aspectRatio:aspect,imageSize:'1K'}}}),
+    });
+    data=await responseImage(response,result=>(result.candidates||[]).flatMap((candidate:any)=>candidate.content?.parts||[]).find((part:any)=>part.inlineData?.mimeType?.startsWith('image/'))?.inlineData?.data);
+  }
   const {default:sharp}=await import('sharp');
-  const binary=Buffer.from(data,'base64');const {data:buffer,info}=await sharp(binary,{limitInputPixels:36000000}).rotate().resize({width:1800,withoutEnlargement:true}).webp({quality:82}).toBuffer({resolveWithObject:true});
+  const binary=Buffer.from(data,'base64');const raster=sharp(binary,{limitInputPixels:36000000}).rotate();
+  let {data:buffer,info}=await raster.clone().resize({width:1800,withoutEnlargement:true}).webp({quality:82}).toBuffer({resolveWithObject:true});
+  if(buffer.length>750*1024)({data:buffer,info}=await raster.resize({width:1440,withoutEnlargement:true}).webp({quality:67}).toBuffer({resolveWithObject:true}));
   if(buffer.length>750*1024)throw new Error('A imagem gerada ficou muito grande. Tente uma composição mais simples.');
   return {buffer,width:info.width,height:info.height,mimeType:'image/webp' as const};
 }
