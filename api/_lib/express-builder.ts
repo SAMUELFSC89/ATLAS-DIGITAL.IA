@@ -7,6 +7,7 @@ import { claudeConfigured, claudeText, extractSiteHtml } from './express-claude.
 import { prepareBuilderHtml, modifyBuilderHtml, builderCsp, builderImageUrl } from './express-builder-html.js';
 import { researchBuilder, builderPrompt, generateBuilderPhoto } from './express-builder-ai.js';
 import { auditBuilderSite, feedbackForPrompt } from './atlas-builder-skill.js';
+import { PortfolioError, getOwnerPortfolio, saveCreatorProfile, togglePortfolioSite, savePortfolioCaption, getPublicCreator, getPublicCreatorDirectory } from './builder-portfolio.js';
 import { normalizeBrazilianWhatsApp } from '../../src/lib/contact.js';
 import { DEFAULT_VISUAL_PROMPT } from '../../src/lib/expressVisualPrompt.js';
 import { BUILDER_DIRECTIONS, type BuilderProject, type BuilderReference } from '../../src/lib/siteBuilder.js';
@@ -24,7 +25,7 @@ function businessInput(input:any):ExpressBusiness{return {name:clean(input?.name
 function complete(b:ExpressBusiness){if(!b.name||!b.segment||!b.city||!b.services||!b.whatsapp)fail(400,'Complete os dados da empresa e informe um WhatsApp brasileiro com DDD.');}
 async function owned(id:any,email:string){if(!orderId(id))fail(400,'Projeto inválido.');const p=(await projects().doc(id).get()).data();if(!p||p.ownerEmail!==email)fail(404,'Projeto não encontrado nesta conta.');return p;}
 const publicMediaUrl=(id:string,file:string)=>`${publicOrigin()}/api/site-express?view=builder&action=media&id=${id}&file=${file}`;
-async function state(id:string,p:any):Promise<BuilderProject>{const messages=await projects().doc(id).collection('messages').orderBy('createdAt','desc').limit(30).get();return {id,business:p.business,references:p.references||[],directions:p.directions||BUILDER_DIRECTIONS,directionId:p.directionId||'editorial',sources:p.sources||[],researchNotice:p.researchNotice||'',html:p.html||'',sections:p.sections||[],version:p.version||0,status:p.status||'draft',job:p.job?{id:p.job.id,type:p.job.type,phase:p.job.phase,leaseUntil:p.job.leaseUntil||0}:null,message:p.message||'',imageNotice:p.imageNotice||'',publishedUrl:p.publishedSlug?`${publicOrigin()}/s/${p.publishedSlug}`:undefined,publishedVersion:p.publishedVersion||0,updatedAt:p.updatedAt,media:p.media||[],quality:p.quality,feedback:p.feedback,messages:messages.docs.reverse().map(doc=>({id:doc.id,...doc.data()} as any))};}
+async function state(id:string,p:any):Promise<BuilderProject>{const messages=await projects().doc(id).collection('messages').orderBy('createdAt','desc').limit(30).get();return {id,business:p.business,references:p.references||[],directions:p.directions||BUILDER_DIRECTIONS,directionId:p.directionId||'editorial',sources:p.sources||[],researchNotice:p.researchNotice||'',html:p.html||'',sections:p.sections||[],version:p.version||0,status:p.status||'draft',job:p.job?{id:p.job.id,type:p.job.type,phase:p.job.phase,leaseUntil:p.job.leaseUntil||0}:null,message:p.message||'',imageNotice:p.imageNotice||'',publishedUrl:p.publishedSlug?`${publicOrigin()}/s/${p.publishedSlug}`:undefined,publishedVersion:p.publishedVersion||0,portfolioVisible:p.portfolioVisible===true,updatedAt:p.updatedAt,media:p.media||[],quality:p.quality,feedback:p.feedback,messages:messages.docs.reverse().map(doc=>({id:doc.id,...doc.data()} as any))};}
 async function addMessage(id:string,role:'user'|'assistant',text:string,referenceIds:string[]=[],key:string=randomUUID()){await projects().doc(id).collection('messages').doc(key).set({role,text:text.slice(0,3000),referenceIds,createdAt:Date.now()});}
 async function saveVersion(id:string,p:any,document:{html:string;sections:any[]},extra:any={}){return db().runTransaction(async tx=>{const ref=projects().doc(id);const current=(await tx.get(ref)).data();if(!current||current.version!==p.version||current.job)fail(409,'O site foi atualizado. Recarregue antes de salvar.');const version=(current.version||0)+1;tx.create(ref.collection('versions').doc(String(version)),{...document,version,createdAt:Date.now()});tx.update(ref,{...document,...extra,quality:auditBuilderSite(document.html),feedback:null,version,status:'ready',message:'',updatedAt:Date.now()});return {...current,...document,...extra,quality:auditBuilderSite(document.html),feedback:null,version,status:'ready',message:'',updatedAt:Date.now()};});}
 async function startJob(id:string,email:string,type:string,body:any){
@@ -74,6 +75,8 @@ export default async function builder(req:Request,res:Response){
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
   try{
     const action=String(req.query.action||req.body?.action||'state');
+    if(req.method==='GET'&&action==='creator-directory')return res.json(await getPublicCreatorDirectory(String(req.query.cursor||'')));
+    if(req.method==='GET'&&action==='creator-public')return res.json(await getPublicCreator(String(req.query.handle||'')));
     if(req.method==='GET'&&action==='published'){
       const slug=String(req.query.slug||'');if(!/^[a-z0-9-]{5,70}$/.test(slug))return res.status(404).send('Site não encontrado.');const site=(await published().doc(slug).get()).data();if(!site?.html)return res.status(404).send('Site não encontrado.');res.setHeader('Content-Security-Policy',builderCsp(publicOrigin())+"; frame-ancestors 'none'");res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Content-Type','text/html; charset=utf-8');res.setHeader('Cache-Control','public,max-age=60,s-maxage=60');return res.send(site.html);
     }
@@ -81,7 +84,18 @@ export default async function builder(req:Request,res:Response){
       if(!orderId(req.query.id)||!orderId(req.query.file))return res.status(404).end();const p=(await projects().doc(req.query.id).get()).data();if(!(p?.media||[]).some((a:any)=>a.id===req.query.file))return res.status(404).end();const file=(await projects().doc(req.query.id).collection('media').doc(String(req.query.file)).get()).data();if(!file?.data)return res.status(404).end();res.setHeader('Content-Type',file.mimeType);res.setHeader('Cache-Control','public,max-age=86400,s-maxage=86400');return res.send(Buffer.from(file.data));
     }
     const email=(await getAuthenticatedEmail(req))?.toLowerCase();if(!email)return res.status(401).json({error:'Entre na sua conta para criar e editar seus sites.'});
-    if(req.method==='GET'&&action==='list'){const rows=await projects().where('ownerEmail','==',email).limit(30).get();return res.json({projects:rows.docs.map(d=>({id:d.id,name:d.data().business?.name||'Novo site',status:d.data().status,version:d.data().version,updatedAt:d.data().updatedAt})).sort((a,b)=>b.updatedAt-a.updatedAt)});}
+    if(req.method==='GET'&&action==='list'){const rows=await projects().where('ownerEmail','==',email).limit(250).get();return res.json({projects:rows.docs.map(d=>({id:d.id,name:d.data().business?.name||'Novo site',status:d.data().status,version:d.data().version,portfolioVisible:d.data().portfolioVisible===true,publishedUrl:d.data().publishedSlug?publicOrigin()+'/s/'+d.data().publishedSlug:null,updatedAt:d.data().updatedAt})).sort((a,b)=>b.updatedAt-a.updatedAt)});}
+    if(req.method==='GET'&&action==='owner-portfolio')return res.json(await getOwnerPortfolio(email));
+    if(req.method==='POST'&&action==='creator-profile')return res.json(await saveCreatorProfile(email,req.body));
+    if(req.method==='POST'&&action==='portfolio-caption'){
+      if(!orderId(req.body?.id)||typeof req.body?.caption!=='string'||req.body.caption.length>230)fail(400,'Informe uma descrição com até 230 caracteres.');
+      await savePortfolioCaption(email,String(req.body.id),req.body.caption);return res.json(await getOwnerPortfolio(email));
+    }
+    if(req.method==='POST'&&action==='portfolio-toggle'){
+      if(!orderId(req.body?.id)||typeof req.body?.visible!=='boolean')fail(400,'Escolha o projeto e a visibilidade.');
+      await togglePortfolioSite(email,String(req.body.id),req.body.visible);
+      const changed=(await projects().doc(req.body.id).get()).data();return res.json({project:await state(String(req.body.id),changed)});
+    }
     if(req.method==='GET'&&action==='config')return res.json({available:claudeConfigured(),images:Boolean(process.env.GEMINI_API_KEY),directions:BUILDER_DIRECTIONS});
     const id=req.method==='GET'?req.query.id:req.body?.id;
     if(req.method==='POST'&&action==='create'){
@@ -152,5 +166,5 @@ export default async function builder(req:Request,res:Response){
       await db().runTransaction(async tx=>{const current=(await tx.get(ref)).data();editable(current);if(current.version!==p.version)fail(409,'O site mudou. Revise a versão atual antes de publicar.');tx.set(published().doc(slug),{projectId:id,html:document.html,version:p.version,updatedAt:Date.now()});tx.update(ref,{publishedSlug:slug,publishedVersion:p.version,publishedAt:Date.now(),updatedAt:Date.now()});});await addMessage(String(id),'assistant','Seu site foi publicado. Novos ajustes só aparecem no endereço público quando você publicar novamente.');
     }else fail(400,'Ação inválida.');
     return res.json({project:await state(String(id),(await ref.get()).data())});
-  }catch(error){if(error instanceof BuilderError)return res.status(error.status).json({error:error.message});if(error instanceof ExpressAssetError)return res.status(400).json({error:error.message});console.warn('[Atlas Builder]',{action:String(req.query.action||''),name:error instanceof Error?error.name:'unknown'});return res.status(503).json({error:'Não conseguimos concluir esta ação agora. Seus dados salvos foram preservados.'});}
+  }catch(error){if(error instanceof PortfolioError)return res.status(error.status).json({error:error.message});if(error instanceof BuilderError)return res.status(error.status).json({error:error.message});if(error instanceof ExpressAssetError)return res.status(400).json({error:error.message});console.warn('[Atlas Builder]',{action:String(req.query.action||''),name:error instanceof Error?error.name:'unknown'});return res.status(503).json({error:'Não conseguimos concluir esta ação agora. Seus dados salvos foram preservados.'});}
 }

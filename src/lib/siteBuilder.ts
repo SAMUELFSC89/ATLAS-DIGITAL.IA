@@ -10,6 +10,7 @@ export interface BuilderProject {
   status: 'draft' | 'working' | 'ready' | 'error'; job?: { id: string; type: 'generate' | 'edit' | 'image' | 'research'; phase: string; leaseUntil: number } | null;
   message?: string; imageNotice?: string; publishedUrl?: string; publishedVersion?: number; updatedAt: number;
   media: ExpressAsset[]; messages: BuilderMessage[];
+  portfolioVisible?: boolean;
   quality?: { score: number; skillVersion: string; checks: { id: string; ok: boolean; label: string }[] };
   feedback?: { version: number; rating: 'good' | 'improve'; note: string; createdAt: number } | null;
 }
@@ -19,3 +20,38 @@ export const BUILDER_DIRECTIONS: BuilderDirection[] = [
   { id: 'clean', name: 'Claro e objetivo', description: 'Organização leve, navegação simples e conteúdo em destaque.', accent: '#234b69', background: '#fafbfc', foreground: '#192837', typography: 'Sans humanista legível', layout: 'Grade arejada, hierarquia limpa e navegação simples, adaptada ao negócio.' },
 ];
 export const builderSectionName = (id: string) => ({inicio:'Apresentação',servicos:'Serviços',projetos:'Projetos',sobre:'Sobre',contato:'Contato',rodape:'Rodapé'}[id] || id.replace(/[-_]/g,' '));
+
+export interface CreatorProfile {
+  handle: string;
+  name: string;
+  headline: string;
+  bio: string;
+  city: string;
+  specialties: string;
+  whatsapp?: string;
+  contactPublic?: boolean;
+  publicEnabled?: boolean;
+  contactUrl?: string | null;
+  url: string;
+}
+export interface PortfolioSiteSummary {
+  id: string;
+  name: string;
+  segment: string;
+  city?: string;
+  description?: string;
+  accent?: string;
+  url?: string;
+  publishedUrl?: string | null;
+  portfolioVisible?: boolean;
+  caption?: string;
+  updatedAt?: number;
+}
+export interface OwnerPortfolioResponse {
+  profile: CreatorProfile | null;
+  projects: PortfolioSiteSummary[];
+}
+export interface PublicCreatorResponse {
+  creator: CreatorProfile;
+  sites: PortfolioSiteSummary[];
+}

@@ -50,14 +50,14 @@ test('Carta Secreta constrói site final com critérios verificáveis e aprendiz
 // No real customer data, API calls or payments are used by this suite.
 class MemoryDb {
  data=new Map<string,any>();queue=Promise.resolve();collection=(p:string)=>new Query(this,p);
- async runTransaction(fn:any){const prev=this.queue;let release:()=>void;this.queue=new Promise<void>(resolve=>release=resolve);await prev;try{return await fn({get:(r:any)=>r.get(),getAll:(...refs:any[])=>Promise.all(refs.map(r=>r.get())),create:(r:any,d:any)=>r.create(d),set:(r:any,d:any)=>r.set(d),update:(r:any,d:any)=>r.update(d)});}finally{release!();}}
+ async runTransaction(fn:any){const prev=this.queue;let release:()=>void;this.queue=new Promise<void>(resolve=>release=resolve);await prev;try{return await fn({get:(r:any)=>r.get(),getAll:(...refs:any[])=>Promise.all(refs.map(r=>r.get())),create:(r:any,d:any)=>r.create(d),set:(r:any,d:any)=>r.set(d),update:(r:any,d:any)=>r.update(d),delete:(r:any)=>r.delete()});}finally{release!();}}
  batch(){const ops:(()=>any)[]=[];return {create:(r:any,d:any)=>ops.push(()=>r.create(d)),set:(r:any,d:any)=>ops.push(()=>r.set(d)),update:(r:any,d:any)=>ops.push(()=>r.update(d)),commit:async()=>{for(const op of ops)await op();}};}
 }
 class Ref {
- constructor(public db:MemoryDb,public path:string){}get id(){return this.path.split('/').pop()!;}collection(n:string){return new Query(this.db,this.path+'/'+n);}async get(){const d=this.db.data.get(this.path);return {id:this.id,exists:!!d,data:()=>d};}async create(d:any){if(this.db.data.has(this.path))throw new Error('Already exists');this.db.data.set(this.path,d);}async set(d:any){this.db.data.set(this.path,d);}async update(d:any){const next={...this.db.data.get(this.path)};for(const [key,value]of Object.entries(d)){const parts=key.split('.');let target=next;for(const k of parts.slice(0,-1))target=target[k]={...target[k]};target[parts.at(-1)!]=value;}this.db.data.set(this.path,next);}
+ constructor(public db:MemoryDb,public path:string){}get id(){return this.path.split('/').pop()!;}collection(n:string){return new Query(this.db,this.path+'/'+n);}async get(){const d=this.db.data.get(this.path);return {id:this.id,exists:!!d,data:()=>d};}async create(d:any){if(this.db.data.has(this.path))throw new Error('Already exists');this.db.data.set(this.path,d);}async set(d:any){this.db.data.set(this.path,d);}async update(d:any){const next={...this.db.data.get(this.path)};for(const [key,value]of Object.entries(d)){const parts=key.split('.');let target=next;for(const k of parts.slice(0,-1))target=target[k]={...target[k]};target[parts.at(-1)!]=value;}this.db.data.set(this.path,next);}async delete(){this.db.data.delete(this.path);}
 }
 class Query {
- filters:any[]=[];sort?:string;max=Infinity;constructor(public db:MemoryDb,public path:string){}doc(id:string){return new Ref(this.db,this.path+'/'+id);}where(k:string,_op:string,v:any){this.filters.push([k,v]);return this;}orderBy(k:string,_dir?:string){this.sort=k;return this;}limit(n:number){this.max=n;return this;}async get(){let docs=[...this.db.data.entries()].filter(([k,d])=>k.startsWith(this.path+'/')&&k.slice(this.path.length+1).split('/').length===1&&this.filters.every(([f,v])=>d[f]===v)).map(([k,d])=>({id:k.split('/').pop()!,data:()=>d}));if(this.sort)docs.sort((a,b)=>b.data()[this.sort!]-a.data()[this.sort!]);return{docs:docs.slice(0,this.max)};}
+ filters:any[]=[];sort?:string;max=Infinity;cursor?:string;constructor(public db:MemoryDb,public path:string){}doc(id:string){return new Ref(this.db,this.path+'/'+id);}where(k:string,_op:string,v:any){this.filters.push([k,v]);return this;}orderBy(k:string,_dir?:string){this.sort=k;return this;}startAfter(value:string){this.cursor=value;return this;}limit(n:number){this.max=n;return this;}async get(){let docs=[...this.db.data.entries()].filter(([k,d])=>k.startsWith(this.path+'/')&&k.slice(this.path.length+1).split('/').length===1&&this.filters.every(([f,v])=>d[f]===v)).map(([k,d])=>({id:k.split('/').pop()!,data:()=>d}));if(this.sort){const key=this.sort;docs.sort((a,b)=>typeof a.data()[key]==='string'?String(a.data()[key]).localeCompare(String(b.data()[key])):b.data()[key]-a.data()[key]);if(this.cursor)docs=docs.filter(d=>String(d.data()[key])>this.cursor!);}return{docs:docs.slice(0,this.max)};}
 }
 async function loadEndpoint(){
  const temp=await mkdtemp(path.join(process.cwd(),'.builder-test-'));const out=path.join(temp,'endpoint.cjs');
@@ -82,6 +82,44 @@ test('authenticated endpoint: ownership, reference cap, model input, job retries
  const textId=runs.find(r=>r.body.project.html)?.body.project.sections[0].texts[0].id;
  assert.equal((await call('modify',{id,version:0,operation:{type:'text',id:textId,text:'Wrong'}})).statusCode,409);assert.equal((await call('modify',{id,version:1,operation:{type:'text',id:textId,text:'Novo título'}})).body.project.version,2);assert.equal((await call('restore',{id,version:1})).body.project.version,3);
  assert.equal((await call('publish',{id})).statusCode,402);await db.collection('expressOrders').doc(randomUUID()).set({previewId:randomUUID(),status:'paid',mode:'live'});assert.equal((await call('publish',{id})).statusCode,402);await db.collection('expressOrders').doc(randomUUID()).set({previewId:id,status:'paid',mode:'test'});assert.equal((await call('publish',{id})).statusCode,402);await db.collection('expressOrders').doc(randomUUID()).set({previewId:randomUUID(),status:'paid',mode:'live'});assert.equal((await call('publish',{id})).statusCode,402);await db.collection('expressOrders').doc(randomUUID()).set({previewId:id,status:'paid',mode:'live'});const pub=await call('publish',{id});assert.equal(pub.statusCode,200);assert.ok(pub.body.project.publishedUrl.startsWith(origin+'/s/'));const slug=pub.body.project.publishedUrl.split('/').pop();const publicPage=await call('published',{slug},null,'GET');assert.equal(publicPage.statusCode,200);assert.ok(publicPage.headers['Content-Security-Policy'].includes("frame-ancestors 'none'"));assert.ok(!publicPage.body.includes(png));
+ // Portfolio is private by default, independent of the published site.
+ assert.equal((await call('creator-public',{handle:'atelier-ana'},null,'GET')).statusCode,404);
+ assert.equal((await call('portfolio-toggle',{id,visible:true})).statusCode,409);
+ const profileInput={handle:'atelier-ana',name:'Ateliê Ana',headline:'Web design e estratégia',bio:'Sites profissionais com identidade própria.',city:'Porto Alegre',specialties:'Sites institucionais',whatsapp:'51999999999',contactPublic:false,publicEnabled:false};
+ const privateProfile=await call('creator-profile',profileInput);
+ assert.equal(privateProfile.statusCode,200);
+ assert.equal((await call('creator-public',{handle:'atelier-ana'},null,'GET')).statusCode,404);
+ assert.equal((await call('portfolio-toggle',{id,visible:true})).statusCode,200);
+ assert.equal((await call('creator-directory',{},null,'GET')).body.creators.length,0);
+ assert.equal((await call('creator-profile',{...profileInput,publicEnabled:true,contactPublic:true})).statusCode,200);
+ const creatorPage=await call('creator-public',{handle:'atelier-ana'},null,'GET');
+ assert.equal(creatorPage.statusCode,200);assert.equal(creatorPage.body.sites.length,1);
+ assert.equal(creatorPage.body.creator.contactUrl.includes('wa.me/5551999999999'),true);
+ assert.ok(!JSON.stringify(creatorPage.body).includes('cliente@example.com'));
+ assert.ok(!JSON.stringify(creatorPage.body).includes(business.services));
+ const caption=await call('portfolio-caption',{id,caption:'Site editorial de arquitetura'});
+ assert.equal(caption.statusCode,200);
+ const publicCaption=await call('creator-public',{handle:'atelier-ana'},null,'GET');
+ assert.equal(publicCaption.body.sites[0].description,'Site editorial de arquitetura');
+ assert.equal((await call('creator-directory',{},null,'GET')).body.creators.length,1);
+ const intruder=await call('portfolio-toggle',{id,visible:false},'outro@example.com');
+ assert.equal(intruder.statusCode,404);
+ const taken=await call('creator-profile',{...profileInput,name:'Outro profissional',publicEnabled:true},'outro@example.com');
+ assert.equal(taken.statusCode,409);
+ assert.equal((await call('portfolio-toggle',{id,visible:false})).statusCode,200);
+ assert.equal((await call('creator-public',{handle:'atelier-ana'},null,'GET')).body.sites.length,0);
+ assert.equal((await call('published',{slug},null,'GET')).statusCode,200);
+ assert.equal((await call('creator-profile',{...profileInput,publicEnabled:false})).statusCode,200);
+ assert.equal((await call('creator-directory',{},null,'GET')).body.creators.length,0);
+ assert.equal((await call('creator-public',{handle:'atelier-ana'},null,'GET')).statusCode,404);
+ // The directory paginates without requiring an email or exposing private profiles.
+ for(let n=0;n<34;n++){const handle='criador-'+String(n).padStart(2,'0');await db.collection('expressBuilderCreatorDirectory').doc(handle).set({handle,name:'Criador '+n,headline:'Sites',bio:'',city:'',specialties:'',contactUrl:null,url:origin+'/criadores/'+handle});}
+ const firstPage=await call('creator-directory',{},null,'GET');
+ assert.equal(firstPage.statusCode,200);assert.equal(firstPage.body.creators.length,30);
+ assert.ok(firstPage.body.nextCursor);
+ const secondPage=await call('creator-directory',{cursor:firstPage.body.nextCursor},null,'GET');
+ assert.equal(secondPage.statusCode,200);assert.equal(secondPage.body.creators.length,4);
+ assert.equal(secondPage.body.nextCursor,null);
  }finally{await endpoint.close();delete (globalThis as any).__atlasBuilderTest;}
 });
 

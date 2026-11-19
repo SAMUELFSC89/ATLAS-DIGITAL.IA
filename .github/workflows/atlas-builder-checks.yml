@@ -1,0 +1,40 @@
+name: Atlas Creator and Site Builder Checks
+on:
+  pull_request:
+    paths:
+      - 'api/_lib/**'
+      - 'src/**'
+      - 'tests/site-builder.test.ts'
+      - 'package*.json'
+      - '.github/workflows/atlas-builder-checks.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'api/_lib/**'
+      - 'src/**'
+      - 'tests/site-builder.test.ts'
+      - 'package*.json'
+      - '.github/workflows/atlas-builder-checks.yml'
+permissions:
+  contents: read
+concurrency:
+  group: atlas-builder-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run lint
+      - name: Site builder privacy and integration tests
+        run: npx tsx --test tests/site-builder.test.ts
