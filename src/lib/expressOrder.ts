@@ -20,6 +20,12 @@ export interface ExpressBusiness {
   city: string;
   services: string;
   whatsapp: string;
+  /** Public telephone, not necessarily WhatsApp. */
+  phone?: string;
+  /** Public company website, for context and verification. */
+  website?: string;
+  /** URL from which the user imported the company data. */
+  sourceUrl?: string;
   photo: string;
   assets?: ExpressAsset[];
 }
