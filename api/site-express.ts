@@ -11,7 +11,7 @@ export default async function handler(req:Request,res:Response) {
   res.setHeader('Cache-Control','no-store');
   res.setHeader('X-Content-Type-Options','nosniff');
   const view=String(req.query?.view||'');
-  if(req.method==='GET' && view==='health')return res.status(200).json({ok:true,service:'atlas-site-express',version:2});
+  if(req.method==='GET' && view==='health')return res.status(200).json({ok:true,service:'atlas-site-express',version:3});
   try {
     if(view==='builder'){
       const {default:builder}=await import('./_lib/express-builder.js');
@@ -20,13 +20,15 @@ export default async function handler(req:Request,res:Response) {
     const {default:siteExpress}=await import('./_lib/site-express.js');
     return await siteExpress(req,res);
   } catch(error){
+    const code=typeof (error as {code?:unknown})?.code==='string'?String((error as {code:string}).code):'';
+    const missingDependency=['MODULE_NOT_FOUND','ERR_MODULE_NOT_FOUND','ERR_DLOPEN_FAILED'].includes(code);
     console.error('[Site Express Bootstrap]',{
       view:view==='builder'?'builder':'standard',
       name:error instanceof Error?error.name:'unknown',
-      code:typeof (error as any)?.code==='string'?String((error as any).code).slice(0,32):'',
+      code:code.slice(0,32),
       message:error instanceof Error?error.message.slice(0,240):'unknown',
     });
     if(res.headersSent)return;
-    return res.status(503).json({code:'service_unavailable',error:'O serviço de criação de sites está temporariamente indisponível. Tente novamente.'});
+    return res.status(503).json({code:'service_unavailable',...(missingDependency?{reason:'dependency_unavailable'}:{}),error:'O serviço de criação de sites está temporariamente indisponível. Tente novamente.'});
   }
 }

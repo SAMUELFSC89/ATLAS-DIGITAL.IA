@@ -16,7 +16,7 @@ test('site express new function starts and serves health without loading checkou
  await siteExpress({method:'GET',query:{view:'health'}} as any,res as any);
  assert.equal(res.statusCode,200);
  assert.equal(res.body?.ok,true);
- assert.equal(res.body?.version,2);
+ assert.equal(res.body?.version,3);
 });
 test('creator public validator loads directly and returns clean not-found without Firestore',async()=>{
  const res=responder();

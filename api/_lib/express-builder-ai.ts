@@ -2,7 +2,6 @@ import { claudeKey, claudeModel, ClaudeError, previewPrompt } from './express-cl
 import { visualAssetInputs } from './express-assets.js';
 import { BUILDER_DIRECTIONS, type BuilderDirection, type BuilderSource } from '../../src/lib/siteBuilder.js';
 import type { ExpressBusiness } from '../../src/lib/expressOrder.js';
-import sharp from 'sharp';
 import { CARTA_SECRETA_BUILDER } from './atlas-builder-skill.js';
 import { languagePrompt, type SiteLanguage } from '../../src/lib/siteLanguages.js';
 
@@ -36,6 +35,7 @@ export async function generateBuilderPhoto(business:ExpressBusiness,prompt:strin
   const result:any=await response.json();let data=result.output_image?.data;
   if(!data){const blocks=[...(result.outputs||[]),...(result.output||[]),...(result.steps||[]).flatMap((s:any)=>s.content||[])];data=blocks.find((b:any)=>b.type==='image'&&b.data)?.data;}
   if(typeof data!=='string'||data.length>20*1024*1024)throw new Error('O serviço não retornou uma imagem utilizável.');
+  const {default:sharp}=await import('sharp');
   const binary=Buffer.from(data,'base64');const {data:buffer,info}=await sharp(binary,{limitInputPixels:36000000}).rotate().resize({width:1800,withoutEnlargement:true}).webp({quality:82}).toBuffer({resolveWithObject:true});
   if(buffer.length>750*1024)throw new Error('A imagem gerada ficou muito grande. Tente uma composição mais simples.');
   return {buffer,width:info.width,height:info.height,mimeType:'image/webp' as const};
