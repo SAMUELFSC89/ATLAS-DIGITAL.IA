@@ -118,13 +118,13 @@ export async function saveCreatorProfile(email: string, input: any) {
 
 export async function togglePortfolioSite(email: string, projectId: string, visible: boolean) {
   const ownerId = creatorKey(email);
-  const profile = await creators().doc(ownerId).get();
-  if (!profile.exists) fail(409,'Configure seu perfil profissional antes de adicionar sites ao portfólio.');
   const projRef = projects().doc(projectId), cardRef = portfolio().doc(ownerId + '_' + projectId);
   await db().runTransaction(async tx => {
     const doc = await tx.get(projRef);
     const p = doc.data();
     if (!p || p.ownerEmail !== email.toLowerCase()) fail(404,'Projeto não encontrado nesta conta.');
+    const profile = await tx.get(creators().doc(ownerId));
+    if (!profile.exists) fail(409,'Configure seu perfil profissional antes de adicionar sites ao portfólio.');
     if (p.job) fail(409,'Conclua a edição do projeto antes de alterar a visibilidade.');
     if (visible && !p.publishedSlug) fail(409,'Publique o site antes de exibi-lo no portfólio.');
     if (visible) {
