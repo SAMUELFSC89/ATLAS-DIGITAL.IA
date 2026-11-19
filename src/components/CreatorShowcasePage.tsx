@@ -6,12 +6,13 @@ import AtlasLogo from './AtlasLogo';
 import './CreatorPortfolio.css';
 
 type DirectoryResponse={creators:CreatorProfile[];nextCursor:string|null};
-const handle=decodeURIComponent(window.location.pathname.replace(/\/$/,'').split('/')[2]||'');
+const handle=(()=>{try{return decodeURIComponent(window.location.pathname.replace(/\/$/,'').split('/')[2]||'');}catch{return '';}})();
 export default function CreatorShowcasePage(){
  const [profile,setProfile]=useState<PublicCreatorResponse|null>(null);
  const [directory,setDirectory]=useState<CreatorProfile[]>([]);
  const [nextCursor,setNextCursor]=useState<string|null>(null);
  const [loadingMore,setLoadingMore]=useState(false);
+ const [pageError,setPageError]=useState('');
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState('');
  const [filter,setFilter]=useState('');
@@ -26,7 +27,7 @@ export default function CreatorShowcasePage(){
   }).catch(e=>{if(!controller.signal.aborted)setError((e as Error).message);}).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return()=>controller.abort();
  },[]);
- async function more(){if(!nextCursor||loadingMore)return;setLoadingMore(true);try{const response=await fetch('/api/site-express?view=builder&action=creator-directory&cursor='+encodeURIComponent(nextCursor));const data=await response.json();if(!response.ok)throw new Error(data?.error||'Não foi possível carregar mais perfis.');setDirectory(p=>[...p,...(data.creators||[])]);setNextCursor(data.nextCursor||null);}catch(e){setError((e as Error).message);}finally{setLoadingMore(false);}}
+ async function more(){if(!nextCursor||loadingMore)return;setLoadingMore(true);setPageError('');try{const response=await fetch('/api/site-express?view=builder&action=creator-directory&cursor='+encodeURIComponent(nextCursor));const data=await response.json();if(!response.ok)throw new Error(data?.error||'Não foi possível carregar mais perfis.');setDirectory(p=>[...p,...(data.creators||[])]);setNextCursor(data.nextCursor||null);}catch(e){setPageError((e as Error).message);}finally{setLoadingMore(false);}}
  const shown=directory.filter(p=>[p.name,p.headline,p.city,p.specialties].join(' ').toLowerCase().includes(filter.toLowerCase()));
  return <main className="creator-portal">
   <nav className="creator-topbar"><a className="creator-brand" href="/"><AtlasLogo/></a><div><a href="/criadores"><Globe2 size={16}/> Criadores</a><a href="/meu-portfolio"><BriefcaseBusiness size={16}/> Meu portfólio</a></div></nav>
@@ -51,6 +52,7 @@ export default function CreatorShowcasePage(){
    <><header className="creator-public-hero"><span className="creator-eyebrow"><Sparkles size={15}/> COMUNIDADE ATLAS</span><h1>Profissionais que transformam ideias em sites.</h1><p>Conheça os criadores da comunidade, explore seus perfis profissionais e encontre alguém para seu próximo projeto.</p><div className="creator-public-cta"><a className="creator-primary" href="/meu-portfolio"><BriefcaseBusiness size={17}/> Criar meu portfólio <ArrowRight size={16}/></a></div></header>
    <section className="creator-projects" aria-label="Diretório de criadores"><div className="creator-heading"><div><span className="creator-eyebrow">PROFISSIONAIS</span><h2>Explore a comunidade</h2></div></div><label htmlFor="creator-search" className="creator-eyebrow"><Search size={15}/> Buscar por nome, especialidade ou cidade</label><input className="creator-search" id="creator-search" value={filter} onChange={e=>setFilter(e.target.value)} placeholder="Ex.: sites para arquitetos"/>
     {shown.length?<div className="creator-directory-grid">{shown.map(p=><article className="creator-dir-card" key={p.handle}><div className="creator-avatar">{p.name.charAt(0).toUpperCase()}</div><h2>{p.name}</h2><p>{p.headline||p.specialties||'Criador de sites'}</p>{p.city&&<p><MapPin size={12}/> {p.city}</p>}<a href={'/criadores/'+p.handle}>Ver portfólio <ArrowUpRight size={15}/></a></article>)}</div>:<div className="creator-empty"><Search size={24}/><h3>Nenhum profissional encontrado.</h3><p>{filter?'Experimente outra busca.':'Os perfis aparecerão aqui quando seus criadores optarem pela publicação.'}</p></div>}
+   {pageError&&<p role="alert" className="creator-alert error">{pageError}</p>}
    {nextCursor&&<button className="creator-secondary creator-load-more" disabled={loadingMore} onClick={()=>void more()}>{loadingMore?'Carregando…':'Carregar mais profissionais'} <ArrowRight size={16}/></button>}
    </section></>}
    <footer className="creator-footer">Atlas Digital · Perfis e projetos compartilhados voluntariamente pelos criadores. <a href="/">Voltar para a Atlas</a></footer>
