@@ -12,6 +12,7 @@ import { normalizeSiteWhatsApp } from '../../src/lib/siteLanguages.js';
 import { DEFAULT_VISUAL_PROMPT } from '../../src/lib/expressVisualPrompt.js';
 import { BUILDER_DIRECTIONS, type BuilderProject, type BuilderReference } from '../../src/lib/siteBuilder.js';
 import { parseSiteLanguage, DEFAULT_SITE_LANGUAGE } from '../../src/lib/siteLanguages.js';
+import { importBusinessFromUrl, BusinessImportError, parseBusinessLink } from './builder-business-import.js';
 import type { ExpressBusiness, ExpressAsset } from '../../src/lib/expressOrder.js';
 
 const projects=()=>db().collection('expressBuilderProjects');
@@ -22,8 +23,12 @@ const clean=(v:unknown,n:number)=>typeof v==='string'?v.replace(/[\u0000-\u001f\
 class BuilderError extends Error {constructor(public status:number,message:string){super(message);}}
 const fail=(status:number,text:string):never=>{throw new BuilderError(status,text);};
 const editable=(p:any)=>{if(p.job)fail(409,'Aguarde a operação em andamento antes de alterar o projeto.');};
-function businessInput(input:any):ExpressBusiness{return {name:clean(input?.name,100),segment:clean(input?.segment,80),city:clean(input?.city,100),services:clean(input?.services,1000),whatsapp:normalizeSiteWhatsApp(clean(input?.whatsapp,30)),photo:'',assets:[]};}
-function complete(b:ExpressBusiness){if(!b.name||!b.segment||!b.city||!b.services||!b.whatsapp)fail(400,'Complete os dados da empresa e informe um WhatsApp válido. Para outros países, use +DDI e número.');}
+function businessInput(input:any):ExpressBusiness{
+  const safeWebsite=(value:unknown)=>{try{const parsed=parseBusinessLink(value);return parsed.kind==='website'?parsed.url.href:'';}catch{return '';}};
+  const safeSource=(value:unknown)=>{try{return parseBusinessLink(value).url.href;}catch{return '';}};
+  return {name:clean(input?.name,100),segment:clean(input?.segment,80),city:clean(input?.city,100),services:clean(input?.services,1000),whatsapp:normalizeSiteWhatsApp(clean(input?.whatsapp,30)),phone:clean(input?.phone,30).replace(/[^\d+().\s-]/g,''),website:safeWebsite(input?.website),sourceUrl:safeSource(input?.sourceUrl),photo:'',assets:[]};
+}
+function complete(b:ExpressBusiness){if(!b.name||!b.segment||!b.city||!b.services)fail(400,'Não foi possível identificar todos os dados básicos. Confira nome, ramo, localidade e descrição dos serviços.');if(!b.whatsapp&&!b.phone)fail(400,'Informe um WhatsApp ou telefone comercial para o site ter um contato funcional.');}
 async function owned(id:any,email:string){if(!orderId(id))fail(400,'Projeto inválido.');const p=(await projects().doc(id).get()).data();if(!p||p.ownerEmail!==email)fail(404,'Projeto não encontrado nesta conta.');return p;}
 const publicMediaUrl=(id:string,file:string)=>`${publicOrigin()}/api/site-express?view=builder&action=media&id=${id}&file=${file}`;
 async function state(id:string,p:any):Promise<BuilderProject>{const messages=await projects().doc(id).collection('messages').orderBy('createdAt','desc').limit(30).get();return {id,business:p.business,locale:parseSiteLanguage(p.locale)||DEFAULT_SITE_LANGUAGE,references:p.references||[],directions:p.directions||BUILDER_DIRECTIONS,directionId:p.directionId||'editorial',sources:p.sources||[],researchNotice:p.researchNotice||'',html:p.html||'',sections:p.sections||[],version:p.version||0,status:p.status||'draft',job:p.job?{id:p.job.id,type:p.job.type,phase:p.job.phase,leaseUntil:p.job.leaseUntil||0}:null,message:p.message||'',imageNotice:p.imageNotice||'',publishedUrl:p.publishedSlug?`${publicOrigin()}/s/${p.publishedSlug}`:undefined,publishedVersion:p.publishedVersion||0,portfolioVisible:p.portfolioVisible===true,updatedAt:p.updatedAt,media:p.media||[],quality:p.quality,feedback:p.feedback,messages:messages.docs.reverse().map(doc=>({id:doc.id,...doc.data()} as any))};}
@@ -101,6 +106,11 @@ export default async function builder(req:Request,res:Response){
       const changed=(await projects().doc(req.body.id).get()).data();return res.json({project:await state(String(req.body.id),changed)});
     }
     if(req.method==='GET'&&action==='config')return res.json({available:claudeConfigured(),images:Boolean(process.env.GEMINI_API_KEY),directions:BUILDER_DIRECTIONS});
+    if(req.method==='POST'&&action==='import-business'){
+      if(!(await rateLimit(email,'builder-import',12,300)))fail(429,'Muitas buscas de dados da empresa. Tente novamente mais tarde.');
+      if(typeof req.body?.url!=='string'||req.body.url.length>1600)fail(400,'Cole um endereço público válido.');
+      return res.json(await importBusinessFromUrl(req.body.url));
+    }
     const id=req.method==='GET'?req.query.id:req.body?.id;
     if(req.method==='POST'&&action==='create'){
       if(!orderId(id))fail(400,'Projeto inválido.');const existing=(await projects().doc(id).get()).data();if(existing){if(existing.ownerEmail!==email)fail(404,'Projeto não encontrado.');return res.json({project:await state(id,existing)});}
@@ -174,5 +184,5 @@ export default async function builder(req:Request,res:Response){
       await db().runTransaction(async tx=>{const current=(await tx.get(ref)).data();editable(current);if(current.version!==p.version)fail(409,'O site mudou. Revise a versão atual antes de publicar.');tx.set(published().doc(slug),{projectId:id,html:document.html,locale:parseSiteLanguage(p.locale)||DEFAULT_SITE_LANGUAGE,version:p.version,updatedAt:Date.now()});tx.update(ref,{publishedSlug:slug,publishedVersion:p.version,publishedAt:Date.now(),updatedAt:Date.now()});});await addMessage(String(id),'assistant','Seu site foi publicado. Novos ajustes só aparecem no endereço público quando você publicar novamente.');
     }else fail(400,'Ação inválida.');
     return res.json({project:await state(String(id),(await ref.get()).data())});
-  }catch(error){if(error instanceof PortfolioError)return res.status(error.status).json({error:error.message});if(error instanceof BuilderError)return res.status(error.status).json({error:error.message});if(error instanceof ExpressAssetError)return res.status(400).json({error:error.message});console.warn('[Atlas Builder]',{action:String(req.query.action||''),name:error instanceof Error?error.name:'unknown'});return res.status(503).json({error:'Não conseguimos concluir esta ação agora. Seus dados salvos foram preservados.'});}
+  }catch(error){if(error instanceof PortfolioError)return res.status(error.status).json({error:error.message});if(error instanceof BusinessImportError)return res.status(error.status).json({error:error.message});if(error instanceof BuilderError)return res.status(error.status).json({error:error.message});if(error instanceof ExpressAssetError)return res.status(400).json({error:error.message});console.warn('[Atlas Builder]',{action:String(req.query.action||''),name:error instanceof Error?error.name:'unknown'});return res.status(503).json({error:'Não conseguimos concluir esta ação agora. Seus dados salvos foram preservados.'});}
 }
