@@ -5,7 +5,7 @@ import { getAuthenticatedEmail } from '../radar.js';
 import { db, previews, settings, orders, orderId, publicOrigin, saoPauloDay, rateLimit } from './express-store.js';
 import { resolveExpressAssets, rasterInfo, ASSET_MAX_BYTES, ExpressAssetError } from './express-assets.js';
 import { extractSiteHtml } from './express-claude.js';
-import { openaiConfigured, openaiText } from './express-openai.js';
+import { openaiAccessMessage, openaiConfigured, openaiText } from './express-openai.js';
 import { prepareBuilderHtml, modifyBuilderHtml, builderCsp, builderImageUrl } from './express-builder-html.js';
 import { researchBuilder, planBuilder, builderPrompt, generateBuilderPhoto, generateDesignMockup } from './express-builder-ai.js';
 import { auditBuilderSite, feedbackForPrompt } from './atlas-builder-skill.js';
@@ -122,6 +122,7 @@ async function advance(id:string,email:string){
         const result=await researchBuilder(claim.business,options);
         planPatch={directions:result.directions,sources:result.sources,creativePlan:result.creativePlan||null,researchNotice:result.researchNotice};
       }catch(error){
+        if(openaiAccessMessage(error))throw error;
         console.warn('[Atlas Builder] Planejamento indisponível.',{status:Number((error as any)?.status)||0,name:error instanceof Error?error.name:'unknown'});
       }
       if(!planPatch.creativePlan)planPatch.creativePlan=await planBuilder(claim.business,options,planPatch.sources);
@@ -194,7 +195,7 @@ async function advance(id:string,email:string){
       if(assistant)tx.set(ref.collection('messages').doc(job.id+'-assistant'),{role:'assistant',text:assistant,createdAt:Date.now(),referenceIds:[]});return {...current,...update};
     });
   }catch(error){console.warn('[Atlas Builder] Operação interrompida.',{type:job.type,status:Number((error as any)?.status)||0,name:error instanceof Error?error.name:'unknown',code:(error as any)?.code||''});
-    return await db().runTransaction(async tx=>{const current=(await tx.get(ref)).data();if(current?.job?.leaseToken!==token)return current;const update={job:null,status:'error',message:job.phase==='designs'?'Não foi possível completar as três propostas. Confira o acesso à geração de imagens na OpenAI e tente novamente.':job.type==='research'?'A pesquisa no Pinterest não ficou disponível agora. Você pode usar as direções da Atlas ou enviar até quatro referências.':job.type==='image'?'Não foi possível criar a imagem agora. Confira a conexão do gerador ou tente novamente mais tarde.':'Não foi possível concluir esta criação agora. Seus arquivos e a última versão do site foram preservados.',updatedAt:Date.now()};tx.update(ref,update);return {...current,...update};});
+    return await db().runTransaction(async tx=>{const current=(await tx.get(ref)).data();if(current?.job?.leaseToken!==token)return current;const update={job:null,status:'error',message:openaiAccessMessage(error)||(job.phase==='designs'?'Não foi possível completar as três propostas. Confira o acesso à geração de imagens na OpenAI e tente novamente.':job.type==='research'?'A pesquisa no Pinterest não ficou disponível agora. Você pode usar as direções da Atlas ou enviar até quatro referências.':job.type==='image'?'Não foi possível criar a imagem agora. Confira a conexão do gerador ou tente novamente mais tarde.':'Não foi possível concluir esta criação agora. Seus arquivos e a última versão do site foram preservados.'),updatedAt:Date.now()};tx.update(ref,update);return {...current,...update};});
   }
 }
 export default async function builder(req:Request,res:Response){
