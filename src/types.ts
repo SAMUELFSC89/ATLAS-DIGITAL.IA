@@ -118,6 +118,8 @@ export interface Lead {
   email: string;
   city: string;
   state: string;
+  country?: string;
+  countryCode?: string;
   website: string;
   instagram: string;
   facebook: string;
@@ -202,8 +204,10 @@ export interface RadarLead {
   address: string;
   city: string;
   state: string;
+  country?: string;
+  countryCode?: string;
   phone: string;
-  /** Somente dígitos, com DDI 55. */
+  /** Somente dígitos em E.164 quando o número WhatsApp for conhecido. */
   whatsapp: string;
   whatsappConfidence: WhatsAppConfidence;
   whatsappLink: string;

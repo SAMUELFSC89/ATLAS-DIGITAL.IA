@@ -45,6 +45,7 @@ export interface RadarSearchPayload {
   segment: string;
   city: string;
   state: string;
+  countryCode: string;
   radius: string;
   quantity: string;
   siteFilter: string;
@@ -162,10 +163,12 @@ export const DEFAULT_APPROACH =
 export { approachDiagnosis, fillMessage } from './prospectingApproach';
 
 export function formatWhatsApp(digits: string): string {
-  const local = digits.startsWith('55') ? digits.slice(2) : digits;
+  // A formatação brasileira só é válida quando o número começa pelo DDI 55.
+  if (!digits.startsWith('55')) return digits ? '+' + digits : '';
+  const local = digits.slice(2);
   if (local.length === 11) return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
   if (local.length === 10) return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
-  return digits;
+  return '+' + digits;
 }
 
 export function getAiTraining(signal?: AbortSignal): Promise<{ training: AiTraining; autoSend: boolean }> {

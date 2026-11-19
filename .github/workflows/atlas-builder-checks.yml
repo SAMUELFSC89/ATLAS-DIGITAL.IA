@@ -5,6 +5,8 @@ on:
       - 'api/_lib/**'
       - 'src/**'
       - 'tests/site-builder.test.ts'
+      - 'tests/radar-global.test.ts'
+      - 'api/radar.ts'
       - 'package*.json'
       - '.github/workflows/atlas-builder-checks.yml'
   push:
@@ -13,6 +15,8 @@ on:
       - 'api/_lib/**'
       - 'src/**'
       - 'tests/site-builder.test.ts'
+      - 'tests/radar-global.test.ts'
+      - 'api/radar.ts'
       - 'package*.json'
       - '.github/workflows/atlas-builder-checks.yml'
 permissions:
@@ -36,5 +40,7 @@ jobs:
         run: npm ci
       - name: Typecheck
         run: npm run lint
-      - name: Site builder privacy and integration tests
-        run: npx tsx --test tests/site-builder.test.ts
+      - name: Site builder and global radar integration tests
+        run: npx tsx --test tests/site-builder.test.ts tests/radar-global.test.ts
+      - name: Production build
+        run: npm run build

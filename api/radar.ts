@@ -1,4 +1,5 @@
 import { handleRecurringRadar } from './_lib/radar-recurring.js';
+import { isRadarCountryCode, radarCountryName, radarCategoryQuery, radarSearchLocation } from '../src/lib/radarGeography.js';
 /**
  * Este arquivo é propositalmente autossuficiente: não importa nenhum outro
  * arquivo do projeto nem biblioteca, para iniciar igual em qualquer servidor.
@@ -26,6 +27,8 @@ export interface RadarLead {
   address: string;
   city: string;
   state: string;
+  country: string;
+  countryCode: string;
   phone: string;
   /** Somente dígitos, com DDI 55. Vazio quando não há número utilizável. */
   whatsapp: string;
@@ -53,6 +56,7 @@ export interface RadarSearchParams {
   segment: string;
   city: string;
   state?: string;
+  countryCode?: string;
   radiusKm?: number;
   quantity?: number;
   siteFilter?: "all" | "has_site" | "no_site";
@@ -111,22 +115,25 @@ export async function placesTextSearch(body: Record<string, unknown>, fieldMask:
   return data;
 }
 
-export async function findCityCenter(place: string): Promise<{ latitude: number; longitude: number } | null> {
+export async function findCityCenter(place: string, countryCode = "BR"): Promise<{ latitude: number; longitude: number } | null> {
   try {
     const data = await placesTextSearch(
-      { textQuery: place, languageCode: "pt-BR", regionCode: "BR", pageSize: 1 },
-      "places.location"
+      { textQuery: place, languageCode: countryCode === "BR" ? "pt-BR" : "en", regionCode: countryCode, pageSize: 1 },
+      "places.location,places.addressComponents"
     );
-    return data?.places?.[0]?.location || null;
+    const match=data?.places?.[0];
+    const countries=match?.addressComponents?.filter((item:any)=>item.types?.includes('country'))||[];
+    if (countries.length && !countries.some((item:any)=>item.shortText?.toUpperCase()===countryCode)) return null;
+    return match?.location && Number.isFinite(match.location.latitude) && Number.isFinite(match.location.longitude) ? match.location : null;
   } catch (error) {
     if (error instanceof RadarError && error.code === "missing_key") throw error;
     return null;
   }
 }
 
-export function localRankingQuery(textQuery: string, center: Awaited<ReturnType<typeof findCityCenter>>, radiusKm: number) {
+export function localRankingQuery(textQuery: string, center: Awaited<ReturnType<typeof findCityCenter>>, radiusKm: number, countryCode = 'BR') {
   return {
-    textQuery, rankPreference: "RELEVANCE", languageCode: "pt-BR", regionCode: "BR", pageSize: PLACES_PAGE_SIZE,
+    textQuery, rankPreference: "RELEVANCE", languageCode: countryCode === "BR" ? "pt-BR" : "en", regionCode: countryCode, pageSize: PLACES_PAGE_SIZE,
     ...(center ? { locationBias: { circle: { center, radius: Math.min(radiusKm * 1000, MAX_RADIUS_BIAS_METERS) } } } : {}),
   };
 }
@@ -209,12 +216,13 @@ function firstLinkedin(html: string): string {
   return match ? match[0] : "";
 }
 
-function firstWhatsApp(html: string): string {
+export function firstWhatsApp(html: string): string {
   const regex = /(?:wa\.me\/|whatsapp\.com\/send\/?\?[^"'\s<>]*?phone=|whatsapp:\/\/send\/?\?[^"'\s<>]*?phone=)(?:\+|%2B)?(\d{10,15})/gi;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(html))) {
-    const normalized = normalizeBrazilPhone(match[1]);
-    if (normalized) return normalized.digits;
+    const digits = match[1];
+    // URLs wa.me usam número internacional E.164, nunca pressupor DDI brasileiro.
+    if (/^[1-9]\d{7,14}$/.test(digits)) return digits;
   }
   return "";
 }
@@ -287,18 +295,20 @@ function estimateCloseProbability(lead: RadarLead): number {
 export async function searchRadar(params: RadarSearchParams): Promise<RadarSearchResult> {
   const segment = (params.segment || "").trim();
   const city = (params.city || "").trim();
-  const state = (params.state || "").trim().toUpperCase();
-  if (!segment || !city) {
-    throw new RadarError("bad_request", "Informe o segmento e a cidade.");
+  const countryCode=(params.countryCode || "BR").trim().toUpperCase();
+  const state=(params.state || "").trim();
+  if (!segment || !city || segment.length>100 || city.length>100 || state.length>100 || !isRadarCountryCode(countryCode)) {
+    throw new RadarError("bad_request", "Informe uma categoria, cidade, região e país válidos.");
   }
   const quantity = Math.min(Math.max(Math.floor(params.quantity || 5), 1), 60);
   const radiusKm = Math.min(Math.max(params.radiusKm || 10, 1), 100);
   const siteFilter = params.siteFilter || "all";
   const keyword = (params.keyword || "").trim().slice(0, 80);
-  const place = [city, state, "Brasil"].filter(Boolean).join(", ");
+  const place = radarSearchLocation(city,state,countryCode);
 
-  // 1. Centro da cidade, para aplicar o raio de cobertura.
-  const center = await findCityCenter(place);
+  // 1. Localiza a cidade no país escolhido, sem usar viés geográfico do Brasil.
+  const center = await findCityCenter(place,countryCode);
+  if (!center) throw new RadarError("bad_request", "Não localizamos essa cidade e região no país selecionado. Confira a grafia ou informe uma região mais específica.");
 
   // 2. Empresas do segmento na região.
   const fieldMask = [
@@ -316,8 +326,9 @@ export async function searchRadar(params: RadarSearchParams): Promise<RadarSearc
     "nextPageToken",
   ].join(",");
 
-  const positionQuery = `${segment}${keyword ? ` ${keyword}` : ""} em ${place}`;
-  const baseBody = localRankingQuery(positionQuery, center, radiusKm);
+  const translatedCategory = radarCategoryQuery(segment,countryCode);
+  const positionQuery = `${translatedCategory}${keyword ? ` ${keyword}` : ""} ${countryCode==="BR"?"em":"in"} ${place}`;
+  const baseBody = localRankingQuery(positionQuery, center, radiusKm,countryCode);
 
   const positionCheckedAt = new Date().toISOString();
   const leads: RadarLead[] = [];
@@ -345,15 +356,16 @@ export async function searchRadar(params: RadarSearchParams): Promise<RadarSearc
       if (params.minReviews && reviewsCount < params.minReviews) continue;
 
       const distanceKm = center && item.location ? haversineKm(center, item.location) : null;
-      if (distanceKm !== null && distanceKm > radiusKm) continue;
+      if (distanceKm === null || distanceKm > radiusKm) continue;
 
       const classified = item.websiteUri ? classifyUrl(item.websiteUri) : null;
       const hasOwnSite = classified?.kind === "site";
       if (siteFilter === "has_site" && !hasOwnSite) continue;
       if (siteFilter === "no_site" && hasOwnSite) continue;
 
-      const phoneRaw: string = item.nationalPhoneNumber || item.internationalPhoneNumber || "";
-      const phone = normalizeBrazilPhone(phoneRaw);
+      const phoneRaw: string = countryCode === "BR" ? (item.nationalPhoneNumber || item.internationalPhoneNumber || "") : (item.internationalPhoneNumber || item.nationalPhoneNumber || "");
+      // Fora do Brasil, telefone comercial não equivale a conta de WhatsApp.
+      const phone = countryCode === "BR" ? normalizeBrazilPhone(phoneRaw) : null;
 
       const lead: RadarLead = {
         id: `radar-${item.id}`,
@@ -361,7 +373,9 @@ export async function searchRadar(params: RadarSearchParams): Promise<RadarSearc
         segment,
         address: item.formattedAddress || "",
         city,
-        state,
+        state: countryCode === "BR" ? state.toUpperCase() : state,
+        country: radarCountryName(countryCode),
+        countryCode,
         phone: phoneRaw,
         whatsapp: phone ? phone.digits : "",
         whatsappConfidence: phone ? (phone.isMobile ? "provavel" : "incerto") : "",
@@ -424,7 +438,7 @@ export async function searchRadar(params: RadarSearchParams): Promise<RadarSearc
     const ratingText = lead.rating !== null
       ? `Nota ${lead.rating.toFixed(1)} no Google com ${lead.reviewsCount} avaliações.`
       : "Ainda sem avaliações no Google.";
-    lead.notes = `Encontrada no Google Maps${lead.address ? `: ${lead.address}` : ""}. ${ratingText} ${
+    lead.notes = `Encontrada no Google Maps (${lead.country})${lead.address ? `: ${lead.address}` : ""}. ${ratingText} ${
       lead.website ? "Tem site próprio." : "Não tem site próprio cadastrado."
     }`;
   }
@@ -498,6 +512,7 @@ export default async function handler(req: any, res: any) {
       segment: String(body.segment || ""),
       city: String(body.city || ""),
       state: String(body.state || ""),
+      countryCode: String(body.countryCode || "BR"),
       radiusKm: toNumber(body.radius) ?? 10,
       quantity: toNumber(body.quantity) ?? 5,
       siteFilter: body.siteFilter === "has_site" || body.siteFilter === "no_site" ? body.siteFilter : "all",
