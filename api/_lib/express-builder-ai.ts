@@ -1,4 +1,4 @@
-import { claudeKey, claudeModel, ClaudeError, previewPrompt } from './express-claude.js';
+import { claudeKey, claudeModel, claudeText, ClaudeError, previewPrompt } from './express-claude.js';
 import { visualAssetInputs } from './express-assets.js';
 import { BUILDER_DIRECTIONS, BUILDER_SCENE_EFFECTS, type BuilderCreativePlan, type BuilderDirection, type BuilderSource } from '../../src/lib/siteBuilder.js';
 import type { ExpressBusiness } from '../../src/lib/expressOrder.js';
@@ -46,6 +46,35 @@ function readCreativePlan(value:any):BuilderCreativePlan|null {
   }
   if(!['inicio','servicos','sobre','contato'].every(section=>scenes.some(scene=>scene.section===section)))return null;
   return {concept,scenes,heroImagePrompt:clean(value.heroImagePrompt,1000)};
+}
+
+const PLAN_FORMAT = 'creativePlan {concept,heroImagePrompt,scenes:[{section,goal,entrance,motion,transition,effect}]}. Inclua inicio, servicos, sobre e contato em ordem. Em effect use apenas static, mask, scroll-zoom ou overlap. Escolha uma cena protagonista conectada ao valor da empresa. Em heroImagePrompt descreva a imagem ilustrativa necessária.';
+
+export async function planBuilder(business:ExpressBusiness, options:ResearchOptions, sources:BuilderSource[]):Promise<BuilderCreativePlan> {
+  const content=[
+    {type:'text' as const,text:JSON.stringify({segment:business.segment,services:business.services,direction:options.direction,instruction:options.instruction,locale:options.locale,sources:sources.map(({title,insight})=>({title,insight}))})},
+    ...referenceBlocks(options.references),
+  ];
+  try{
+    const reply=await claudeText(
+      'Você é diretor de arte. Destrinche os materiais, o processo, a sensação e o valor da oferta para construir uma narrativa original. Use as referências apenas como inspiração e não afirme que examinou o site, os visuais ou o movimento quando houve somente título. Preserve a direção escolhida, fatos e idioma. Para cada cena detalhe como entra, reage à rolagem e leva à próxima. Retorne somente JSON com a chave '+PLAN_FORMAT,
+      content,55000,2200,
+    );
+    const plan=readCreativePlan(JSON.parse(reply.match(/\{[\s\S]*\}/)?.[0]||'{}').creativePlan);
+    if(plan)return plan;
+  }catch(error){
+    console.warn('[Atlas Builder] Roteiro do modelo indisponível.',{name:error instanceof Error?error.name:'unknown'});
+  }
+  return {
+    concept:`${options.direction.name} para ${business.segment}, com foco na oferta e no contato.`,
+    heroImagePrompt:`Fotografia editorial ilustrativa para ${business.segment}. Use ${options.direction.layout}`.slice(0,1000),
+    scenes:[
+      {section:'inicio',goal:'Apresentar a oferta',entrance:'Título e imagem de destaque',motion:'Aproximação visual discreta',transition:'Levar da imagem para os serviços',effect:'scroll-zoom'},
+      {section:'servicos',goal:'Explicar os serviços informados',entrance:'Abrir com os benefícios principais',motion:'Leitura em ordem natural',transition:'Conectar os serviços à empresa',effect:'static'},
+      {section:'sobre',goal:'Apresentar a empresa com fatos confirmados',entrance:'Composição editorial',motion:'Revelação suave quando houver imagem',transition:'Conduzir ao próximo passo',effect:'mask'},
+      {section:'contato',goal:'Facilitar o contato',entrance:'Chamada de ação clara',motion:'Acesso direto ao canal informado',transition:'Encerrar a narrativa',effect:'static'},
+    ],
+  };
 }
 
 export async function researchBuilder(business:ExpressBusiness, options?:ResearchOptions){

@@ -129,7 +129,7 @@ async function loadEndpoint(){
  const temp=await mkdtemp(path.join(process.cwd(),'.builder-test-'));const out=path.join(temp,'endpoint.cjs');
  await build({entryPoints:['api/_lib/express-builder.ts'],outfile:out,bundle:true,platform:'node',format:'cjs',packages:'external',logLevel:'silent',plugins:[{name:'fixtures',setup(b){
  b.onResolve({filter:/express-store\.js$|\/radar\.js$|express-assets\.js$|express-claude\.js$|express-builder-ai\.js$/},args=>({path:args.path,namespace:'fixture'}));
- b.onLoad({filter:/.*/,namespace:'fixture'},args=>{let names=args.path.includes('express-store')?['db','previews','settings','orders','orderId','publicOrigin','saoPauloDay','rateLimit']:args.path.includes('radar')?['getAuthenticatedEmail']:args.path.includes('express-assets')?['resolveExpressAssets','rasterInfo','ASSET_MAX_BYTES','ExpressAssetError']:args.path.includes('express-claude')?['claudeConfigured','claudeText','extractSiteHtml']:['researchBuilder','builderPrompt','generateBuilderPhoto'];return {contents:names.map(n=>`export const ${n}=globalThis.__atlasBuilderTest.${n};`).join('\n'),loader:'js'};});
+ b.onLoad({filter:/.*/,namespace:'fixture'},args=>{let names=args.path.includes('express-store')?['db','previews','settings','orders','orderId','publicOrigin','saoPauloDay','rateLimit']:args.path.includes('radar')?['getAuthenticatedEmail']:args.path.includes('express-assets')?['resolveExpressAssets','rasterInfo','ASSET_MAX_BYTES','ExpressAssetError']:args.path.includes('express-claude')?['claudeConfigured','claudeText','extractSiteHtml']:['researchBuilder','planBuilder','builderPrompt','generateBuilderPhoto'];return {contents:names.map(n=>`export const ${n}=globalThis.__atlasBuilderTest.${n};`).join('\n'),loader:'js'};});
  }}]});
  const require=createRequire(import.meta.url);return {handler:require(out).default,close:()=>rm(temp,{recursive:true,force:true})};
 }
@@ -244,6 +244,15 @@ test('Pinterest research only displays real search URLs; four uploaded images ar
  assert.equal(planned.sources[0].siteUrl,'https://atelier.example/');
  assert.equal(planned.sources[1].siteUrl,undefined);
  assert.match(planned.researchNotice,/2 de 4.*consultados: 1/);
+ const textResponse=JSON.stringify({creativePlan:{concept:'Plano de segunda etapa',heroImagePrompt:'Foto editorial',scenes}});
+ globalThis.fetch=async()=>new Response([
+  'data: '+JSON.stringify({type:'content_block_delta',delta:{type:'text_delta',text:textResponse}}),
+  'data: '+JSON.stringify({type:'message_delta',delta:{stop_reason:'end_turn'}}),
+  '',
+ ].join('\n'));
+ assert.equal((await ai.planBuilder(business,options,planned.sources)).concept,'Plano de segunda etapa');
+ globalThis.fetch=async()=>new Response('',{status:503});
+ assert.equal((await ai.planBuilder(business,options,planned.sources)).scenes.length,4);
  const plannedPrompt=await ai.builderPrompt(business,BUILDER_DIRECTIONS[0],'',origin,[],'Crie o site.',undefined,[],'','pt-BR',{plan:planned.creativePlan,sources:planned.sources});
  assert.match(JSON.stringify(plannedPrompt.content),/Do material ao espaço.*Usar a textura no destaque/);
  globalThis.fetch=async()=>new Response(JSON.stringify({content:[{type:'web_search_tool_result',content:{type:'web_search_tool_result_error',error_code:'unavailable'}},{type:'text',text:'{"url":"https://pinterest.com/fabricado"}'}]}));assert.equal((await ai.researchBuilder(business)).sources.length,0);
