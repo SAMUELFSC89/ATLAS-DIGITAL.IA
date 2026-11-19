@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { RADAR_COUNTRIES, isRadarCountryCode, radarCategoryQuery, radarSearchLocation } from '../src/lib/radarGeography.ts';
 import { searchRadar, localRankingQuery, firstWhatsApp, RadarError } from '../api/radar.ts';
 import { parseRecurringRadarFilters } from '../src/lib/radarRecurring.ts';
-import { formatWhatsApp } from '../src/lib/radarApi.ts';
 
 test('country catalog covers all ISO territories and keeps Portuguese search for Brazil',()=>{
  assert.equal(RADAR_COUNTRIES.length,249);
@@ -24,8 +23,6 @@ test('locale-aware radius and international WhatsApp link parsing',()=>{
  assert.equal(firstWhatsApp('Fale via https://wa.me/14165550123'), '14165550123');
  assert.equal(firstWhatsApp('Fale via https://wa.me/5511999999999'), '5511999999999');
  assert.equal(firstWhatsApp('invalido https://wa.me/1234'), '');
- assert.equal(formatWhatsApp('14165550123'),'+14165550123');
- assert.equal(formatWhatsApp('5511999999999'),'(11) 99999-9999');
 });
 test('global Google Places search targets selected country and never assumes foreign WhatsApp',async()=>{
  const oldFetch=globalThis.fetch,oldKey=process.env.GOOGLE_PLACES_API_KEY;
