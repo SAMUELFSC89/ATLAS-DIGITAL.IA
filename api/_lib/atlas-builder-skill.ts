@@ -54,7 +54,7 @@ export function auditBuilderSite(html: string): BuilderAudit {
     { id: 'secao', label: 'Seções essenciais', ok: ['inicio','servicos','sobre','contato'].every(id => $('section#'+id).length > 0) },
     { id: 'contato', label: 'Canal de contato funcional', ok: $('a[href^="https://wa.me/"],a[href^="tel:"]').length >= 1 },
     { id: 'hero-cta', label: 'CTA na primeira seção', ok: $('section#inicio a[href^="https://wa.me/"],section#inicio a[href^="tel:"]').length >= 1 },
-    { id: 'alt', label: 'Descrição das imagens', ok: $('img').toArray().every(el => ($(el).attr('alt') || '').trim().length > 0) },
+    { id: 'alt', label: 'Descrição das imagens', ok: $('img').toArray().every(el => ($(el).attr('alt') || '').trim().length > 0 || $(el).closest('[data-atlas-shot-media][aria-hidden=true]').length > 0) },
     { id: 'responsive', label: 'Adaptação CSS de telas', ok: /@media\s*(?:screen\s+and\s*)?\(\s*(?:max-width|min-width|width)\s*:/i.test($('style').text()) || /@container\s*\(/i.test($('style').text()) },
     { id: 'seguro', label: 'Nenhum script arbitrário', ok: $('script:not([data-atlas-internal])').length <= 1 },
   ];

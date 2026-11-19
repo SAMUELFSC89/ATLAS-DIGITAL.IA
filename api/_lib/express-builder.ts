@@ -89,7 +89,23 @@ async function advance(id:string,email:string){
     }
     if(job.type==='research'){const {directions,sources,researchNotice}=await researchBuilder(claim.business);patch={directions,sources,researchNotice};assistant=patch.sources.length?'Encontrei referências públicas e preparei três direções visuais. Escolha uma delas para o seu site.':patch.researchNotice;}
     else if(job.phase==='images'||job.type==='image'){
-      try{const photo=await generateBuilderPhoto(claim.business,(job.phase==='images'?claim.creativePlan?.heroImagePrompt:'')||job.instruction||`Fotografia de destaque para ${claim.business.segment}, com composição sofisticada e luz natural.`,job.aspect);const asset=await storeGenerated(id,photo);patch={media:[...(claim.media||[]),asset].slice(-12),imageNotice:''};assistant='A imagem foi criada e adicionada à sua biblioteca. Escolha onde deseja usá-la no site.';}
+      try{
+        const automatic=job.phase==='images';
+        const planned=claim.creativePlan?.heroImagePrompt||job.instruction||`Fotografia de destaque para ${claim.business.segment}.`;
+        const direction=automatic?planned+' Enquadramento fechado, objeto ou ação em destaque no lado direito, luz dramática e área escura à esquerda para a legenda.':'';
+        const close=await generateBuilderPhoto(claim.business,direction||job.instruction,automatic?'16:9':job.aspect);
+        const assets=[await storeGenerated(id,close)];
+        if(automatic){
+          try{
+            const wide=await generateBuilderPhoto(claim.business,'Crie o segundo plano da mesma cena, em ângulo aberto. Preserve ambiente, sujeito, materiais, figurino e luz da imagem anexa. O objeto permanece no lado direito, revele o contexto ao redor.', '16:9',close);
+            assets.push(await storeGenerated(id,wide));
+          }catch(error){
+            console.warn('[Atlas Builder] Segundo enquadramento indisponível.',{status:Number((error as any)?.status)||0});
+          }
+        }
+        patch={media:[...(claim.media||[]),...assets].slice(-12),imageNotice:'',...(automatic?{openingAssetIds:assets.map(asset=>asset.id)}:{})};
+        assistant='A imagem foi criada e adicionada à sua biblioteca. Escolha onde deseja usá-la no site.';
+      }
       catch(error){if(job.type==='image')throw error;patch={imageNotice:'Não foi possível criar a imagem de destaque agora. Você pode enviar fotos ou tentar novamente na biblioteca de imagens.'};}
       if(job.phase==='images')return await advancePhase(ref,token,'building',patch);
     }else{
@@ -98,8 +114,12 @@ async function advance(id:string,email:string){
       const learning=(await learnings().doc(ownerLearningId(email)).get()).data();
       const learningContext=feedbackForPrompt(learning?.entries,claim.business.segment);
       const resultLocale=parseSiteLanguage(job.targetLocale)||parseSiteLanguage(claim.locale)||DEFAULT_SITE_LANGUAGE;
-      const prompt=await builderPrompt({...claim.business,assets:[...(claim.business.assets||[]),...(claim.media||[])]},(claim.directions||BUILDER_DIRECTIONS).find((d:any)=>d.id===claim.directionId)||BUILDER_DIRECTIONS[0],typeof config?.visualPrompt==='string'?config.visualPrompt:DEFAULT_VISUAL_PROMPT,publicOrigin(),refs,job.instruction||'Crie o site completo.',job.type==='edit'?claim.html:undefined,history.docs.filter(d=>d.data().role==='user').reverse().map(d=>d.data().text),learningContext,resultLocale,{plan:claim.creativePlan||null,sources:job.type==='generate'?claim.sources||[]:[]});
-      doc=prepareBuilderHtml(extractSiteHtml(await claudeText(prompt.system,prompt.content,265000)),publicOrigin(),resultLocale);
+      const allAssets:ExpressAsset[]=[...(claim.business.assets||[]),...(claim.media||[])];
+      const businessPhotos:ExpressAsset[]=(claim.business.assets||[]).filter((asset:ExpressAsset)=>asset.kind==='photo');
+      const generatedShots:ExpressAsset[]=(claim.openingAssetIds||[]).flatMap((assetId:string)=>allAssets.filter(asset=>asset.id===assetId));
+      const opening=job.type==='generate'?(businessPhotos.length?businessPhotos.slice(0,1):generatedShots.length?generatedShots:allAssets.filter(asset=>asset.kind==='photo').slice(0,1)):[];
+      const prompt=await builderPrompt({...claim.business,assets:[...(claim.business.assets||[]),...(claim.media||[])]},(claim.directions||BUILDER_DIRECTIONS).find((d:any)=>d.id===claim.directionId)||BUILDER_DIRECTIONS[0],typeof config?.visualPrompt==='string'?config.visualPrompt:DEFAULT_VISUAL_PROMPT,publicOrigin(),refs,job.instruction||'Crie o site completo.',job.type==='edit'?claim.html:undefined,history.docs.filter(d=>d.data().role==='user').reverse().map(d=>d.data().text),learningContext,resultLocale,{plan:claim.creativePlan||null,sources:job.type==='generate'?claim.sources||[]:[],cinematic:opening.length>0});
+      doc=prepareBuilderHtml(extractSiteHtml(await claudeText(prompt.system,prompt.content,265000)),publicOrigin(),resultLocale,opening);
       patch={...patch,locale:resultLocale,quality:auditBuilderSite(doc.html),feedback:null};
       assistant=job.type==='edit'?'O site foi atualizado. Revise as alterações no editor.':'Seu site está criado. Você pode editar os textos, as cores e as imagens ou pedir ajustes pelo chat.';
     }

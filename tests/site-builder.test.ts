@@ -32,6 +32,26 @@ test('direct edits escape text, preserve IDs and keep only one runtime after rep
  doc=modifyBuilderHtml(doc.html,{type:'visibility',id:'sobre',visible:false},origin);assert.equal(doc.sections.find(s=>s.id==='sobre')?.visible,false);
  doc=modifyBuilderHtml(doc.html,{type:'color',color:'#123456'},origin);let $=load(doc.html);assert.ok($('#atlas-brand').text().includes('#123456'));assert.equal($('style#atlas-runtime-style').length,1);assert.equal(doc.sections[0].texts[0].id,id);assert.throws(()=>modifyBuilderHtml(doc.html,{type:'text',id:'nope"] script',text:'x'},origin));
 });
+test('cinematic opening pins two trusted frames and preserves its copy when edited',()=>{
+ const asset=(url:string)=>({id:randomUUID(),projectId:'a',kind:'photo' as const,name:'foto',mimeType:'image/webp' as const,width:1400,height:800,size:100,url});
+ const second=imageUrl.replace(/file=.+/,'file='+randomUUID());
+ const store='https://play.google.com/store/apps/details?id=com.desafiosemdesculpa.app';
+ const source=raw.replace('</section>',`<a href="${store}&amp;from=test">Baixar</a></section>`);
+ let doc=prepareBuilderHtml(source,origin,'pt-BR',[asset('https://evil.test/a.jpg'),asset(imageUrl),asset(second)]);
+ let $=load(doc.html);
+ assert.equal($('#inicio > [data-atlas-shot]').length,1);
+ assert.deepEqual($('[data-atlas-shot-media] img').toArray().map(el=>$(el).attr('src')),[imageUrl,second]);
+ assert.equal($('[data-atlas-shot-copy] h1').text(),'Seu espaço');
+ assert.equal($('[data-atlas-shot-copy] a').attr('href'),store);
+ assert.equal($('#inicio img').length,2);
+ assert.match($('#atlas-runtime-style').text(),/animation-timeline:--atlas-opening/);
+ doc=modifyBuilderHtml(doc.html,{type:'text',id:doc.sections[0].texts[0].id,text:'Novo destaque'},origin);
+ $=load(doc.html);
+ assert.equal($('[data-atlas-shot]').length,1);
+ assert.equal($('[data-atlas-shot-copy] h1').text(),'Novo destaque');
+ assert.equal($('#inicio img').length,2);
+});
+
 test('relative uploads and absolute generated media both become valid image URLs in the model prompt',()=>{
  const assets=[{id:'a',projectId:'a',kind:'photo' as const,name:'foto',mimeType:'image/webp' as const,width:100,height:100,size:100,url:imageUrl},{id:'b',projectId:'b',kind:'logo' as const,name:'logo',mimeType:'image/png' as const,width:100,height:100,size:100,url:'/api/site-express?view=asset&id=one&asset=two'}];
  const prompt=previewPrompt({...business,assets},{creativePrompt:'',brandColor:'#123456',origin});assert.ok(prompt.user.includes(imageUrl));assert.ok(!prompt.user.includes(origin+origin));assert.ok(prompt.user.includes(origin+'/api/site-express?view=asset'));
@@ -157,7 +177,7 @@ test('authenticated endpoint: ownership, reference cap, model input, job retries
  await call('start',{id:importedId,requestId:randomUUID(),type:'generate'});
  assert.equal((await call('run',{id:importedId})).body.project.job.phase,'images');
  const failedImage=await call('run',{id:importedId});
- assert.equal(imagePrompt,'Foto macro de pedra');
+ assert.match(imagePrompt,/^Foto macro de pedra.*Enquadramento fechado/);
  assert.equal(failedImage.body.project.job.phase,'building');
  assert.match(failedImage.body.project.imageNotice,/Não foi possível criar/);
  assert.equal((await call('run',{id:importedId})).body.project.status,'ready');
