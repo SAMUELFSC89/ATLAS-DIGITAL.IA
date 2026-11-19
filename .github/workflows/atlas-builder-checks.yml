@@ -5,6 +5,11 @@ on:
       - 'api/_lib/**'
       - 'src/**'
       - 'tests/site-builder.test.ts'
+      - 'tests/site-deployment-smoke.test.ts'
+      - 'api/contact.ts'
+      - 'api/site-express.ts'
+      - 'api/site-express-webhook.ts'
+      - 'vercel.json'
       - 'tests/radar-global.test.ts'
       - 'api/radar.ts'
       - 'package*.json'
@@ -15,6 +20,11 @@ on:
       - 'api/_lib/**'
       - 'src/**'
       - 'tests/site-builder.test.ts'
+      - 'tests/site-deployment-smoke.test.ts'
+      - 'api/contact.ts'
+      - 'api/site-express.ts'
+      - 'api/site-express-webhook.ts'
+      - 'vercel.json'
       - 'tests/radar-global.test.ts'
       - 'api/radar.ts'
       - 'package*.json'
@@ -41,6 +51,6 @@ jobs:
       - name: Typecheck
         run: npm run lint
       - name: Site builder and global radar integration tests
-        run: npx tsx --test tests/site-builder.test.ts tests/radar-global.test.ts
+        run: npx tsx --test tests/site-builder.test.ts tests/radar-global.test.ts tests/site-deployment-smoke.test.ts
       - name: Production build
         run: npm run build
