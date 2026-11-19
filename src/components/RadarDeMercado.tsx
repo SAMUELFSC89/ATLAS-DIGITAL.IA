@@ -286,18 +286,26 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads, onOpenSetting
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="space-y-1.5">
+              <label htmlFor="radar-country" className="block text-[10px] uppercase font-mono font-bold text-gray-400">País de prospecção *</label>
+              <select id="radar-country" value={countryCode} onChange={event=>{setCountryCode(event.target.value);setState('');setCity('');}}
+                className="w-full bg-gray-950 text-white border border-gray-800 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-[#E2B755] font-sans">
+                <optgroup label="Países mais procurados">{RADAR_COUNTRIES.filter(c=>c.favorite).map(c=><option key={c.code} value={c.code}>{c.name}</option>)}</optgroup>
+                <optgroup label="Todos os países e territórios">{RADAR_COUNTRIES.filter(c=>!c.favorite).map(c=><option key={c.code} value={c.code}>{c.name}</option>)}</optgroup>
+              </select>
+            </div>
             {/* Segment Selector */}
             <div className="space-y-1.5">
-              <label className="block text-[10px] uppercase font-mono font-bold text-gray-400">Nicho / Segmento</label>
+              <label className="block text-[10px] uppercase font-mono font-bold text-gray-400">Categoria de empresa *</label>
               <select
-                value={segment}
-                onChange={(e) => setSegment(e.target.value)}
+                value={SEGMENTS.includes(segment) ? segment : '__custom__'}
+                onChange={(e) => setSegment(e.target.value === '__custom__' ? '' : e.target.value)}
                 className="w-full bg-gray-950 text-white border border-gray-800 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-[#E2B755] font-sans font-medium"
               >
-                {SEGMENTS.map((seg, idx) => (
-                  <option key={idx} value={seg}>{seg}</option>
-                ))}
+                {SEGMENTS.map(seg=><option key={seg} value={seg}>{seg}</option>)}
+                <option value="__custom__">Outra categoria (digitar)</option>
               </select>
+              {!SEGMENTS.includes(segment)&&<input type="text" required maxLength={100} value={segment} onChange={e=>setSegment(e.target.value)} placeholder="Ex.: loja de bicicletas, TI, turismo" aria-label="Categoria personalizada" className="w-full mt-2 bg-gray-950 text-white border border-gray-800 rounded-xl px-4 py-3 text-xs"/>}
             </div>
 
             {/* City Field */}
@@ -308,7 +316,7 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads, onOpenSetting
                 <input
                   type="text"
                   required
-                  placeholder="Ex: São Paulo"
+                  placeholder={countryCode==='BR'?'Ex.: São Paulo':'Ex.: Toronto, Lisboa, Miami'}
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   className="w-full bg-gray-950 text-white border border-gray-800 rounded-xl pl-10 pr-4 py-3 text-xs focus:outline-none focus:border-[#E2B755]"
@@ -318,13 +326,13 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads, onOpenSetting
 
             {/* State Field */}
             <div className="space-y-1.5">
-              <label className="block text-[10px] uppercase font-mono font-bold text-gray-400">Estado / UF</label>
+              <label className="block text-[10px] uppercase font-mono font-bold text-gray-400">Estado / Província / Região</label>
               <input
                 type="text"
-                placeholder="Ex: SP"
-                maxLength={2}
+                placeholder={countryCode==='BR'?'Ex.: SP':'Ex.: California, Ontario, Lombardia'}
+                maxLength={100}
                 value={state}
-                onChange={(e) => setState(e.target.value.toUpperCase())}
+                onChange={(e) => setState(countryCode==='BR'?e.target.value.toUpperCase():e.target.value)}
                 className="w-full bg-gray-950 text-white border border-gray-800 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-[#E2B755] font-mono"
               />
             </div>
@@ -407,7 +415,7 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads, onOpenSetting
 
           {/* Optional Keyword */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
-            <div className="lg:col-span-3 space-y-1.5">
+            <div className="lg:col-span-4 space-y-1.5">
               <label className="block text-[10px] uppercase font-mono font-bold text-gray-400">Palavra-chave Opcional de Nicho</label>
               <input
                 type="text"
@@ -418,18 +426,10 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads, onOpenSetting
               />
             </div>
 
-            {/* Country */}
-            <div className="space-y-1.5">
-              <label className="block text-[10px] uppercase font-mono font-bold text-gray-400">País</label>
-              <input
-                type="text"
-                value={country}
-                disabled
-                className="w-full bg-gray-950/60 text-gray-500 border border-gray-900 rounded-xl px-4 py-3 text-xs focus:outline-none cursor-not-allowed"
-              />
-            </div>
+
           </div>
 
+          <p className="text-xs text-gray-500">A busca aplica o raio ao redor da cidade no país escolhido. A cobertura depende do Google Maps. Números internacionais não são classificados automaticamente como WhatsApp; adapte o idioma e respeite as regras locais de contato.</p>
           <div className="pt-4 border-t border-gray-900/60 flex items-center justify-end">
             <button
               type="submit"
