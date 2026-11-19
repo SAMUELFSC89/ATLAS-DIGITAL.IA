@@ -2,6 +2,7 @@ import { getFirestoreAdmin } from './db-helper.js';
 import { CONTACT_CAMPAIGN_KEYS, normalizeBrazilianWhatsApp, type ContactCampaign } from '../src/lib/contact.js';
 import siteExpress from './_lib/site-express.js';
 import expressWebhook from './_lib/site-express-webhook.js';
+import studio from './_lib/studio.js';
 import type { Request, Response } from 'express';
 
 function text(value: unknown) {
@@ -11,6 +12,7 @@ function text(value: unknown) {
 export default async function handler(req: Request, res: Response) {
   if (req.query?.expressEndpoint === 'site') return siteExpress(req, res);
   if (req.query?.expressEndpoint === 'webhook') return expressWebhook(req, res);
+  if (req.query?.expressEndpoint === 'studio') return studio(req, res);
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');

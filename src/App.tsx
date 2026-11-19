@@ -77,6 +77,9 @@ import { useScrollReveal } from './lib/useScrollReveal';
 import { Lead, LeadStatus, IntegrationConfig, LocalSearchPosition } from './types';
 
 const SiteExpressPage = lazy(() => import('./components/SiteExpressPage'));
+const StudioPreviewPage = lazy(() => import('./components/studio/StudioPreviewPage'));
+const SiteStudioPanel = lazy(() => import('./components/studio/SiteStudioPanel'));
+const studioPreviewId = /^\/studio\/([\w-]{1,64})\/?$/.exec(window.location.pathname)?.[1];
 const ExpressOrdersPanel = lazy(() => import('./components/ExpressOrdersPanel'));
 const expressLoading = <p role="status" className="p-5 text-sm text-zinc-300">Carregando Site Express…</p>;
 
@@ -95,7 +98,7 @@ export default function App() {
   const [auditLead, setAuditLead] = useState<Lead>();
   const [selectedLeadForCopilot, setSelectedLeadForCopilot] = useState<Lead | null>(null);
 
-  useScrollReveal(!isPortalActive && window.location.pathname.replace(/\/$/, '') !== '/site-express');
+  useScrollReveal(!isPortalActive && !studioPreviewId && window.location.pathname.replace(/\/$/, '') !== '/site-express');
 
   useEffect(() => onAuthStateChanged(auth, (user) => {
     setCrmLeads([]);
@@ -130,6 +133,7 @@ export default function App() {
   const [crmLeads, setCrmLeads] = useState<Lead[]>([]);
 
   const [canAccessSiteContacts, setCanAccessSiteContacts] = useState(false);
+  const [studioAccess, setStudioAccess] = useState<{ allowed: boolean; owner: boolean }>({ allowed: false, owner: false });
   const [crmError, setCrmError] = useState('');
   const [crmLoading, setCrmLoading] = useState(false);
   const crmRevision = useRef(0);
@@ -168,6 +172,17 @@ export default function App() {
       document.removeEventListener('visibilitychange', refresh);
     };
   }, [isPortalActive, currentUser, activePortalTab]);
+
+  useEffect(() => {
+    setStudioAccess({ allowed: false, owner: false });
+    if (!isPortalActive || !currentUser || !auth.currentUser) return;
+    const controller = new AbortController();
+    void auth.currentUser.getIdToken().then(token => fetch('/api/studio?view=me', { headers: { Authorization: 'Bearer ' + token }, signal: controller.signal }))
+      .then(response => response.ok ? response.json() : null)
+      .then(data => { if (data && !controller.signal.aborted) setStudioAccess({ allowed: data.allowed === true, owner: data.owner === true }); })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [isPortalActive, currentUser]);
 
   const saveCrm = async (mutation: Parameters<typeof updateCrm>[0]) => {
     const user = auth.currentUser;
@@ -277,6 +292,7 @@ export default function App() {
     }
   }
 
+  if (studioPreviewId) return <Suspense fallback={<p role="status" style={{ padding: 32, fontFamily: 'system-ui', color: '#eee', background: '#111', minHeight: '100vh' }}>Carregando prévia…</p>}><StudioPreviewPage id={studioPreviewId} /></Suspense>;
   if (window.location.pathname.replace(/\/$/, '') === '/site-express') return <Suspense fallback={expressLoading}><SiteExpressPage /></Suspense>;
 
   if (isPortalActive) {
@@ -306,6 +322,7 @@ export default function App() {
                 { id: 'atlas-score', label: 'Atlas Score', icon: Award },
                 { id: 'crm', label: 'CRM Inteligente', icon: ClipboardList },
                 ...(canAccessSiteContacts ? [{ id: 'express-orders', label: 'Pedidos de Site', icon: FileText }] : []),
+                ...(studioAccess.allowed ? [{ id: 'site-studio', label: 'Criador de Sites', icon: Sparkles }] : []),
                 { id: 'copilot', label: 'Atlas Copilot IA', icon: Bot },
                 { id: 'ai-training', label: 'Treinar IA', icon: Bot },
                 { id: 'automacoes', label: 'APIs & Conexões', icon: Settings },
@@ -391,6 +408,8 @@ export default function App() {
               className="rounded-lg px-2 py-2 text-xs font-semibold text-[#E2B755]">Treinar IA</button>
             {canAccessSiteContacts && <button type="button" onClick={() => setActivePortalTab('express-orders')}
               className="rounded-lg px-2 py-2 text-xs font-semibold text-[#E2B755]">Pedidos de Site</button>}
+            {studioAccess.allowed && <button type="button" onClick={() => setActivePortalTab('site-studio')}
+              className="rounded-lg px-2 py-2 text-xs font-semibold text-[#E2B755]">Criador de Sites</button>}
           </div>}
 
           {/* Main workspace scrollable container */}
@@ -403,6 +422,7 @@ export default function App() {
             ) : (
               <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
                 {activePortalTab === 'express-orders' && canAccessSiteContacts && <Suspense fallback={expressLoading}><ExpressOrdersPanel /></Suspense>}
+                {activePortalTab === 'site-studio' && studioAccess.allowed && <Suspense fallback={<p role="status" className="p-5 text-sm text-zinc-300">Carregando criador de sites…</p>}><SiteStudioPanel owner={studioAccess.owner} /></Suspense>}
                 {activePortalTab === 'dashboard' && (
                   <ExecutiveDashboard 
                     leads={crmLeads}

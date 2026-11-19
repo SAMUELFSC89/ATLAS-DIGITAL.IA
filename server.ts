@@ -8,6 +8,7 @@ import metaCallbackHandler from "./api/meta-callback.ts";
 import webhookHandler from "./api/webhook.ts";
 import siteExpress from "./api/_lib/site-express.ts";
 import expressWebhook from "./api/_lib/site-express-webhook.ts";
+import studio from "./api/_lib/studio.ts";
 import contactHandler from "./api/contact.ts";
 import aiTrainingHandler from "./api/ai-training.ts";
 import crmHandler from "./api/crm.ts";
@@ -54,6 +55,8 @@ async function startServer() {
   app.all("/api/webhook", (req, res) => webhookHandler(req, res));
   app.post("/api/site-express-webhook", (req, res) => expressWebhook(req, res));
   app.use('/api/site-express', express.json({ limit: '2mb' }));
+  app.use('/api/studio', express.json({ limit: '2mb' }));
+  app.all("/api/studio", (req, res) => studio(req, res));
   app.use(express.json());
   app.all("/api/site-express", (req, res) => siteExpress(req, res));
 
