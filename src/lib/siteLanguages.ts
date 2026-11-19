@@ -1,4 +1,4 @@
-import { normalizeBrazilianWhatsApp } from './contact';
+import { normalizeBrazilianWhatsApp } from './contact.js';
 /**
  * Idioma da página publicada, independente da localização da empresa ou do painel Atlas.
  * Uma página publicada contém um idioma por versão. Multilinguismo paralelo será um recurso futuro.
