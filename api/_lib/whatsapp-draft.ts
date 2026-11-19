@@ -1,4 +1,4 @@
-import { crmAccount, crmPhone, leadContactQuery } from '../crm-store.js';
+import { crmAccount, crmPhone, leadContactQuery } from './crm-store.js';
 import { generateAiReply, readTraining } from './ai-reply.js';
 import { AI_MEMORY_LIMIT } from '../../src/lib/aiTraining.js';
 

@@ -1,4 +1,4 @@
-import { decrypt, encrypt, getFirestoreAdmin } from "./db-helper.js";
+import { decrypt, encrypt, getFirestoreAdmin } from "./_lib/db-helper.js";
 import { getAuthenticatedEmail } from "./radar.js";
 
 const GRAPH = "https://graph.facebook.com/v24.0";

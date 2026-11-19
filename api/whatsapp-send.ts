@@ -1,9 +1,9 @@
 import { parseProspectingDraft } from '../src/lib/prospectingQueue.js';
 import { DEFAULT_PROSPECTING_SCHEDULE, parseProspectingSchedule, withinProspectingSchedule } from "../src/lib/prospectingSchedule.js";
-import { getWhatsAppConnectionInfo, sendWhatsAppTemplate } from "./whatsapp-service.js";
+import { getWhatsAppConnectionInfo, sendWhatsAppTemplate } from "./_lib/whatsapp-service.js";
 import type { PositioningSnapshot } from "../src/lib/positioningPdf.js";
 import { scoreForLocalPosition } from "./radar.js";
-import { crmAccount, crmHash, recordCrmInteraction } from "./crm-store.js";
+import { crmAccount, crmHash, recordCrmInteraction } from "./_lib/crm-store.js";
 
 const MAX_PARAM_LENGTH = 300;
 const DEFAULT_DAILY_LIMIT = 30;

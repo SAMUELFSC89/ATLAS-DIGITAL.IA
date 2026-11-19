@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { handleIncomingWebhookMessage } from './whatsapp-service.js';
+import { handleIncomingWebhookMessage } from './_lib/whatsapp-service.js';
 
 const MAX_BODY_BYTES = 1024 * 1024;
 

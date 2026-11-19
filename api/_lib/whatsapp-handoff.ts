@@ -1,4 +1,4 @@
-import { crmAccount, crmPhone, leadContactQuery } from '../crm-store.js';
+import { crmAccount, crmPhone, leadContactQuery } from './crm-store.js';
 
 export async function canProcessInboundWithAi(email: string, phone: string, eventId: string): Promise<boolean> {
   const normalized = crmPhone('+' + phone);

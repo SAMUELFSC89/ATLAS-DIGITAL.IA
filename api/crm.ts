@@ -1,5 +1,5 @@
-import { getFirestoreAdmin } from './db-helper.js';
-import { crmAccount, crmHash, leadContactKeys, leadContactQuery } from './crm-store.js';
+import { getFirestoreAdmin } from './_lib/db-helper.js';
+import { crmAccount, crmHash, leadContactKeys, leadContactQuery } from './_lib/crm-store.js';
 import { getAuthenticatedEmail } from './radar.js';
 import { CRM_NEXT_ACTION, CRM_STAGES } from '../src/lib/crmPipeline.js';
 import type { Lead, LeadStatus } from '../src/types.js';
