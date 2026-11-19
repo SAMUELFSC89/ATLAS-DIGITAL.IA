@@ -2,7 +2,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { getAuthenticatedEmail } from '../radar.js';
 import { db, previews, settings, orders, orderId, publicOrigin, saoPauloDay, rateLimit } from './express-store.js';
-import { resolveExpressAssets, rasterInfo, ASSET_MAX_BYTES } from './express-assets.js';
+import { resolveExpressAssets, rasterInfo, ASSET_MAX_BYTES, ExpressAssetError } from './express-assets.js';
 import { claudeConfigured, claudeText, extractSiteHtml } from './express-claude.js';
 import { prepareBuilderHtml, modifyBuilderHtml, builderCsp, builderImageUrl } from './express-builder-html.js';
 import { researchBuilder, builderPrompt, generateBuilderPhoto } from './express-builder-ai.js';
@@ -105,9 +105,9 @@ export default async function builder(req:Request,res:Response){
     }else if(action==='remove-reference'){
       if(!orderId(req.body.fileId))fail(400,'Referência inválida.');await db().runTransaction(async tx=>{const current=(await tx.get(ref)).data();editable(current);tx.update(ref,{references:(current.references||[]).filter((r:any)=>r.id!==req.body.fileId),updatedAt:Date.now()});});
     }else if(action==='direction'){
-      if(!p.directions.some((d:any)=>d.id===req.body.directionId))fail(400,'Escolha um dos estilos disponíveis.');await ref.update({directionId:req.body.directionId,updatedAt:Date.now()});
+      if(!p.directions.some((d:any)=>d.id===req.body.directionId))fail(400,'Escolha um dos estilos disponíveis.');await db().runTransaction(async tx=>{const current=(await tx.get(ref)).data();editable(current);tx.update(ref,{directionId:req.body.directionId,updatedAt:Date.now()});});
     }else if(action==='assets'){
-      const assets=await resolveExpressAssets({...req.body,sourcePreviewId:id},String(id));const business={...p.business,assets,photo:assets.find(a=>a.kind==='photo')?.url||''};const batch=db().batch();batch.update(ref,{business,updatedAt:Date.now()});batch.update(previews().doc(String(id)),{business});await batch.commit();
+      const assets=await resolveExpressAssets({...req.body,sourcePreviewId:id},String(id));const business={...p.business,assets,photo:assets.find(a=>a.kind==='photo')?.url||''};await db().runTransaction(async tx=>{const current=(await tx.get(ref)).data();editable(current);if(current.updatedAt!==p.updatedAt)fail(409,'O projeto mudou. Recarregue antes de salvar as imagens.');tx.update(ref,{business,updatedAt:Date.now()});tx.update(previews().doc(String(id)),{business});});
     }else if(action==='modify'){
       if(req.body.version!==p.version||!p.html)fail(409,'Recarregue o editor para usar a versão atual.');let operation=req.body.operation;
       if(operation?.type==='texts'){
@@ -123,8 +123,8 @@ export default async function builder(req:Request,res:Response){
       const configuredOwner=(process.env.ATLAS_CONTACT_OWNER_EMAIL||'samuelfsc89@gmail.com').trim().toLowerCase();const owner=email===configuredOwner&&(await getAuthenticatedEmail(req,true))?.toLowerCase()===email;
       if(!owner){const paid=await orders().where('previewId','==',id).get();if(!paid.docs.some(d=>d.data().mode==='live'&&['paid','production','delivered'].includes(d.data().status)))return res.status(402).json({error:'Seu site está criado. Para publicar, conclua a contratação do Site Express.',requiresPayment:true});}
       const slug=p.publishedSlug||(p.business.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)||'site')+'-'+String(id).slice(0,8);const document=prepareBuilderHtml(p.html,publicOrigin());
-      const batch=db().batch();batch.set(published().doc(slug),{projectId:id,html:document.html,version:p.version,updatedAt:Date.now()});batch.update(ref,{publishedSlug:slug,publishedVersion:p.version,publishedAt:Date.now(),updatedAt:Date.now()});await batch.commit();await addMessage(String(id),'assistant','Seu site foi publicado. Novos ajustes só aparecem no endereço público quando você publicar novamente.');
+      await db().runTransaction(async tx=>{const current=(await tx.get(ref)).data();editable(current);if(current.version!==p.version)fail(409,'O site mudou. Revise a versão atual antes de publicar.');tx.set(published().doc(slug),{projectId:id,html:document.html,version:p.version,updatedAt:Date.now()});tx.update(ref,{publishedSlug:slug,publishedVersion:p.version,publishedAt:Date.now(),updatedAt:Date.now()});});await addMessage(String(id),'assistant','Seu site foi publicado. Novos ajustes só aparecem no endereço público quando você publicar novamente.');
     }else fail(400,'Ação inválida.');
     return res.json({project:await state(String(id),(await ref.get()).data())});
-  }catch(error){if(error instanceof BuilderError)return res.status(error.status).json({error:error.message});console.warn('[Atlas Builder]',{action:String(req.query.action||''),name:error instanceof Error?error.name:'unknown'});return res.status(503).json({error:'Não conseguimos concluir esta ação agora. Seus dados salvos foram preservados.'});}
+  }catch(error){if(error instanceof BuilderError)return res.status(error.status).json({error:error.message});if(error instanceof ExpressAssetError)return res.status(400).json({error:error.message});console.warn('[Atlas Builder]',{action:String(req.query.action||''),name:error instanceof Error?error.name:'unknown'});return res.status(503).json({error:'Não conseguimos concluir esta ação agora. Seus dados salvos foram preservados.'});}
 }
