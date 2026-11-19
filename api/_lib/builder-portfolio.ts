@@ -34,11 +34,11 @@ const publicCreator = (p: any) => ({
   url: creatorUrl(p.handle),
 });
 const siteCard = (p: any) => ({
-  id: p.projectId,
+  id: p.publishedSlug,
   name: p.name,
   segment: p.segment,
   city: p.city,
-  description: p.description,
+  description: p.caption || '',
   accent: /^#[0-9a-f]{6}$/i.test(p.accent) ? p.accent : '#b6a172',
   url: publicUrl(p.publishedSlug),
 });
@@ -68,6 +68,7 @@ export async function getOwnerPortfolio(email: string) {
       segment: d.data().business?.segment || '',
       publishedUrl: d.data().publishedSlug ? publicUrl(d.data().publishedSlug) : null,
       portfolioVisible: d.data().portfolioVisible === true,
+      caption: d.data().portfolioCaption || '',
       updatedAt: d.data().updatedAt || 0,
     })).sort((a,b) => b.updatedAt - a.updatedAt),
   };
@@ -120,13 +121,29 @@ export async function togglePortfolioSite(email: string, projectId: string, visi
     const direction = (p.directions || []).find((d: any) => d.id === p.directionId);
     tx.set(cardRef,{
       ownerId,projectId,name:text(p.business?.name,100),segment:text(p.business?.segment,80),
-      city:text(p.business?.city,100),description:text(p.business?.services,230),
+      city:text(p.business?.city,100),caption:text(p.portfolioCaption,230),
       accent:direction?.accent || '#b6a172',publishedSlug:p.publishedSlug || '',
       visible,updatedAt:Date.now(),
     });
     tx.update(projRef,{portfolioVisible:visible,updatedAt:Date.now()});
   });
   return {visible};
+}
+
+export async function savePortfolioCaption(email: string, projectId: string, caption: string) {
+  if (!(await rateLimit(email,'creator-caption',30,100))) fail(429,'Muitas alterações. Tente novamente mais tarde.');
+  const ownerId=creatorKey(email);
+  const ref=projects().doc(projectId), cardRef=portfolio().doc(ownerId+'_'+projectId);
+  const cleaned=text(caption,230);
+  await db().runTransaction(async tx=>{
+    const snap=await tx.get(ref),p=snap.data();
+    if(!p||p.ownerEmail!==email.toLowerCase())fail(404,'Projeto não encontrado nesta conta.');
+    if(p.job)fail(409,'Aguarde a operação em andamento.');
+    const card=await tx.get(cardRef);
+    tx.update(ref,{portfolioCaption:cleaned,updatedAt:Date.now()});
+    if(card.exists)tx.update(cardRef,{caption:cleaned,updatedAt:Date.now()});
+  });
+  return {caption:cleaned};
 }
 
 export async function getPublicCreator(handle: string) {
