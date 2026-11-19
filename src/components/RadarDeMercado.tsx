@@ -185,6 +185,8 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads, onOpenSetting
         email: lead.email,
         city: lead.city,
         state: lead.state,
+        country: lead.country,
+        countryCode: lead.countryCode,
         website: lead.website,
         instagram: lead.instagram,
         facebook: lead.facebook,
