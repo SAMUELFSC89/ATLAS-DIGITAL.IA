@@ -6,7 +6,7 @@ import { db, previews, settings, orders, orderId, publicOrigin, saoPauloDay, rat
 import { resolveExpressAssets, rasterInfo, ASSET_MAX_BYTES, ExpressAssetError } from './express-assets.js';
 import { claudeConfigured, claudeText, extractSiteHtml } from './express-claude.js';
 import { prepareBuilderHtml, modifyBuilderHtml, builderCsp, builderImageUrl } from './express-builder-html.js';
-import { researchBuilder, builderPrompt, generateBuilderPhoto } from './express-builder-ai.js';
+import { researchBuilder, planBuilder, builderPrompt, generateBuilderPhoto } from './express-builder-ai.js';
 import { auditBuilderSite, feedbackForPrompt } from './atlas-builder-skill.js';
 import { PortfolioError, getOwnerPortfolio, saveCreatorProfile, togglePortfolioSite, savePortfolioCaption, getPublicCreator, getPublicCreatorDirectory } from './builder-portfolio.js';
 import { normalizeSiteWhatsApp } from '../../src/lib/siteLanguages.js';
@@ -75,13 +75,15 @@ async function advance(id:string,email:string){
   try{
     if(job.phase==='planning'&&job.type==='generate'){
       let planPatch:Pick<BuilderProject,'sources'|'creativePlan'|'researchNotice'>={sources:[],creativePlan:null,researchNotice:'A busca no Pinterest ficou indisponível. A criação continua com o briefing e as referências anexadas.'};
+      const direction=(claim.directions||BUILDER_DIRECTIONS).find((d:any)=>d.id===claim.directionId)||BUILDER_DIRECTIONS[0];
+      const options={direction,instruction:job.instruction,locale:parseSiteLanguage(claim.locale)||DEFAULT_SITE_LANGUAGE,references:await loadVisualReferences(ref,job.referenceIds||[])};
       try{
-        const direction=(claim.directions||BUILDER_DIRECTIONS).find((d:any)=>d.id===claim.directionId)||BUILDER_DIRECTIONS[0];
-        const result=await researchBuilder(claim.business,{direction,instruction:job.instruction,locale:parseSiteLanguage(claim.locale)||DEFAULT_SITE_LANGUAGE,references:await loadVisualReferences(ref,job.referenceIds||[])});
+        const result=await researchBuilder(claim.business,options);
         planPatch={sources:result.sources,creativePlan:result.creativePlan||null,researchNotice:result.researchNotice};
       }catch(error){
         console.warn('[Atlas Builder] Planejamento indisponível.',{status:Number((error as any)?.status)||0,name:error instanceof Error?error.name:'unknown'});
       }
+      if(!planPatch.creativePlan)planPatch.creativePlan=await planBuilder(claim.business,options,planPatch.sources);
       const hasPhoto=(claim.business.assets||[]).some((asset:ExpressAsset)=>asset.kind==='photo')||(claim.media||[]).some((asset:ExpressAsset)=>asset.kind==='photo');
       return await advancePhase(ref,token,hasPhoto?'building':'images',planPatch);
     }
