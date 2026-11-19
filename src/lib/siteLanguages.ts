@@ -1,3 +1,4 @@
+import { normalizeBrazilianWhatsApp } from './contact';
 /**
  * Idioma da página publicada, independente da localização da empresa ou do painel Atlas.
  * Uma página publicada contém um idioma por versão. Multilinguismo paralelo será um recurso futuro.
@@ -36,4 +37,16 @@ export function languagePrompt(locale:SiteLanguage){
     'Ao traduzir uma versão existente, conserve a estrutura, links, imagens, classes, ids e o design. Traduza TODO o texto necessário, não somente o hero.',
     'Não invente fatos comerciais durante a tradução. O idioma do site independe do idioma utilizado no chat ou no painel Atlas.',
   ].join('\n');
+}
+
+/** Permite contato internacional E.164; número local sem DDI continua brasileiro por compatibilidade. */
+export function normalizeSiteWhatsApp(raw:unknown):string {
+  if(typeof raw!=='string')return '';
+  const value=raw.trim();
+  if(value.startsWith('+')){
+    if(!/^\+[\d\s().-]+$/.test(value))return '';
+    const digits=value.replace(/\D/g,'');
+    return /^[1-9]\d{7,14}$/.test(digits)?digits:'';
+  }
+  return normalizeBrazilianWhatsApp(value);
 }
