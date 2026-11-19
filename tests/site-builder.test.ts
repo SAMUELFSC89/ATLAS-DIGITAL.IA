@@ -12,6 +12,7 @@ import { previewPrompt } from '../api/_lib/express-claude.ts';
 import { BUILDER_DIRECTIONS } from '../src/lib/siteBuilder.ts';
 import { CARTA_SECRETA_BUILDER, auditBuilderSite, feedbackForPrompt } from '../api/_lib/atlas-builder-skill.ts';
 import { SITE_LANGUAGES, languagePrompt, parseSiteLanguage, normalizeSiteWhatsApp } from '../src/lib/siteLanguages.ts';
+import {parseBusinessLink,extractWebsiteBusiness,importBusinessFromUrl,BusinessImportError} from '../api/_lib/builder-business-import.ts';
 
 const origin='https://atlasdigital.ia.br';
 const imageUrl=origin+'/api/site-express?view=builder&action=media&id='+randomUUID()+'&file='+randomUUID();
@@ -65,6 +66,52 @@ test('idiomas permitidos, HTML lang e escrita da direita para a esquerda',()=>{
  assert.equal(load(modifyBuilderHtml(english.html,{type:'color',color:'#123456'},origin).html)('html').attr('lang'),'en-US');
 });
 
+
+test('importação de site usa dados estruturados e link WhatsApp explícito, sem inventar fatos',()=>{
+ const html='<html><head><title>Ateliê Aurora | Arquitetura</title><meta name="description" content="Projetos residenciais modernos e arquitetura de interiores.">'+
+ '<script type="application/ld+json">'+JSON.stringify({'@context':'https://schema.org','@type':'LocalBusiness',name:'Ateliê Aurora',category:'Arquitetura',description:'Projetos residenciais e interiores.',address:{addressLocality:'Lisboa',addressCountry:'Portugal'},telephone:'+351 912 345 678'})+'</script></head>'+
+ '<body><main><a href="https://wa.me/351912345678">Fale com a empresa</a><h2>Projetos residenciais</h2></main></body></html>';
+ const x=extractWebsiteBusiness(html,'https://atelier-aurora.pt/');
+ assert.equal(x.business.name,'Ateliê Aurora');assert.equal(x.business.segment,'Arquitetura');
+ assert.match(x.business.city,/Lisboa/);assert.match(x.business.services,/Projetos residenciais/);
+ assert.equal(x.business.whatsapp,'351912345678');assert.equal(x.business.phone,'+351 912 345 678');
+ assert.equal(x.missing.length,0);
+ assert.equal(extractWebsiteBusiness('<html><title>Sem contato</title></html>','https://example.org/').business.whatsapp,'');
+});
+test('bloqueia URLs internas, credenciais e protocolos inseguros na importação',()=>{
+ for(const url of ['http://example.org','https://127.0.0.1/admin','https://localhost/api','https://192.168.1.10/','https://user:pass@example.org/','https://company.local','file:///etc/passwd','https://example.org:444/']){
+   assert.throws(()=>parseBusinessLink(url),BusinessImportError,url);
+ }
+ assert.equal(parseBusinessLink('https://maps.app.goo.gl/abc').kind,'google');
+ assert.equal(parseBusinessLink('https://www.google.com/maps/place/Studio+Polar/').kind,'google');
+ assert.equal(parseBusinessLink('https://www.suaempresa.com').kind,'website');
+});
+test('perfil Google Maps fornece dados Google Places e NÃO assume que telefone é WhatsApp',async()=>{
+ const previousFetch=globalThis.fetch;
+ const previousKey=process.env.GOOGLE_PLACES_API_KEY;
+ process.env.GOOGLE_PLACES_API_KEY='fake-secret';
+ globalThis.fetch=async(_input:any,init:any)=>{
+   const body=JSON.parse(init.body);
+   assert.match(body.textQuery,/Studio Polar/);
+   return new Response(JSON.stringify({places:[{displayName:{text:'Studio Polar'},formattedAddress:'New York, NY',primaryTypeDisplayName:{text:'Photography studio'},internationalPhoneNumber:'+1 212 555 0101',addressComponents:[{types:['locality'],longText:'New York'},{types:['administrative_area_level_1'],longText:'New York'},{types:['country'],longText:'United States'}],editorialSummary:{text:'Studio de fotografia comercial e retratos profissionais.'},websiteUri:'https://studiopolar.example'}]}),{status:200,headers:{'Content-Type':'application/json'}});
+ };
+ try{
+   const result=await importBusinessFromUrl('https://www.google.com/maps/place/Studio+Polar/');
+   assert.equal(result.business.name,'Studio Polar');
+   assert.match(result.business.city,/New York/);
+   assert.equal(result.business.whatsapp,'');
+   assert.equal(result.business.phone,'+1 212 555 0101');
+   assert.ok(!result.missing.includes('whatsapp'));
+ }finally{globalThis.fetch=previousFetch;if(previousKey===undefined)delete process.env.GOOGLE_PLACES_API_KEY;else process.env.GOOGLE_PLACES_API_KEY=previousKey;}
+});
+test('o editor mantém links tel: válidos e bloqueia javascript ou host externo',()=>{
+ const document=prepareBuilderHtml(raw.replace('https://wa.me/5551999999999?text=Ol%C3%A1','tel:+351912345678'),origin);
+ const $=load(document.html);
+ assert.equal($('a[href="tel:+351912345678"]').length,1);
+ const unsafe=prepareBuilderHtml(raw.replace('https://wa.me/5551999999999?text=Ol%C3%A1','tel:123;evil'),origin);
+ assert.equal(load(unsafe.html)('a[href^="tel:"]').length,0);
+});
+
 // Endpoint integration with in-memory transaction serialization and fake external services.
 // No real customer data, API calls or payments are used by this suite.
 class MemoryDb {
@@ -91,7 +138,9 @@ test('authenticated endpoint: ownership, reference cap, model input, job retries
  (globalThis as any).__atlasBuilderTest=fixture;const endpoint=await loadEndpoint();
  const call=async(action:string,body:any={},user:string|null='cliente@example.com',method='POST')=>{const r:any={statusCode:200,headers:{},setHeader(k:string,v:any){this.headers[k]=v;},status(n:number){this.statusCode=n;return this;},json(d:any){this.body=d;return this;},send(d:any){this.body=d;return this;},end(){return this;}};await endpoint.handler({method,query:{action,...(method==='GET'?body:{})},body,headers:{...(user?{authorization:user}:{})}},r);return r;};
  try{
- const id=randomUUID();assert.equal((await call('create',{id,business},null)).statusCode,401);const created=await call('create',{id,business,locale:'en-GB'});assert.equal(created.statusCode,200);assert.equal(created.body.project.version,0);assert.equal(created.body.project.locale,'en-GB');assert.equal((await call('language',{id,locale:'invalid'})).statusCode,400);assert.equal((await call('language',{id,locale:'fr'})).body.project.locale,'fr');assert.equal((await call('language',{id,locale:'en-GB'})).body.project.locale,'en-GB');assert.equal((await call('state',{id},'outro@example.com','GET')).statusCode,404);
+ const id=randomUUID();assert.equal((await call('create',{id,business},null)).statusCode,401);
+ assert.equal((await call('import-business',{url:'https://www.google.com/maps/place/Studio+Polar/'},null)).statusCode,401);
+ assert.equal((await call('import-business',{url:'http://127.0.0.1'})).statusCode,400);const created=await call('create',{id,business,locale:'en-GB'});assert.equal(created.statusCode,200);assert.equal(created.body.project.version,0);assert.equal(created.body.project.locale,'en-GB');assert.equal((await call('language',{id,locale:'invalid'})).statusCode,400);assert.equal((await call('language',{id,locale:'fr'})).body.project.locale,'fr');assert.equal((await call('language',{id,locale:'en-GB'})).body.project.locale,'en-GB');assert.equal((await call('state',{id},'outro@example.com','GET')).statusCode,404);
  const png=Buffer.concat([Buffer.from([137,80,78,71]),Buffer.alloc(64)]).toString('base64');const upload=()=>call('upload-reference',{id,fileId:randomUUID(),name:'Referência de estilo',data:png});const results=await Promise.all([upload(),upload(),upload(),upload(),upload()]);assert.equal(results.filter(r=>r.statusCode===200).length,4);assert.equal(results.filter(r=>r.statusCode===400).length,1);
  const state=await call('state',{id},undefined,'GET');assert.equal(state.body.project.references.length,4);assert.ok(!JSON.stringify(state.body).includes('ownerEmail'));assert.ok(!JSON.stringify(state.body).includes(png));const file=state.body.project.references[0].id;
  assert.equal((await call('reference',{id,file},null,'GET')).statusCode,401);assert.equal((await call('reference',{id,file},'outro@example.com','GET')).statusCode,404);assert.equal((await call('reference',{id,file},undefined,'GET')).statusCode,200);
