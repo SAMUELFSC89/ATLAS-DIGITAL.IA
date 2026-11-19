@@ -1,7 +1,5 @@
 import { getFirestoreAdmin } from './db-helper.js';
 import { CONTACT_CAMPAIGN_KEYS, normalizeBrazilianWhatsApp, type ContactCampaign } from '../src/lib/contact.js';
-import siteExpress from './_lib/site-express.js';
-import expressWebhook from './_lib/site-express-webhook.js';
 import type { Request, Response } from 'express';
 
 function text(value: unknown) {
@@ -9,8 +7,15 @@ function text(value: unknown) {
 }
 
 export default async function handler(req: Request, res: Response) {
-  if (req.query?.expressEndpoint === 'site') return siteExpress(req, res);
-  if (req.query?.expressEndpoint === 'webhook') return expressWebhook(req, res);
+  // Compatibility only: normal traffic uses dedicated Vercel functions.
+  if (req.query?.expressEndpoint === 'site') {
+    const {default:siteExpress}=await import('./_lib/site-express.js');
+    return siteExpress(req,res);
+  }
+  if (req.query?.expressEndpoint === 'webhook') {
+    const {default:expressWebhook}=await import('./_lib/site-express-webhook.js');
+    return expressWebhook(req,res);
+  }
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
