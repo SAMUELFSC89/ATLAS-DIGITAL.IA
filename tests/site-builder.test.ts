@@ -10,6 +10,7 @@ import sharp from 'sharp';
 import { prepareBuilderHtml, modifyBuilderHtml, builderCsp, builderImageUrl } from '../api/_lib/express-builder-html.ts';
 import { previewPrompt } from '../api/_lib/express-claude.ts';
 import { BUILDER_DIRECTIONS } from '../src/lib/siteBuilder.ts';
+import { CARTA_SECRETA_BUILDER, auditBuilderSite, feedbackForPrompt } from '../api/_lib/atlas-builder-skill.ts';
 
 const origin='https://atlasdigital.ia.br';
 const imageUrl=origin+'/api/site-express?view=builder&action=media&id='+randomUUID()+'&file='+randomUUID();
@@ -32,6 +33,17 @@ test('direct edits escape text, preserve IDs and keep only one runtime after rep
 test('relative uploads and absolute generated media both become valid image URLs in the model prompt',()=>{
  const assets=[{id:'a',projectId:'a',kind:'photo' as const,name:'foto',mimeType:'image/webp' as const,width:100,height:100,size:100,url:imageUrl},{id:'b',projectId:'b',kind:'logo' as const,name:'logo',mimeType:'image/png' as const,width:100,height:100,size:100,url:'/api/site-express?view=asset&id=one&asset=two'}];
  const prompt=previewPrompt({...business,assets},{creativePrompt:'',brandColor:'#123456',origin});assert.ok(prompt.user.includes(imageUrl));assert.ok(!prompt.user.includes(origin+origin));assert.ok(prompt.user.includes(origin+'/api/site-express?view=asset'));
+});
+
+test('Carta Secreta constrói site final com critérios verificáveis e aprendizagem isolada por ramo',()=>{
+ assert.match(CARTA_SECRETA_BUILDER,/CARTA 1/);assert.match(CARTA_SECRETA_BUILDER,/CARTA 4/);
+ assert.match(CARTA_SECRETA_BUILDER,/SITE FINAL/);
+ const audited=auditBuilderSite(prepareBuilderHtml(raw,origin).html);
+ assert.equal(audited.checks.find(c=>c.id==='contato')?.ok,true);
+ assert.equal(audited.checks.find(c=>c.id==='titulo')?.ok,false);
+ const entries=[{segment:'Arquitetura',rating:'improve',note:'Exibir obras com fotos reais'}, {segment:'Restaurante',rating:'good',note:'Adicionar cardápio'}];
+ assert.match(feedbackForPrompt(entries,'Arquitetura'),/Exibir obras/);
+ assert.doesNotMatch(feedbackForPrompt(entries,'Arquitetura'),/cardápio/);
 });
 
 // Endpoint integration with in-memory transaction serialization and fake external services.
@@ -66,6 +78,7 @@ test('authenticated endpoint: ownership, reference cap, model input, job retries
  assert.equal((await call('reference',{id,file},null,'GET')).statusCode,401);assert.equal((await call('reference',{id,file},'outro@example.com','GET')).statusCode,404);assert.equal((await call('reference',{id,file},undefined,'GET')).statusCode,200);
  // Existing business photo skips automatic image phase; fake media is not published externally.
  const p=db.data.get('expressBuilderProjects/'+id);p.business.assets=[{kind:'photo',id:randomUUID()}];const requestId=randomUUID();assert.equal((await call('start',{id,requestId,type:'generate',text:'Use estas referências.'})).statusCode,200);assert.equal((await upload()).statusCode,409);const runs=await Promise.all([call('run',{id}),call('run',{id})]);assert.equal(generationCalls,1);assert.equal(modelReferences.length,4);assert.equal((await call('state',{id},undefined,'GET')).body.project.version,1);assert.equal((await call('start',{id,requestId,type:'generate'})).body.project.job,null);assert.equal(generationCalls,1);
+ const checked=await call('feedback',{id,version:1,rating:'improve',note:'Dar mais destaque ao hero'});assert.equal(checked.statusCode,200);assert.equal(checked.body.project.feedback.rating,'improve');assert.equal((await call('feedback',{id,version:1,rating:'good'},'outro@example.com')).statusCode,404);
  const textId=runs.find(r=>r.body.project.html)?.body.project.sections[0].texts[0].id;
  assert.equal((await call('modify',{id,version:0,operation:{type:'text',id:textId,text:'Wrong'}})).statusCode,409);assert.equal((await call('modify',{id,version:1,operation:{type:'text',id:textId,text:'Novo título'}})).body.project.version,2);assert.equal((await call('restore',{id,version:1})).body.project.version,3);
  assert.equal((await call('publish',{id})).statusCode,402);await db.collection('expressOrders').doc(randomUUID()).set({previewId:randomUUID(),status:'paid',mode:'live'});assert.equal((await call('publish',{id})).statusCode,402);await db.collection('expressOrders').doc(randomUUID()).set({previewId:id,status:'paid',mode:'test'});assert.equal((await call('publish',{id})).statusCode,402);await db.collection('expressOrders').doc(randomUUID()).set({previewId:randomUUID(),status:'paid',mode:'live'});assert.equal((await call('publish',{id})).statusCode,402);await db.collection('expressOrders').doc(randomUUID()).set({previewId:id,status:'paid',mode:'live'});const pub=await call('publish',{id});assert.equal(pub.statusCode,200);assert.ok(pub.body.project.publishedUrl.startsWith(origin+'/s/'));const slug=pub.body.project.publishedUrl.split('/').pop();const publicPage=await call('published',{slug},null,'GET');assert.equal(publicPage.statusCode,200);assert.ok(publicPage.headers['Content-Security-Policy'].includes("frame-ancestors 'none'"));assert.ok(!publicPage.body.includes(png));
