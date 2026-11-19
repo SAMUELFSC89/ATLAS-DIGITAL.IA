@@ -102,7 +102,7 @@ async function chooseDesign(ref:DocumentReference,email:string,optionId:string|n
     if(optionId&&!option)fail(400,'Selecione uma das três propostas.');
     const update=option
       ? {pendingDesign:null,selectedDesign:option.id,directionId:option.direction.id,
-         job:{...current.pendingDesign,phase:afterDesign(current),leaseUntil:0},status:'working',message:'',updatedAt:Date.now()}
+         job:{...current.pendingDesign,phase:'selected-planning',leaseUntil:0},status:'working',message:'',updatedAt:Date.now()}
       : {pendingDesign:null,job:null,status:current.html?'ready':'draft',message:'',updatedAt:Date.now()};
     tx.update(ref,update);
     return {...current,...update};
@@ -151,6 +151,16 @@ async function advance(id:string,email:string){
         return {...current,...update};
       });
     }
+    if(job.phase==='selected-planning'&&job.type==='generate'){
+      const option=(claim.designOptions||[]).find((entry:BuilderDesignOption)=>entry.id===claim.selectedDesign);
+      if(!option)throw new Error('A proposta selecionada não está disponível.');
+      const image=(await ref.collection('designs').doc(option.id).get()).data();
+      if(!image?.data)throw new Error('A imagem selecionada não está disponível.');
+      const chosen={name:option.direction.name,mimeType:image.mimeType,data:Buffer.from(image.data).toString('base64')};
+      const options={direction:option.direction,instruction:job.instruction,locale:parseSiteLanguage(claim.locale)||DEFAULT_SITE_LANGUAGE,references:await loadVisualReferences(ref,job.referenceIds||[])};
+      const creativePlan=await planBuilder(claim.business,options,claim.sources||[],chosen);
+      return await advancePhase(ref,token,afterDesign(claim),{creativePlan});
+    }
     if(job.type==='research'){const {directions,sources,researchNotice}=await researchBuilder(claim.business);patch={directions,sources,researchNotice};assistant=patch.sources.length?'Encontrei referências públicas e preparei três direções visuais. Escolha uma delas para o seu site.':patch.researchNotice;}
     else if(job.phase==='images'||job.type==='image'){
       try{
@@ -185,7 +195,7 @@ async function advance(id:string,email:string){
       const selected=claim.selectedDesign?(await ref.collection('designs').doc(claim.selectedDesign).get()).data():null;
       const chosenDesign=selected?.data?{name:'Proposta escolhida',mimeType:selected.mimeType,data:Buffer.from(selected.data).toString('base64')}:undefined;
       const prompt=await builderPrompt({...claim.business,assets:[...(claim.business.assets||[]),...(claim.media||[])]},(claim.directions||BUILDER_DIRECTIONS).find((d:any)=>d.id===claim.directionId)||BUILDER_DIRECTIONS[0],typeof config?.visualPrompt==='string'?config.visualPrompt:DEFAULT_VISUAL_PROMPT,publicOrigin(),refs,job.instruction||'Crie o site completo.',job.type==='edit'?claim.html:undefined,history.docs.filter(d=>d.data().role==='user').reverse().map(d=>d.data().text),learningContext,resultLocale,{plan:claim.creativePlan||null,sources:job.type==='generate'?claim.sources||[]:[],cinematic:opening.length>0,chosenDesign});
-      doc=prepareBuilderHtml(extractSiteHtml(await openaiText(prompt.system,prompt.content,265000)),publicOrigin(),resultLocale,opening);
+      doc=prepareBuilderHtml(extractSiteHtml(await openaiText(prompt.system,prompt.content,265000)),publicOrigin(),resultLocale,opening,job.type==='generate'?claim.creativePlan:undefined);
       patch={...patch,locale:resultLocale,quality:auditBuilderSite(doc.html),feedback:null};
       assistant=job.type==='edit'?'O site foi atualizado. Revise as alterações no editor.':'Seu site está criado. Você pode editar os textos, as cores e as imagens ou pedir ajustes pelo chat.';
     }

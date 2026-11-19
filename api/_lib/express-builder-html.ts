@@ -2,8 +2,7 @@ import sanitizeHtml from 'sanitize-html';
 import { load } from 'cheerio';
 import { createHash } from 'node:crypto';
 import type { ExpressAsset } from '../../src/lib/expressOrder.js';
-import type { BuilderSection } from '../../src/lib/siteBuilder.js';
-import { builderSectionName } from '../../src/lib/siteBuilder.js';
+import { BUILDER_SCENE_EFFECTS, BUILDER_SCENE_TRANSITIONS, builderSectionName, type BuilderCreativePlan, type BuilderSection } from '../../src/lib/siteBuilder.js';
 import { parseSiteLanguage, siteLanguage, DEFAULT_SITE_LANGUAGE, type SiteLanguage } from '../../src/lib/siteLanguages.js';
 
 // The model supplies markup and CSS. Only this fixed script is executable.
@@ -70,13 +69,65 @@ function composeCinematicOpening($:ReturnType<typeof load>,origin:string,assets:
   frame.append(media,$('<div data-atlas-shot-copy="true"></div>').append(content));
   hero.attr('data-atlas-cinematic','true').append(frame);
 }
+const STORY_STYLES = `
+@keyframes atlas-story-wipe{from{clip-path:inset(0 31% 0 0)}to{clip-path:inset(0)}}
+@keyframes atlas-story-match{from{scale:1.19;object-position:68% center}to{scale:1;object-position:50% center}}
+@keyframes atlas-story-overlap{from{translate:0 11vh;scale:.96}to{translate:0 0;scale:1}}
+@keyframes atlas-story-line{from{scale:.12 1}to{scale:1 1}}
+@supports (animation-timeline:view()) {
+  @media (prefers-reduced-motion:no-preference) {
+    section[data-atlas-story-transition="wipe"] [data-atlas-story-visual]{animation-name:atlas-story-wipe}
+    section[data-atlas-story-transition="match"] [data-atlas-story-visual]{animation-name:atlas-story-match}
+    section[data-atlas-story-transition="overlap"] [data-atlas-story-visual]{animation-name:atlas-story-overlap}
+    section[data-atlas-story-transition] [data-atlas-story-visual]{
+      animation-duration:1s;animation-timing-function:linear;animation-fill-mode:both;
+      animation-timeline:view();animation-range:entry 0% entry 90%;
+    }
+    section[data-atlas-story-transition]:not([data-atlas-story-transition="cut"]):not(:has([data-atlas-story-visual]))::before{
+      content:"";display:block;width:100%;height:1px;background:var(--atlas-accent,currentColor);
+      opacity:.55;transform-origin:left;
+      animation:atlas-story-line 1s linear both;animation-timeline:view();animation-range:entry 0% entry 75%;
+    }
+    @media(max-width:767px){
+      section[data-atlas-story-transition="overlap"] [data-atlas-story-visual]{animation-name:atlas-story-wipe}
+    }
+  }
+}
+`;
+
+function applyStoryboard($:ReturnType<typeof load>,plan:BuilderCreativePlan){
+  const byId=new Map(plan.scenes.map(scene=>[scene.section,scene]));
+  let outgoing:NonNullable<BuilderCreativePlan['scenes'][number]['transitionEffect']>='cut';
+  $('section[id]').each((_index,node)=>{
+    const section=$(node);
+    const scene=byId.get(section.attr('id')||'');
+    if(!scene)return;
+    section.attr('data-atlas-story-transition',outgoing);
+    outgoing=BUILDER_SCENE_TRANSITIONS.find(effect=>effect===scene.transitionEffect)||'cut';
+    // The opening already owns its two-frame timeline. Only decorate visual surfaces below it.
+    if(section.is('[data-atlas-cinematic]'))return;
+    const visual=section.find('[data-atlas-scene-visual], figure, img').filter((_n,item)=>{
+      const el=$(item);
+      return !el.is('a,button,nav,h1,h2,h3,p')&&!el.closest('a,button,nav').length&&
+        !el.find('a,button,nav,h1,h2,h3,p').length&&!el.text().trim();
+    }).first();
+    if(!visual.length)return;
+    visual.attr('data-atlas-story-visual','true').removeAttr('data-atlas-parallax').removeAttr('data-atlas-reveal');
+    if(section.attr('data-atlas-story-transition')==='cut'&&BUILDER_SCENE_EFFECTS.includes(scene.effect)&&scene.effect!=='static'){
+      visual.attr('data-atlas-scene-effect',scene.effect);
+    }else{
+      visual.removeAttr('data-atlas-scene-effect');
+    }
+  });
+}
+
 export function builderCsp(origin: string) {
   return `default-src 'none'; script-src 'sha256-${SCRIPT_HASH}' 'sha256-${LEGACY_SCRIPT_HASH}'; style-src 'unsafe-inline' https://fonts.googleapis.com; img-src ${origin} data:; font-src https://fonts.gstatic.com; connect-src 'none'; base-uri 'none'; object-src 'none'; form-action 'none'`;
 }
 export function builderImageUrl(value: string, origin: string) {
   try { const url=new URL(value,origin); return url.origin===origin && url.pathname==='/api/site-express' && (url.searchParams.get('view')==='asset'||(url.searchParams.get('view')==='builder'&&url.searchParams.get('action')==='media')) ? url.href : ''; } catch { return ''; }
 }
-export function prepareBuilderHtml(raw: string, origin: string, preferredLocale?: SiteLanguage, openingAssets: ExpressAsset[] = []): {html: string; sections: BuilderSection[]} {
+export function prepareBuilderHtml(raw: string, origin: string, preferredLocale?: SiteLanguage, openingAssets: ExpressAsset[] = [], storyboard?: BuilderCreativePlan|null): {html: string; sections: BuilderSection[]} {
   if(typeof raw!=='string'||raw.length>600000)throw new Error('Invalid site document');
   const input=load(raw);
   const locale=preferredLocale||parseSiteLanguage(input('html').attr('lang'))||DEFAULT_SITE_LANGUAGE;
@@ -96,6 +147,7 @@ export function prepareBuilderHtml(raw: string, origin: string, preferredLocale?
   $('head').append(`<meta name="atlas-builder-policy" content="1"><meta http-equiv="Content-Security-Policy" content="${builderCsp(origin)}"><meta name="referrer" content="no-referrer">`);
   if(!$('meta[name="viewport"]').length)$('head').append('<meta name="viewport" content="width=device-width,initial-scale=1">');
   composeCinematicOpening($,origin,openingAssets);
+  if(storyboard?.scenes.length)applyStoryboard($,storyboard);
   const sections:BuilderSection[]=[];const used=new Set<string>();
   $('section').each((index,section)=>{let id=$(section).attr('id')||`secao-${index+1}`;id=id.replace(/[^a-z0-9_-]/gi,'').slice(0,80)||`secao-${index+1}`;if(used.has(id))id+='-'+index;used.add(id);$(section).attr('id',id);
     const texts:BuilderSection['texts']=[];const images:BuilderSection['images']=[];
@@ -104,7 +156,7 @@ export function prepareBuilderHtml(raw: string, origin: string, preferredLocale?
     sections.push({id,label:builderSectionName(id),visible:$(section).attr('hidden')===undefined,texts,images});
   });
   $('head').append('<style id="atlas-runtime-style">section[hidden]{display:none!important}html{scroll-behavior:smooth}img{max-width:100%}@media(prefers-reduced-motion:no-preference){.atlas-reveal-pending{opacity:0!important;transform:translate3d(0,22px,0)!important}.atlas-reveal-pending[data-atlas-reveal=left]{transform:translate3d(-30px,0,0)!important}.atlas-reveal-pending[data-atlas-reveal=right]{transform:translate3d(30px,0,0)!important}.atlas-reveal-pending[data-atlas-reveal=zoom]{transform:scale(.96)!important}.atlas-reveal-pending,.atlas-reveal-visible{transition:opacity .7s ease,transform .7s cubic-bezier(.22,1,.36,1)!important}.atlas-reveal-visible{opacity:1!important;transform:none!important}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important;translate:none!important}}@media print{*{translate:none!important;animation:none!important}}</style>');
-  $('#atlas-runtime-style').append(SCENE_STYLES+CINEMATIC_STYLES);
+  $('#atlas-runtime-style').append(SCENE_STYLES+CINEMATIC_STYLES+STORY_STYLES);
   $('body').append('<script>'+RUNTIME+'</script>');
   return {html:'<!DOCTYPE html>\n'+$.html(),sections};
 }
