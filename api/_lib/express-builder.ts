@@ -165,7 +165,7 @@ export default async function builder(req:Request,res:Response){
         const {load}=await import('cheerio');const $=load(p.html);const image=$(`[data-atlas-image="${operation.id}"]`);if(!image.length)fail(400,'Imagem não encontrada na seção.');image.attr('src',asset.url).attr('alt',asset.name);await saveVersion(String(id),p,prepareBuilderHtml($.html(),publicOrigin()));
       }else await saveVersion(String(id),p,modifyBuilderHtml(p.html,operation,publicOrigin()));
     }else if(action==='restore'){
-      if(!Number.isInteger(req.body.version)||req.body.version<1)fail(400,'Versão inválida.');const old=(await ref.collection('versions').doc(String(req.body.version)).get()).data();if(!old?.html)fail(404,'Versão não encontrada.');const oldLocale=parseSiteLanguage(old.locale)||parseSiteLanguage(p.locale)||DEFAULT_SITE_LANGUAGE;await saveVersion(String(id),p,prepareBuilderHtml(old.html,publicOrigin(),oldLocale),{locale:oldLocale});
+      if(!Number.isInteger(req.body.version)||req.body.version<1)fail(400,'Versão inválida.');const old=(await ref.collection('versions').doc(String(req.body.version)).get()).data();if(!old?.html)fail(404,'Versão não encontrada.');const oldLocale=parseSiteLanguage(old.locale)||DEFAULT_SITE_LANGUAGE;await saveVersion(String(id),p,prepareBuilderHtml(old.html,publicOrigin(),oldLocale),{locale:oldLocale});
     }else if(action==='publish'){
       if(!p.html||!p.version)fail(409,'Crie o site antes de publicar.');
       const configuredOwner=(process.env.ATLAS_CONTACT_OWNER_EMAIL||'samuelfsc89@gmail.com').trim().toLowerCase();const owner=email===configuredOwner&&(await getAuthenticatedEmail(req,true))?.toLowerCase()===email;
