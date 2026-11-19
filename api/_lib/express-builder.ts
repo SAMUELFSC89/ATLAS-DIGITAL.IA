@@ -105,7 +105,7 @@ export default async function builder(req:Request,res:Response){
     if(req.method==='POST'&&action==='create'){
       if(!orderId(id))fail(400,'Projeto inválido.');const existing=(await projects().doc(id).get()).data();if(existing){if(existing.ownerEmail!==email)fail(404,'Projeto não encontrado.');return res.json({project:await state(id,existing)});}
       if(!(await rateLimit(email,'builder-create',12,100)))fail(429,'Muitos projetos criados em pouco tempo. Aguarde e tente novamente.');const business=businessInput(req.body.business);complete(business);business.assets=await resolveExpressAssets(req.body,id);business.photo=business.assets.find(a=>a.kind==='photo')?.url||'';
-      const locale=parseSiteLanguage(req.body?.locale);if(!locale)fail(400,'Selecione um idioma válido para o site.');
+      const locale=req.body?.locale===undefined?DEFAULT_SITE_LANGUAGE:parseSiteLanguage(req.body.locale);if(!locale)fail(400,'Selecione um idioma válido para o site.');
       const p={ownerEmail:email,business,locale,references:[],directions:BUILDER_DIRECTIONS,directionId:'editorial',sources:[],version:0,html:'',sections:[],media:[],status:'draft',job:null,createdAt:Date.now(),updatedAt:Date.now()};
       const batch=db().batch();batch.create(projects().doc(id),p);batch.create(previews().doc(id),{business,title:business.name,introduction:'',offers:[],createdAt:Date.now()});await batch.commit();return res.json({project:await state(id,p)});
     }
