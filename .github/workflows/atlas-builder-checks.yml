@@ -51,6 +51,6 @@ jobs:
       - name: Typecheck
         run: npm run lint
       - name: Site builder and global radar integration tests
-        run: npx tsx --test tests/site-builder.test.ts tests/radar-global.test.ts tests/site-deployment-smoke.test.ts
+        run: node --no-experimental-require-module --import tsx --test tests/site-builder.test.ts tests/radar-global.test.ts tests/site-deployment-smoke.test.ts
       - name: Production build
         run: npm run build
