@@ -14,7 +14,7 @@ export type BusinessImportResult={
   missing:string[];note:string;
 };
 const clip=(v:unknown,n:number)=>typeof v==='string'?v.replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,n):'';
-const isGoogleMapsHost=(host:string)=>host==='maps.app.goo.gl'||host==='goo.gl'||host==='g.page'||host==='maps.google.com'||host==='google.com'||host.endsWith('.google.com')||host==='google.com.br'||host.endsWith('.google.com.br');
+const isGoogleMapsHost=(host:string)=>host==='maps.app.goo.gl'||host==='goo.gl'||host==='g.page'||host==='maps.google.com'||host==='google.com'||host.endsWith('.google.com')||host==='google.com.br'||host.endsWith('.google.com.br')||/^((maps|www)\.)?google\.[a-z]{2,3}(\.[a-z]{2})?$/.test(host);
 function reject(code:number,message:string):never{throw new BusinessImportError(code,message);}
 function publicHostname(host:string){
   const h=host.toLowerCase().replace(/\.$/,'');
@@ -124,11 +124,24 @@ function googleTextFromUrl(url:URL):{query:string;placeId:string;location?:{lati
   const coordinates=decoded.match(/@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/);
   return {query:raw.replace(/^place_id:/i,'').trim(),placeId:found?.[1]||url.searchParams.get('query_place_id')||'',...(coordinates?{location:{latitude:Number(coordinates[1]),longitude:Number(coordinates[2])}}:{})};
 }
-async function expandGoogle(url:URL){
-  const allowed=(next:URL)=>next.protocol==='https:'&&!next.port&&!next.username&&!next.password&&isGoogleMapsHost(next.hostname);
-  // Google shortened profile links redirect to their canonical Maps URL.
-  const response=await safeHttp(url,900_000,allowed);
-  return response.url;
+async function expandGoogle(url:URL,depth=0):Promise<URL>{
+  if(depth>5)reject(422,'O link do Google redirecionou muitas vezes.');
+  if(url.protocol!=='https:'||url.port||!isGoogleMapsHost(url.hostname))reject(400,'O link não pertence ao Google Maps.');
+  // Only read redirect headers: a Google Maps page can exceed the page-size limit.
+  return new Promise((resolve,rejectPromise)=>{
+    const req=httpsRequest(url,{method:'GET',lookup:pinnedLookup,timeout:8500,headers:{'user-agent':'Mozilla/5.0 AtlasDigital/1.0','accept':'text/html','accept-encoding':'identity'}},res=>{
+      res.resume();
+      const status=res.statusCode||0;
+      if(status>=300&&status<400&&res.headers.location){
+        let next:URL;try{next=new URL(res.headers.location,url);}catch{return rejectPromise(new BusinessImportError(422,'Redirecionamento inválido do Google Maps.'));}
+        if(next.protocol!=='https:'||next.port||!isGoogleMapsHost(next.hostname))return rejectPromise(new BusinessImportError(400,'O link do Google saiu dos domínios autorizados.'));
+        expandGoogle(next,depth+1).then(resolve,rejectPromise);
+      }else if(status===200){resolve(url);}
+      else rejectPromise(new BusinessImportError(422,'O Google não conseguiu abrir este link de perfil.'));
+    });
+    req.on('timeout',()=>req.destroy(new BusinessImportError(504,'O link do Google demorou demais para responder.')));
+    req.on('error',rejectPromise);req.end();
+  });
 }
 function buildResult(source:'website'|'google',sourceUrl:string,b:BusinessImportResult['business']):BusinessImportResult{
   const business={name:clip(b.name,100),segment:clip(b.segment,80),city:clip(b.city,100),services:clip(b.services,1000),
@@ -147,16 +160,23 @@ async function importGoogle(url:URL):Promise<BusinessImportResult>{
   const details=googleTextFromUrl(url);
   if(!details.query&&!details.placeId)reject(422,'Não consegui identificar a empresa neste link. Copie o endereço do perfil com o nome da empresa no Google Maps.');
   const mask=['places.id','places.displayName','places.formattedAddress','places.addressComponents','places.primaryTypeDisplayName','places.nationalPhoneNumber','places.internationalPhoneNumber','places.websiteUri','places.editorialSummary','places.googleMapsUri','places.businessStatus'].join(',');
-  const endpoint='https://places.googleapis.com/v1/places:searchText';
-  const body:any={textQuery:details.query||details.placeId,languageCode:'pt-BR',pageSize:3};
-  if(details.location)body.locationBias={circle:{center:details.location,radius:5000}};
-  const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':apiKey,'X-Goog-FieldMask':mask},body:JSON.stringify(body),signal:AbortSignal.timeout(10000)});
-  if(!response.ok)reject(502,'O Google Places não conseguiu consultar este perfil. Confira a conexão e tente novamente.');
-  const data:any=await response.json();const places=Array.isArray(data.places)?data.places:[];
-  const query=unaccent(details.query);
-  const place=places.find((p:any)=>unaccent(p.displayName?.text||'')===query)||
-    places.find((p:any)=>query&&((unaccent(p.displayName?.text||'').includes(query)||query.includes(unaccent(p.displayName?.text||'')||'UNKNOWN'))))||
-    (details.placeId?places.find((p:any)=>p.id===details.placeId):undefined);
+  let place:any=null;
+  if(details.placeId&&/^[A-Za-z0-9_-]{8,150}$/.test(details.placeId)){
+    const detailMask=mask.replace(/places\./g,'');
+    const item=await fetch('https://places.googleapis.com/v1/places/'+encodeURIComponent(details.placeId),{headers:{'X-Goog-Api-Key':apiKey,'X-Goog-FieldMask':detailMask},signal:AbortSignal.timeout(10000)});
+    if(item.ok)place=await item.json();
+  }
+  if(!place&&details.query){
+    const endpoint='https://places.googleapis.com/v1/places:searchText';
+    const body:any={textQuery:details.query,languageCode:'pt-BR',pageSize:3};
+    if(details.location)body.locationBias={circle:{center:details.location,radius:5000}};
+    const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':apiKey,'X-Goog-FieldMask':mask},body:JSON.stringify(body),signal:AbortSignal.timeout(10000)});
+    if(!response.ok)reject(502,'O Google Places não conseguiu consultar este perfil. Confira a conexão e tente novamente.');
+    const data:any=await response.json();const places=Array.isArray(data.places)?data.places:[];
+    const query=unaccent(details.query);
+    place=places.find((p:any)=>unaccent(p.displayName?.text||'')===query)||
+      places.find((p:any)=>query&&(unaccent(p.displayName?.text||'').includes(query)||query.includes(unaccent(p.displayName?.text||'')||'UNKNOWN')));
+  }
   if(!place)reject(422,'Não foi possível confirmar a empresa a partir deste link. Use o link do perfil com o nome da empresa ou informe o site oficial.');
   const ac=place.addressComponents||[];
   const region=(type:string)=>ac.find((v:any)=>v.types?.includes(type))?.longText||'';
