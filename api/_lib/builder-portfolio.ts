@@ -166,7 +166,7 @@ export async function getPublicCreator(handle: string) {
   const ownerId = alias.data().ownerId;
   const profileDoc = await creators().doc(ownerId).get();
   const profile = profileDoc.data();
-  if (!profile || profile.publicEnabled !== true || profile.handle !== handle) fail(404,'Este perfil não está disponível publicamente.');
+  if (!profile || profile.publicEnabled !== true || profile.handle !== handle) fail(404,'Perfil não encontrado.');
   const items = await portfolio().where('ownerId','==',ownerId).limit(250).get();
   const entries = items.docs.map(d => d.data()).filter(item => item.visible === true && /^[a-z0-9-]{5,70}$/.test(item.publishedSlug || '')).sort((a,b) => b.updatedAt - a.updatedAt).slice(0,100);
   return {creator:publicCreator(profile),sites:entries.map(siteCard)};
