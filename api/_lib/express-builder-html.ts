@@ -24,10 +24,10 @@ export function prepareBuilderHtml(raw: string, origin: string, preferredLocale?
   const safe=sanitizeHtml(input.html(),{
     allowedTags:['html','head','body','title','meta','link','style','header','nav','main','section','article','aside','footer','div','span','p','h1','h2','h3','h4','h5','h6','a','img','picture','figure','figcaption','ul','ol','li','strong','em','b','i','small','br','hr','details','summary','button'],
     allowedAttributes:{'*':['id','class','style','role','hidden','aria-*','data-atlas-*'],html:['lang','dir'],a:['href','target','rel','title'],img:['src','alt','width','height','loading','decoding'],meta:['name','content','charset'],link:['href','rel'],button:['type','aria-label']},
-    allowedSchemes:['https'],allowProtocolRelative:false,allowVulnerableTags:true,allowedEmptyAttributes:['hidden'],
+    allowedSchemes:['https','tel'],allowProtocolRelative:false,allowVulnerableTags:true,allowedEmptyAttributes:['hidden'],
     transformTags:{
       img:(_tag,attrs)=>({tagName:'img',attribs:{...attrs,src:builderImageUrl(attrs.src||'',origin),loading:attrs.loading==='eager'?'eager':'lazy',decoding:'async'}}),
-      a:(_tag,attrs)=>{let href=attrs.href||'';if(!/^#[a-z0-9_-]*$/i.test(href)){try{const u=new URL(href);if(u.protocol!=='https:'||u.hostname!=='wa.me'||u.username||u.password||u.port)href='#contato';}catch{href='#contato';}}return {tagName:'a',attribs:{...attrs,href,...(href.startsWith('https:')?{target:'_blank',rel:'noopener noreferrer'}:{target:'_self'})}};},
+      a:(_tag,attrs)=>{let href=attrs.href||'';if(!/^#[a-z0-9_-]*$/i.test(href)){if(/^tel:\+?[0-9]{8,15}$/i.test(href)){/* telefone público válido */}else{try{const u=new URL(href);if(u.protocol!=='https:'||u.hostname!=='wa.me'||u.username||u.password||u.port)href='#contato';}catch{href='#contato';}}}return {tagName:'a',attribs:{...attrs,href,...(href.startsWith('https:')?{target:'_blank',rel:'noopener noreferrer'}:{target:'_self'})}};},
       link:(_tag,attrs)=>{try{const u=new URL(attrs.href);if(u.protocol==='https:'&&u.hostname==='fonts.googleapis.com'&&attrs.rel==='stylesheet')return {tagName:'link',attribs:attrs};}catch{}return {tagName:'span',attribs:{}};},
     },
   });
