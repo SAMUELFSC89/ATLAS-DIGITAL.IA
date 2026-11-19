@@ -222,7 +222,7 @@ export function firstWhatsApp(html: string): string {
   while ((match = regex.exec(html))) {
     const digits = match[1];
     // URLs wa.me usam número internacional E.164, nunca pressupor DDI brasileiro.
-    if (/^[1-9]\\d{7,14}$/.test(digits)) return digits;
+    if (/^[1-9]\d{7,14}$/.test(digits)) return digits;
   }
   return "";
 }
@@ -327,7 +327,7 @@ export async function searchRadar(params: RadarSearchParams): Promise<RadarSearc
   ].join(",");
 
   const translatedCategory = radarCategoryQuery(segment,countryCode);
-  const positionQuery = `${translatedCategory}${keyword ? ` ${keyword}` : ""} in ${place}`;
+  const positionQuery = `${translatedCategory}${keyword ? ` ${keyword}` : ""} ${countryCode==="BR"?"em":"in"} ${place}`;
   const baseBody = localRankingQuery(positionQuery, center, radiusKm,countryCode);
 
   const positionCheckedAt = new Date().toISOString();
