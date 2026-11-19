@@ -57,6 +57,8 @@ async function startServer() {
   app.use(express.json());
   app.all("/api/site-express", (req, res) => siteExpress(req, res));
 
+  app.get("/s/:slug", (req, res) => { req.query.view = "builder"; req.query.action = "published"; req.query.slug = req.params.slug; return siteExpress(req, res); });
+
   // Meta Integration Routes
   app.get("/api/meta", async (req, res) => {
     try {

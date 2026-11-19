@@ -20,7 +20,7 @@ function getAuthMessage(error: unknown, fallback: string): string {
   return authMessages[code] || fallback;
 }
 
-export default function AuthPage() {
+export default function AuthPage({ context = 'portal' }: { context?: 'portal' | 'site' }) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -91,10 +91,10 @@ export default function AuthPage() {
             <Bot className="w-6 h-6" />
           </div>
           <h3 className="text-white text-xl font-bold font-display tracking-tight">
-            {isLogin ? "Acessar Atlas Intelligence" : "Criar Conta de Consultor"}
+            {context === 'site' ? (isLogin ? "Entrar para criar meu site" : "Criar minha conta") : (isLogin ? "Acessar Atlas Intelligence" : "Criar Conta de Consultor")}
           </h3>
           <p className="text-xs text-gray-400 max-w-xs mx-auto">
-            {isLogin 
+            {context === 'site' ? "Salve seus projetos e continue a criação de onde parou." : isLogin 
               ? "Insira suas credenciais para gerenciar auditorias, CRM de leads e utilizar o Copilot." 
               : "Cadastre-se para liberar relatórios executivos ilimitados e conectar seu WhatsApp."}
           </p>

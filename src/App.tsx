@@ -76,6 +76,7 @@ import AuthPage from './components/AuthPage';
 import { useScrollReveal } from './lib/useScrollReveal';
 import { Lead, LeadStatus, IntegrationConfig, LocalSearchPosition } from './types';
 
+const SiteBuilderPage = lazy(() => import('./components/SiteBuilderPage'));
 const SiteExpressPage = lazy(() => import('./components/SiteExpressPage'));
 const ExpressOrdersPanel = lazy(() => import('./components/ExpressOrdersPanel'));
 const expressLoading = <p role="status" className="p-5 text-sm text-zinc-300">Carregando Site Express…</p>;
@@ -95,7 +96,7 @@ export default function App() {
   const [auditLead, setAuditLead] = useState<Lead>();
   const [selectedLeadForCopilot, setSelectedLeadForCopilot] = useState<Lead | null>(null);
 
-  useScrollReveal(!isPortalActive && window.location.pathname.replace(/\/$/, '') !== '/site-express');
+  useScrollReveal(!isPortalActive && !['/site-express', '/criar-site'].includes(window.location.pathname.replace(/\/$/, '')));
 
   useEffect(() => onAuthStateChanged(auth, (user) => {
     setCrmLeads([]);
@@ -277,6 +278,7 @@ export default function App() {
     }
   }
 
+  if (window.location.pathname.replace(/\/$/, '') === '/criar-site' || (window.location.pathname.replace(/\/$/, '') === '/site-express' && !new URLSearchParams(location.search).has('previa') && !new URLSearchParams(location.search).has('pedido'))) return <Suspense fallback={expressLoading}><SiteBuilderPage /></Suspense>;
   if (window.location.pathname.replace(/\/$/, '') === '/site-express') return <Suspense fallback={expressLoading}><SiteExpressPage /></Suspense>;
 
   if (isPortalActive) {
@@ -633,8 +635,8 @@ export default function App() {
               >
                 Solicitar diagnóstico digital
               </button>
-              <a href="/site-express" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#E2B755]/50 px-5 py-3 text-sm font-semibold text-[#E2B755] transition-colors hover:bg-[#E2B755]/10">
-                Gerar prévia grátis <ArrowRight size={16} />
+              <a href="/criar-site" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#E2B755]/50 px-5 py-3 text-sm font-semibold text-[#E2B755] transition-colors hover:bg-[#E2B755]/10">
+                Criar meu site <ArrowRight size={16} />
               </a>
               
               <button
