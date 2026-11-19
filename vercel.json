@@ -2,16 +2,8 @@
   "version": 2,
   "rewrites": [
     {
-      "source": "/api/site-express",
-      "destination": "/api/contact?expressEndpoint=site"
-    },
-    {
-      "source": "/api/site-express-webhook",
-      "destination": "/api/contact?expressEndpoint=webhook"
-    },
-    {
       "source": "/s/:slug",
-      "destination": "/api/contact?expressEndpoint=site&view=builder&action=published&slug=:slug"
+      "destination": "/api/site-express?view=builder&action=published&slug=:slug"
     },
     {
       "source": "/api/(.*)",
@@ -41,6 +33,13 @@
     "api/contact.ts": {
       "maxDuration": 300,
       "includeFiles": "node_modules/@sparticuz/chromium/bin/**"
+    },
+    "api/site-express.ts": {
+      "maxDuration": 300,
+      "includeFiles": "node_modules/@sparticuz/chromium/bin/**"
+    },
+    "api/site-express-webhook.ts": {
+      "maxDuration": 60
     }
   },
   "headers": [
