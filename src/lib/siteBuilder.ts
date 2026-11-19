@@ -3,9 +3,10 @@ import type { SiteLanguage } from './siteLanguages';
 export interface BuilderReference { id: string; name: string; mimeType: string; width: number; height: number; size: number }
 export interface BuilderSource { title: string; url: string; siteUrl?: string; insight?: string }
 export const BUILDER_SCENE_EFFECTS = ['static', 'mask', 'scroll-zoom', 'overlap'] as const;
+export const BUILDER_SCENE_TRANSITIONS = ['cut', 'wipe', 'match', 'overlap'] as const;
 export interface BuilderCreativePlan {
   concept: string;
-  scenes: { section: string; goal: string; entrance: string; motion: string; transition: string; effect: typeof BUILDER_SCENE_EFFECTS[number] }[];
+  scenes: { section: string; goal: string; entrance: string; motion: string; transition: string; transitionEffect?: typeof BUILDER_SCENE_TRANSITIONS[number]; effect: typeof BUILDER_SCENE_EFFECTS[number] }[];
   heroImagePrompt: string;
 }
 export interface BuilderDirection { id: string; name: string; description: string; accent: string; background: string; foreground: string; typography: string; layout: string }
