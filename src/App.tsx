@@ -302,6 +302,7 @@ export default function App() {
 
             {/* Sidebar Tab Selectors */}
             {currentUser && <nav className="space-y-1 text-left">
+              <a href="/criar-site" className="flex min-h-11 items-center gap-2.5 rounded-xl border border-[#E2B755]/25 bg-[#E2B755]/10 px-3.5 py-2.5 text-sm font-semibold text-[#E2B755]"><Sparkles className="h-4 w-4" />Criar meu site</a>
               {[
                 { id: 'dashboard', label: 'Painel Executivo', icon: Layout },
                 { id: 'radar', label: 'Radar de Mercado', icon: Compass },
@@ -372,6 +373,7 @@ export default function App() {
               </button>
             </div>
 
+            {currentUser && <a href="/criar-site" className="md:hidden inline-flex min-h-11 items-center px-2 text-sm font-semibold text-[#E2B755]">Criar site</a>}
             {currentUser && <button type="button" onClick={() => openAtlasScore()} className="md:hidden px-2 text-xs font-semibold text-[#E2B755]">Atlas Score</button>}
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest hidden sm:inline">Status do Cluster: <strong className="text-emerald-400 font-bold">ONLINE</strong></span>
