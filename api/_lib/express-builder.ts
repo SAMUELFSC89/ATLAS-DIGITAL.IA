@@ -75,7 +75,7 @@ export default async function builder(req:Request,res:Response){
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
   try{
     const action=String(req.query.action||req.body?.action||'state');
-    if(req.method==='GET'&&action==='creator-directory')return res.json(await getPublicCreatorDirectory());
+    if(req.method==='GET'&&action==='creator-directory')return res.json(await getPublicCreatorDirectory(String(req.query.cursor||'')));
     if(req.method==='GET'&&action==='creator-public')return res.json(await getPublicCreator(String(req.query.handle||'')));
     if(req.method==='GET'&&action==='published'){
       const slug=String(req.query.slug||'');if(!/^[a-z0-9-]{5,70}$/.test(slug))return res.status(404).send('Site não encontrado.');const site=(await published().doc(slug).get()).data();if(!site?.html)return res.status(404).send('Site não encontrado.');res.setHeader('Content-Security-Policy',builderCsp(publicOrigin())+"; frame-ancestors 'none'");res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Content-Type','text/html; charset=utf-8');res.setHeader('Cache-Control','public,max-age=60,s-maxage=60');return res.send(site.html);
