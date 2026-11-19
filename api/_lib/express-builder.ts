@@ -6,6 +6,7 @@ import { resolveExpressAssets, rasterInfo, ASSET_MAX_BYTES, ExpressAssetError } 
 import { claudeConfigured, claudeText, extractSiteHtml } from './express-claude.js';
 import { prepareBuilderHtml, modifyBuilderHtml, builderCsp, builderImageUrl } from './express-builder-html.js';
 import { researchBuilder, builderPrompt, generateBuilderPhoto } from './express-builder-ai.js';
+import { auditBuilderSite, feedbackForPrompt } from './atlas-builder-skill.js';
 import { normalizeBrazilianWhatsApp } from '../../src/lib/contact.js';
 import { DEFAULT_VISUAL_PROMPT } from '../../src/lib/expressVisualPrompt.js';
 import { BUILDER_DIRECTIONS, type BuilderProject, type BuilderReference } from '../../src/lib/siteBuilder.js';
@@ -13,6 +14,8 @@ import type { ExpressBusiness, ExpressAsset } from '../../src/lib/expressOrder.j
 
 const projects=()=>db().collection('expressBuilderProjects');
 const published=()=>db().collection('expressBuilderPublished');
+const learnings=()=>db().collection('expressBuilderLearning');
+const ownerLearningId=(email:string)=>createHash('sha256').update(email).digest('hex');
 const clean=(v:unknown,n:number)=>typeof v==='string'?v.replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,n):'';
 class BuilderError extends Error {constructor(public status:number,message:string){super(message);}}
 const fail=(status:number,text:string):never=>{throw new BuilderError(status,text);};
@@ -21,9 +24,9 @@ function businessInput(input:any):ExpressBusiness{return {name:clean(input?.name
 function complete(b:ExpressBusiness){if(!b.name||!b.segment||!b.city||!b.services||!b.whatsapp)fail(400,'Complete os dados da empresa e informe um WhatsApp brasileiro com DDD.');}
 async function owned(id:any,email:string){if(!orderId(id))fail(400,'Projeto inválido.');const p=(await projects().doc(id).get()).data();if(!p||p.ownerEmail!==email)fail(404,'Projeto não encontrado nesta conta.');return p;}
 const publicMediaUrl=(id:string,file:string)=>`${publicOrigin()}/api/site-express?view=builder&action=media&id=${id}&file=${file}`;
-async function state(id:string,p:any):Promise<BuilderProject>{const messages=await projects().doc(id).collection('messages').orderBy('createdAt','desc').limit(30).get();return {id,business:p.business,references:p.references||[],directions:p.directions||BUILDER_DIRECTIONS,directionId:p.directionId||'editorial',sources:p.sources||[],researchNotice:p.researchNotice||'',html:p.html||'',sections:p.sections||[],version:p.version||0,status:p.status||'draft',job:p.job?{id:p.job.id,type:p.job.type,phase:p.job.phase,leaseUntil:p.job.leaseUntil||0}:null,message:p.message||'',imageNotice:p.imageNotice||'',publishedUrl:p.publishedSlug?`${publicOrigin()}/s/${p.publishedSlug}`:undefined,publishedVersion:p.publishedVersion||0,updatedAt:p.updatedAt,media:p.media||[],messages:messages.docs.reverse().map(doc=>({id:doc.id,...doc.data()} as any))};}
+async function state(id:string,p:any):Promise<BuilderProject>{const messages=await projects().doc(id).collection('messages').orderBy('createdAt','desc').limit(30).get();return {id,business:p.business,references:p.references||[],directions:p.directions||BUILDER_DIRECTIONS,directionId:p.directionId||'editorial',sources:p.sources||[],researchNotice:p.researchNotice||'',html:p.html||'',sections:p.sections||[],version:p.version||0,status:p.status||'draft',job:p.job?{id:p.job.id,type:p.job.type,phase:p.job.phase,leaseUntil:p.job.leaseUntil||0}:null,message:p.message||'',imageNotice:p.imageNotice||'',publishedUrl:p.publishedSlug?`${publicOrigin()}/s/${p.publishedSlug}`:undefined,publishedVersion:p.publishedVersion||0,updatedAt:p.updatedAt,media:p.media||[],quality:p.quality,feedback:p.feedback,messages:messages.docs.reverse().map(doc=>({id:doc.id,...doc.data()} as any))};}
 async function addMessage(id:string,role:'user'|'assistant',text:string,referenceIds:string[]=[],key:string=randomUUID()){await projects().doc(id).collection('messages').doc(key).set({role,text:text.slice(0,3000),referenceIds,createdAt:Date.now()});}
-async function saveVersion(id:string,p:any,document:{html:string;sections:any[]},extra:any={}){return db().runTransaction(async tx=>{const ref=projects().doc(id);const current=(await tx.get(ref)).data();if(!current||current.version!==p.version||current.job)fail(409,'O site foi atualizado. Recarregue antes de salvar.');const version=(current.version||0)+1;tx.create(ref.collection('versions').doc(String(version)),{...document,version,createdAt:Date.now()});tx.update(ref,{...document,...extra,version,status:'ready',message:'',updatedAt:Date.now()});return {...current,...document,...extra,version,status:'ready',message:'',updatedAt:Date.now()};});}
+async function saveVersion(id:string,p:any,document:{html:string;sections:any[]},extra:any={}){return db().runTransaction(async tx=>{const ref=projects().doc(id);const current=(await tx.get(ref)).data();if(!current||current.version!==p.version||current.job)fail(409,'O site foi atualizado. Recarregue antes de salvar.');const version=(current.version||0)+1;tx.create(ref.collection('versions').doc(String(version)),{...document,version,createdAt:Date.now()});tx.update(ref,{...document,...extra,quality:auditBuilderSite(document.html),feedback:null,version,status:'ready',message:'',updatedAt:Date.now()});return {...current,...document,...extra,quality:auditBuilderSite(document.html),feedback:null,version,status:'ready',message:'',updatedAt:Date.now()};});}
 async function startJob(id:string,email:string,type:string,body:any){
   if(!['generate','edit','research','image'].includes(type)||!orderId(body.requestId))fail(400,'Operação inválida.');
   if(!claudeConfigured()&&type!=='image')fail(503,'O assistente está indisponível no momento.');
@@ -51,8 +54,11 @@ async function advance(id:string,email:string){
       const config=(await settings().get()).data();const refs=[];
       for(const refId of job.referenceIds||[]){const r=(await ref.collection('references').doc(refId).get()).data();if(r?.data)refs.push({name:r.name,mimeType:r.mimeType,data:Buffer.from(r.data).toString('base64')});}
       const history=await ref.collection('messages').orderBy('createdAt','desc').limit(16).get();
-      const prompt=await builderPrompt({...claim.business,assets:[...(claim.business.assets||[]),...(claim.media||[])]},(claim.directions||BUILDER_DIRECTIONS).find((d:any)=>d.id===claim.directionId)||BUILDER_DIRECTIONS[0],typeof config?.visualPrompt==='string'?config.visualPrompt:DEFAULT_VISUAL_PROMPT,publicOrigin(),refs,job.instruction||'Crie o site completo.',job.type==='edit'?claim.html:undefined,history.docs.filter(d=>d.data().role==='user').reverse().map(d=>d.data().text));
+      const learning=(await learnings().doc(ownerLearningId(email)).get()).data();
+      const learningContext=feedbackForPrompt(learning?.entries,claim.business.segment);
+      const prompt=await builderPrompt({...claim.business,assets:[...(claim.business.assets||[]),...(claim.media||[])]},(claim.directions||BUILDER_DIRECTIONS).find((d:any)=>d.id===claim.directionId)||BUILDER_DIRECTIONS[0],typeof config?.visualPrompt==='string'?config.visualPrompt:DEFAULT_VISUAL_PROMPT,publicOrigin(),refs,job.instruction||'Crie o site completo.',job.type==='edit'?claim.html:undefined,history.docs.filter(d=>d.data().role==='user').reverse().map(d=>d.data().text),learningContext);
       doc=prepareBuilderHtml(extractSiteHtml(await claudeText(prompt.system,prompt.content,265000)),publicOrigin());
+      patch={...patch,quality:auditBuilderSite(doc.html),feedback:null};
       assistant=job.type==='edit'?'O site foi atualizado. Revise as alterações no editor.':'Seu site está criado. Você pode editar os textos, as cores e as imagens ou pedir ajustes pelo chat.';
     }
     return await db().runTransaction(async tx=>{const current=(await tx.get(ref)).data();if(current?.job?.leaseToken!==token)return current;const version=doc?(current.version||0)+1:current.version||0;
@@ -98,7 +104,25 @@ export default async function builder(req:Request,res:Response){
       const next=await startJob(String(id),email,req.body.type,req.body);if(next.job?.id===req.body.requestId&&req.body.text)await addMessage(String(id),'user',clean(req.body.text,3000),next.job.referenceIds,req.body.requestId+'-user');return res.json({project:await state(String(id),next)});
     }
     editable(p);
-    if(action==='upload-reference'){
+    if(action==='feedback'){
+      if(!p.html||!p.version)fail(409,'Crie um site antes de avaliar.');
+      if(req.body.version!==p.version)fail(409,'O site foi alterado. Avalie a versão mais recente.');
+      const rating=req.body.rating;
+      if(rating!=='good'&&rating!=='improve')fail(400,'Selecione uma avaliação.');
+      const note=clean(req.body.note,500);
+      if(rating==='improve'&&!note)fail(400,'Conte brevemente o que deve melhorar.');
+      if(!(await rateLimit(email,'builder-feedback',20,100)))fail(429,'Muitas avaliações enviadas. Tente novamente mais tarde.');
+      const learningRef=learnings().doc(ownerLearningId(email)),timestamp=Date.now();
+      await db().runTransaction(async tx=>{
+        const [siteSnap,learningSnap]=await tx.getAll(ref,learningRef);
+        const site=siteSnap.data();if(!site||site.ownerEmail!==email||site.version!==p.version||site.job)fail(409,'Este site foi atualizado. Recarregue antes de avaliar.');
+        const feedback={version:p.version,rating,note,createdAt:timestamp};
+        const entry={projectId:String(id),version:p.version,segment:site.business.segment,rating,note,createdAt:timestamp};
+        const prior=Array.isArray(learningSnap.data()?.entries)?learningSnap.data().entries.filter((e:any)=>!(e.projectId===id&&e.version===p.version)):[];
+        tx.set(learningRef,{entries:[...prior.slice(-11),entry],updatedAt:timestamp},{merge:true});
+        tx.update(ref,{feedback,updatedAt:timestamp});
+      });
+    }else if(action==='upload-reference'){
       if (!(await rateLimit(email,'builder-reference',24,200))) fail(429,'O limite de envio de referências foi atingido. Tente novamente mais tarde.');
       const body=req.body;if(!orderId(body.fileId)||typeof body.data!=='string'||body.data.length>Math.ceil(ASSET_MAX_BYTES/3)*4||!/^[A-Za-z0-9+/]+={0,2}$/.test(body.data))fail(400,'Envie uma referência JPG, PNG ou WebP.');const bytes=Buffer.from(body.data,'base64');if(bytes.length<40||bytes.length>ASSET_MAX_BYTES)fail(400,'A referência ficou muito grande.');const info=rasterInfo(bytes);const metadata:BuilderReference={id:body.fileId,name:clean(body.name,120)||'Referência',...info,size:bytes.length};
       await db().runTransaction(async tx=>{const file=ref.collection('references').doc(metadata.id);const [snap,old]=await tx.getAll(ref,file);const current=snap.data();editable(current);const refs=current.references||[];if(old.exists){if(!refs.some((r:any)=>r.id===metadata.id))fail(409,'Selecione o arquivo novamente.');return;}if(refs.length>=4)fail(400,'Você pode anexar até quatro referências por projeto.');tx.create(file,{...metadata,data:bytes,createdAt:Date.now()});tx.update(ref,{references:[...refs,metadata],updatedAt:Date.now()});});
