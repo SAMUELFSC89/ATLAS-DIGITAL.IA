@@ -1,11 +1,12 @@
 import type { ExpressAsset, ExpressBusiness } from './expressOrder';
+import type { SiteLanguage } from './siteLanguages';
 export interface BuilderReference { id: string; name: string; mimeType: string; width: number; height: number; size: number }
 export interface BuilderSource { title: string; url: string }
 export interface BuilderDirection { id: string; name: string; description: string; accent: string; background: string; foreground: string; typography: string; layout: string }
 export interface BuilderSection { id: string; label: string; visible: boolean; texts: { id: string; tag: string; text: string }[]; images: { id: string; src: string; alt: string }[] }
 export interface BuilderMessage { id: string; role: 'user' | 'assistant'; text: string; createdAt: number; referenceIds?: string[] }
 export interface BuilderProject {
-  id: string; business: ExpressBusiness; references: BuilderReference[]; directions: BuilderDirection[]; directionId: string;
+  id: string; business: ExpressBusiness; locale: SiteLanguage; references: BuilderReference[]; directions: BuilderDirection[]; directionId: string;
   sources: BuilderSource[]; researchNotice?: string; html?: string; sections: BuilderSection[]; version: number;
   status: 'draft' | 'working' | 'ready' | 'error'; job?: { id: string; type: 'generate' | 'edit' | 'image' | 'research'; phase: string; leaseUntil: number } | null;
   message?: string; imageNotice?: string; publishedUrl?: string; publishedVersion?: number; updatedAt: number;

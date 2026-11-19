@@ -3,6 +3,7 @@ import { load } from 'cheerio';
 import { createHash } from 'node:crypto';
 import type { BuilderSection } from '../../src/lib/siteBuilder.js';
 import { builderSectionName } from '../../src/lib/siteBuilder.js';
+import { parseSiteLanguage, siteLanguage, DEFAULT_SITE_LANGUAGE, type SiteLanguage } from '../../src/lib/siteLanguages.js';
 
 // The model supplies markup and CSS. Only this fixed script is executable.
 const RUNTIME = `(()=>{const reduced=matchMedia('(prefers-reduced-motion: reduce)');let queued=false;const tick=()=>{queued=false;if(reduced.matches)return;document.querySelectorAll('[data-atlas-parallax]').forEach(el=>{const y=el.getBoundingClientRect().top;el.style.translate='0 '+Math.max(-24,Math.min(24,y*.035))+'px';});};addEventListener('scroll',()=>{if(!queued){queued=true;requestAnimationFrame(tick);}},{passive:true});if(!reduced.matches&&'IntersectionObserver' in window){const observer=new IntersectionObserver(entries=>{for(const entry of entries){if(entry.isIntersecting){entry.target.classList.remove('atlas-reveal-pending');entry.target.classList.add('atlas-reveal-visible');observer.unobserve(entry.target);}}},{threshold:.08,rootMargin:'0px 0px -5% 0px'});document.querySelectorAll('[data-atlas-reveal]').forEach(el=>{if(el.getBoundingClientRect().top>innerHeight*.82)el.classList.add('atlas-reveal-pending');observer.observe(el);});}document.addEventListener('click',event=>{const section=event.target.closest('section[id]');if(section&&parent!==window)parent.postMessage({atlasBuilder:'section',id:section.id},'*');});addEventListener('message',event=>{if(event.source!==parent||event.data?.atlasBuilder!=='scroll'||typeof event.data.id!=='string')return;const el=document.getElementById(event.data.id);if(el?.tagName==='SECTION')el.scrollIntoView({behavior:reduced.matches?'auto':'smooth',block:'start'});});})();`;
@@ -15,12 +16,14 @@ export function builderCsp(origin: string) {
 export function builderImageUrl(value: string, origin: string) {
   try { const url=new URL(value,origin); return url.origin===origin && url.pathname==='/api/site-express' && (url.searchParams.get('view')==='asset'||(url.searchParams.get('view')==='builder'&&url.searchParams.get('action')==='media')) ? url.href : ''; } catch { return ''; }
 }
-export function prepareBuilderHtml(raw: string, origin: string): {html: string; sections: BuilderSection[]} {
+export function prepareBuilderHtml(raw: string, origin: string, preferredLocale?: SiteLanguage): {html: string; sections: BuilderSection[]} {
   if(typeof raw!=='string'||raw.length>600000)throw new Error('Invalid site document');
-  const input=load(raw); input('script, iframe, object, embed, base, form, input, textarea, #atlas-runtime-style, meta[name=atlas-builder-policy], meta[http-equiv]').remove();
+  const input=load(raw);
+  const locale=preferredLocale||parseSiteLanguage(input('html').attr('lang'))||DEFAULT_SITE_LANGUAGE;
+  input('script, iframe, object, embed, base, form, input, textarea, #atlas-runtime-style, meta[name=atlas-builder-policy], meta[http-equiv]').remove();
   const safe=sanitizeHtml(input.html(),{
     allowedTags:['html','head','body','title','meta','link','style','header','nav','main','section','article','aside','footer','div','span','p','h1','h2','h3','h4','h5','h6','a','img','picture','figure','figcaption','ul','ol','li','strong','em','b','i','small','br','hr','details','summary','button'],
-    allowedAttributes:{'*':['id','class','style','role','hidden','aria-*','data-atlas-*'],a:['href','target','rel','title'],img:['src','alt','width','height','loading','decoding'],meta:['name','content','charset'],link:['href','rel'],button:['type','aria-label']},
+    allowedAttributes:{'*':['id','class','style','role','hidden','aria-*','data-atlas-*'],html:['lang','dir'],a:['href','target','rel','title'],img:['src','alt','width','height','loading','decoding'],meta:['name','content','charset'],link:['href','rel'],button:['type','aria-label']},
     allowedSchemes:['https'],allowProtocolRelative:false,allowVulnerableTags:true,allowedEmptyAttributes:['hidden'],
     transformTags:{
       img:(_tag,attrs)=>({tagName:'img',attribs:{...attrs,src:builderImageUrl(attrs.src||'',origin),loading:attrs.loading==='eager'?'eager':'lazy',decoding:'async'}}),
@@ -29,6 +32,7 @@ export function prepareBuilderHtml(raw: string, origin: string): {html: string; 
     },
   });
   const $=load(safe);$('meta[http-equiv],meta[name="atlas-builder-policy"]').remove();
+  $('html').attr('lang',locale).attr('dir',siteLanguage(locale).direction);
   $('head').append(`<meta name="atlas-builder-policy" content="1"><meta http-equiv="Content-Security-Policy" content="${builderCsp(origin)}"><meta name="referrer" content="no-referrer">`);
   if(!$('meta[name="viewport"]').length)$('head').append('<meta name="viewport" content="width=device-width,initial-scale=1">');
   const sections:BuilderSection[]=[];const used=new Set<string>();
