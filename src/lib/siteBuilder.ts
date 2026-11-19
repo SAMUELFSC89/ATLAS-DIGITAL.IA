@@ -44,6 +44,7 @@ export interface PortfolioSiteSummary {
   url?: string;
   publishedUrl?: string | null;
   portfolioVisible?: boolean;
+  caption?: string;
   updatedAt?: number;
 }
 export interface OwnerPortfolioResponse {
