@@ -158,6 +158,14 @@ test('authenticated endpoint: ownership, reference cap, model input, job retries
  (globalThis as any).__atlasBuilderTest=fixture;const endpoint=await loadEndpoint();
  const call=async(action:string,body:any={},user:string|null='cliente@example.com',method='POST')=>{const r:any={statusCode:200,headers:{},setHeader(k:string,v:any){this.headers[k]=v;},status(n:number){this.statusCode=n;return this;},json(d:any){this.body=d;return this;},send(d:any){this.body=d;return this;},end(){return this;}};await endpoint.handler({method,query:{action,...(method==='GET'?body:{})},body,headers:{...(user?{authorization:user}:{})}},r);return r;};
  try{
+ const budget=db.collection('expressBuilderLimits').doc('2026-11-18-generate');
+ await budget.set({count:100});
+ for(let n=0;n<4;n++){
+   const projectId=randomUUID();
+   assert.equal((await call('create',{id:projectId,business})).statusCode,200);
+   assert.equal((await call('start',{id:projectId,requestId:randomUUID(),type:'generate'})).statusCode,200);
+ }
+ assert.equal((await budget.get()).data()?.count,100);
  const id=randomUUID();assert.equal((await call('create',{id,business},null)).statusCode,401);
  assert.equal((await call('import-business',{url:'https://www.google.com/maps/place/Studio+Polar/'},null)).statusCode,401);
  assert.equal((await call('import-business',{url:'http://127.0.0.1'})).statusCode,400);const created=await call('create',{id,business,locale:'en-GB'});assert.equal(created.statusCode,200);assert.equal(created.body.project.version,0);assert.equal(created.body.project.locale,'en-GB');
