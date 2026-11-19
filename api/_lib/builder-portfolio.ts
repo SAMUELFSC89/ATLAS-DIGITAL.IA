@@ -5,6 +5,7 @@ import { normalizeBrazilianWhatsApp } from '../../src/lib/contact.js';
 
 const creators = () => db().collection('expressBuilderCreators');
 const handles = () => db().collection('expressBuilderCreatorHandles');
+const directory = () => db().collection('expressBuilderCreatorDirectory');
 const portfolio = () => db().collection('expressBuilderPortfolioItems');
 const projects = () => db().collection('expressBuilderProjects');
 const published = () => db().collection('expressBuilderPublished');
@@ -99,6 +100,8 @@ export async function saveCreatorProfile(email: string, input: any) {
     if (slug.exists && slug.data().ownerId !== ownerId) fail(409,'Esse endereço já está em uso. Escolha outro.');
     if (!slug.exists) tx.create(handleRef,{ownerId,createdAt:Date.now()});
     tx.set(ownerRef,{...profile,ownerId,createdAt:old.data()?.createdAt || Date.now()});
+    if (publicEnabled) tx.set(directory().doc(handle),{...publicCreator(profile),updatedAt:Date.now()});
+    else tx.delete(directory().doc(handle));
   });
   return getOwnerPortfolio(email);
 }
@@ -159,7 +162,11 @@ export async function getPublicCreator(handle: string) {
   return {creator:publicCreator(profile),sites:entries.map(siteCard)};
 }
 
-export async function getPublicCreatorDirectory() {
-  const snap = await creators().where('publicEnabled','==',true).limit(100).get();
-  return {creators:snap.docs.map(d => publicCreator(d.data())).filter(p => validCreatorHandle(p.handle) && p.name).sort((a,b) => a.name.localeCompare(b.name,'pt-BR'))};
+export async function getPublicCreatorDirectory(cursor = '') {
+  if(cursor && !validCreatorHandle(cursor)) fail(400,'Cursor de paginação inválido.');
+  let query = directory().orderBy('handle').limit(30);
+  if(cursor) query=query.startAfter(cursor);
+  const snap = await query.get();
+  const creatorsList = snap.docs.map(doc => doc.data()).filter(p => validCreatorHandle(p.handle) && p.name);
+  return {creators:creatorsList, nextCursor:snap.docs.length===30?snap.docs[snap.docs.length-1].data().handle:null};
 }
