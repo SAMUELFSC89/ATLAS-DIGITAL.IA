@@ -148,13 +148,13 @@ class Query {
 async function loadEndpoint(){
  const temp=await mkdtemp(path.join(process.cwd(),'.builder-test-'));const out=path.join(temp,'endpoint.cjs');
  await build({entryPoints:['api/_lib/express-builder.ts'],outfile:out,bundle:true,platform:'node',format:'cjs',packages:'external',logLevel:'silent',plugins:[{name:'fixtures',setup(b){
- b.onResolve({filter:/express-store\.js$|\/radar\.js$|express-assets\.js$|express-claude\.js$|express-builder-ai\.js$/},args=>({path:args.path,namespace:'fixture'}));
- b.onLoad({filter:/.*/,namespace:'fixture'},args=>{let names=args.path.includes('express-store')?['db','previews','settings','orders','orderId','publicOrigin','saoPauloDay','rateLimit']:args.path.includes('radar')?['getAuthenticatedEmail']:args.path.includes('express-assets')?['resolveExpressAssets','rasterInfo','ASSET_MAX_BYTES','ExpressAssetError']:args.path.includes('express-claude')?['claudeConfigured','claudeText','extractSiteHtml']:['researchBuilder','planBuilder','builderPrompt','generateBuilderPhoto'];return {contents:names.map(n=>`export const ${n}=globalThis.__atlasBuilderTest.${n};`).join('\n'),loader:'js'};});
+ b.onResolve({filter:/express-store\.js$|\/radar\.js$|express-assets\.js$|express-claude\.js$|express-openai\.js$|express-builder-ai\.js$/},args=>({path:args.path,namespace:'fixture'}));
+ b.onLoad({filter:/.*/,namespace:'fixture'},args=>{let names=args.path.includes('express-store')?['db','previews','settings','orders','orderId','publicOrigin','saoPauloDay','rateLimit']:args.path.includes('radar')?['getAuthenticatedEmail']:args.path.includes('express-assets')?['resolveExpressAssets','rasterInfo','ASSET_MAX_BYTES','ExpressAssetError']:args.path.includes('express-claude')?['extractSiteHtml']:args.path.includes('express-openai')?['openaiConfigured','openaiText']:['researchBuilder','planBuilder','builderPrompt','generateBuilderPhoto','generateDesignMockup'];return {contents:names.map(n=>`export const ${n}=globalThis.__atlasBuilderTest.${n};`).join('\n'),loader:'js'};});
  }}]});
  const require=createRequire(import.meta.url);return {handler:require(out).default,close:()=>rm(temp,{recursive:true,force:true})};
 }
 test('authenticated endpoint: ownership, reference cap, model input, job retries, versions and payment gate',async t=>{
- const db=new MemoryDb();let generationCalls=0;let modelReferences:any[]=[];let requestedLocale='';let planningCalls=0;let plannedRefs=0;let usedConcept='';let imagePrompt='';const fixture:any={db:()=>db,previews:()=>db.collection('expressPreviews'),settings:()=>db.collection('expressInternal').doc('settings'),orders:()=>db.collection('expressOrders'),orderId:(v:any)=>typeof v==='string'&&/^[a-f0-9-]{36}$/i.test(v),publicOrigin:()=>origin,saoPauloDay:()=> '2026-11-18',rateLimit:async()=>true,getAuthenticatedEmail:async(req:any,verified=false)=>verified&&req.headers.verified!=='yes'?null:req.headers.authorization||null,resolveExpressAssets:async()=>[],rasterInfo:(data:Buffer)=>{assert.equal(data.subarray(1,4).toString(),'PNG');return{mimeType:'image/png',width:1,height:1};},ASSET_MAX_BYTES:750*1024,ExpressAssetError:class extends Error{},claudeConfigured:()=>true,claudeText:async()=>{generationCalls++;return raw;},extractSiteHtml:(s:string)=>s,researchBuilder:async(_business:any,options:any)=>{planningCalls++;plannedRefs=options.references.length;return {sources:[{url:'https://pinterest.com/pin/123/',title:'Editorial',insight:'Abertura focada no material'}],creativePlan:{concept:'Do detalhe ao ambiente',scenes:[],heroImagePrompt:'Foto macro de pedra'},directions:BUILDER_DIRECTIONS,researchNotice:'Uma referência.'};},builderPrompt:async(_b:any,_d:any,_c:any,_o:any,refs:any[],_inst:any,_html:any,_history:any,_learn:any,locale:string,synopsis:any)=>{modelReferences=refs;requestedLocale=locale;usedConcept=synopsis?.plan?.concept||'';return{system:'',content:[]};},generateBuilderPhoto:async(_business:any,prompt:string)=>{imagePrompt=prompt;throw new Error('Fake generator unavailable');}};
+ const db=new MemoryDb();let generationCalls=0;let modelReferences:any[]=[];let requestedLocale='';let planningCalls=0;let plannedRefs=0;let usedConcept='';let imagePrompt='';let chosenDesign='';const fixture:any={db:()=>db,previews:()=>db.collection('expressPreviews'),settings:()=>db.collection('expressInternal').doc('settings'),orders:()=>db.collection('expressOrders'),orderId:(v:any)=>typeof v==='string'&&/^[a-f0-9-]{36}$/i.test(v),publicOrigin:()=>origin,saoPauloDay:()=> '2026-11-18',rateLimit:async()=>true,getAuthenticatedEmail:async(req:any,verified=false)=>verified&&req.headers.verified!=='yes'?null:req.headers.authorization||null,resolveExpressAssets:async()=>[],rasterInfo:(data:Buffer)=>{assert.equal(data.subarray(1,4).toString(),'PNG');return{mimeType:'image/png',width:1,height:1};},ASSET_MAX_BYTES:750*1024,ExpressAssetError:class extends Error{},openaiConfigured:()=>true,openaiText:async()=>{generationCalls++;return raw;},extractSiteHtml:(s:string)=>s,researchBuilder:async(_business:any,options:any)=>{planningCalls++;plannedRefs=options.references.length;return {sources:[{url:'https://pinterest.com/pin/123/',title:'Editorial',insight:'Abertura focada no material'}],creativePlan:{concept:'Do detalhe ao ambiente',scenes:[],heroImagePrompt:'Foto macro de pedra'},directions:BUILDER_DIRECTIONS,researchNotice:'Uma referência.'};},builderPrompt:async(_b:any,_d:any,_c:any,_o:any,refs:any[],_inst:any,_html:any,_history:any,_learn:any,locale:string,synopsis:any)=>{modelReferences=refs;requestedLocale=locale;usedConcept=synopsis?.plan?.concept||'';chosenDesign=synopsis?.chosenDesign?.data||'';return{system:'',content:[]};},generateDesignMockup:async()=>({buffer:Buffer.from('mock design'),mimeType:'image/webp'}),generateBuilderPhoto:async(_business:any,prompt:string)=>{imagePrompt=prompt;throw new Error('Fake generator unavailable');}};
  (globalThis as any).__atlasBuilderTest=fixture;const endpoint=await loadEndpoint();
  const call=async(action:string,body:any={},user:string|null='cliente@example.com',method='POST')=>{const r:any={statusCode:200,headers:{},setHeader(k:string,v:any){this.headers[k]=v;},status(n:number){this.statusCode=n;return this;},json(d:any){this.body=d;return this;},send(d:any){this.body=d;return this;},end(){return this;}};await endpoint.handler({method,query:{action,...(method==='GET'?body:{})},body,headers:{...(user?{authorization:user}:{})}},r);return r;};
  try{
@@ -180,10 +180,23 @@ test('authenticated endpoint: ownership, reference cap, model input, job retries
  const planned=await Promise.all([call('run',{id}),call('run',{id})]);
  assert.equal(planningCalls,1);assert.equal(plannedRefs,4);assert.equal(generationCalls,0);
  const plannedProject=planned.find(r=>r.body.project.creativePlan)?.body.project;
- assert.equal(plannedProject.creativePlan.concept,'Do detalhe ao ambiente');assert.equal(plannedProject.job.phase,'building');assert.equal(plannedProject.sources.length,1);
- const runs=await Promise.all([call('run',{id}),call('run',{id})]);assert.equal(generationCalls,1);assert.equal(modelReferences.length,4);assert.equal(usedConcept,'Do detalhe ao ambiente');assert.equal(requestedLocale,'en-GB');assert.equal(load((await call('state',{id},undefined,'GET')).body.project.html)('html').attr('lang'),'en-GB');assert.equal((await call('language',{id,locale:'fr'})).statusCode,409);assert.equal((await call('state',{id},undefined,'GET')).body.project.version,1);assert.equal((await call('start',{id,requestId,type:'generate'})).body.project.job,null);assert.equal(generationCalls,1);
+ assert.equal(plannedProject.creativePlan.concept,'Do detalhe ao ambiente');assert.equal(plannedProject.job.phase,'designs');assert.equal(plannedProject.sources.length,1);
+ for(let n=0;n<3;n++)assert.equal((await call('run',{id})).statusCode,200);
+ const waiting=(await call('state',{id},undefined,'GET')).body.project;
+ assert.equal(waiting.awaitingDesign,true);assert.equal(waiting.designOptions.length,3);
+ assert.equal(waiting.job,null);assert.equal(waiting.version,0);
+ assert.equal((await call('run',{id})).body.project.version,0);
+ const chosen=waiting.designOptions[1].id;
+ assert.equal((await call('design',{id,file:chosen},'outro@example.com','GET')).statusCode,404);
+ assert.equal((await call('design',{id,file:chosen},undefined,'GET')).body.toString(),'mock design');
+ assert.equal((await call('choose-design',{id,optionId:randomUUID()})).statusCode,400);
+ assert.equal((await call('choose-design',{id,optionId:chosen})).body.project.job.phase,'building');
+ const runs=await Promise.all([call('run',{id}),call('run',{id})]);assert.equal(generationCalls,1);assert.equal(modelReferences.length,4);assert.equal(chosenDesign,Buffer.from('mock design').toString('base64'));assert.equal(usedConcept,'Do detalhe ao ambiente');assert.equal(requestedLocale,'en-GB');assert.equal(load((await call('state',{id},undefined,'GET')).body.project.html)('html').attr('lang'),'en-GB');assert.equal((await call('language',{id,locale:'fr'})).statusCode,409);assert.equal((await call('state',{id},undefined,'GET')).body.project.version,1);assert.equal((await call('start',{id,requestId,type:'generate'})).body.project.job,null);assert.equal(generationCalls,1);
  await call('start',{id:importedId,requestId:randomUUID(),type:'generate'});
- assert.equal((await call('run',{id:importedId})).body.project.job.phase,'images');
+ assert.equal((await call('run',{id:importedId})).body.project.job.phase,'designs');
+ for(let n=0;n<3;n++)await call('run',{id:importedId});
+ const importedOptions=(await call('state',{id:importedId},undefined,'GET')).body.project.designOptions;
+ assert.equal((await call('choose-design',{id:importedId,optionId:importedOptions[0].id})).body.project.job.phase,'images');
  const failedImage=await call('run',{id:importedId});
  assert.match(imagePrompt,/^Foto macro de pedra.*Enquadramento fechado/);
  assert.equal(failedImage.body.project.job.phase,'building');
@@ -243,62 +256,65 @@ test('authenticated endpoint: ownership, reference cap, model input, job retries
  }finally{await endpoint.close();delete (globalThis as any).__atlasBuilderTest;}
 });
 
-test('Pinterest research only displays real search URLs; four uploaded images are actually supplied to vision; Gemini decodes image response',async()=>{
+test('OpenAI research uses observed sources, vision and image generation',async()=>{
  const temp=await mkdtemp(path.join(process.cwd(),'.builder-test-'));const out=path.join(temp,'ai.cjs');
  await build({entryPoints:['api/_lib/express-builder-ai.ts'],outfile:out,bundle:true,platform:'node',format:'cjs',packages:'external',logLevel:'silent',plugins:[{name:'assets-fixture',setup(b){b.onResolve({filter:/express-assets\.js$/},args=>({path:args.path,namespace:'assets-fixture'}));b.onLoad({filter:/.*/,namespace:'assets-fixture'},()=>({contents:'export const visualAssetInputs=async()=>[];',loader:'js'}));}}]});
- const ai=createRequire(import.meta.url)(out);const originalFetch=globalThis.fetch;const oldClaude=process.env.ANTHROPIC_API_KEY;const oldGemini=process.env.GEMINI_API_KEY;process.env.ANTHROPIC_API_KEY='test';process.env.GEMINI_API_KEY='test';
- try{
- let request:any;globalThis.fetch=async(_url:any,options:any)=>{request=JSON.parse(options.body);return new Response(JSON.stringify({content:[{type:'web_search_tool_result',content:[{type:'web_search_result',url:'https://br.pinterest.com/pin/123/',title:'Referência real'},{url:'https://evil.test/pin',title:'Excluir'}]},{type:'text',text:JSON.stringify({directions:[{name:'Estilo pesquisado',accent:'#123456'}],url:'https://pinterest.com/pin/inventado'})}]}),{status:200});};
- const research=await ai.researchBuilder(business);assert.equal(research.sources.length,1);assert.equal(research.sources[0].url,'https://br.pinterest.com/pin/123/');assert.equal(research.directions[0].name,'Estilo pesquisado');assert.deepEqual(request.tools[0].allowed_domains,['pinterest.com']);
+ const ai=createRequire(import.meta.url)(out);
+ const originalFetch=globalThis.fetch,oldKey=process.env.OPENAI_API_KEY;
+ process.env.OPENAI_API_KEY='mock';
+ const message=(value:unknown,annotations:unknown[]=[])=>
+  ({type:'message',content:[{type:'output_text',text:JSON.stringify(value),annotations}]});
+ const completed=(output:unknown[])=>new Response(JSON.stringify({status:'completed',output}));
  const scenes=['inicio','servicos','sobre','contato'].map(section=>({section,goal:'Informar',entrance:'Imagem ampla',motion:'Aproximação',transition:'Corte leve',effect:'scroll-zoom'}));
  const options={direction:BUILDER_DIRECTIONS[0],instruction:'Valorize a pedra',locale:'pt-BR',references:[{name:'Minha foto',data:'base64-dado',mimeType:'image/png'}]};
- globalThis.fetch=async(_url:any,init:any)=>{
-  request=JSON.parse(init.body);
-  return new Response(JSON.stringify({content:[
-   {type:'web_search_tool_result',content:[123,456,789].map(id=>({type:'web_search_result',url:'https://www.pinterest.com/pin/'+id+'/',title:'Pin '+id}))},
-   ...['https://atelier.example/','https://www.atelier.example/outro'].map(url=>({type:'web_fetch_tool_result',content:{type:'web_fetch_result',url}})),
-   {type:'text',text:JSON.stringify({creativePlan:{concept:'Do material ao espaço',heroImagePrompt:'Pedra sob luz lateral',scenes},references:[
-    {pinUrl:'https://br.pinterest.com/pin/123/',siteUrl:'https://atelier.example/',insight:'Usar a textura no destaque'},
-    {pinUrl:'https://www.pinterest.com/pin/456/',siteUrl:'https://www.atelier.example/outro',insight:'Duplicado'},
-    {pinUrl:'https://www.pinterest.com/pin/789/',siteUrl:'https://inventado.example/',insight:'Composição ampla'},
-    {pinUrl:'https://www.pinterest.com/pin/999/',insight:'Pin sem evidência'},
-   ]})},
-  ]}));
+ try{
+ let request:any;
+ globalThis.fetch=async(url:any,init:any)=>{
+   assert.equal(url,'https://api.openai.com/v1/responses');
+   assert.equal(init.headers.Authorization,'Bearer mock');
+   request=JSON.parse(init.body);
+   return completed([
+     {type:'web_search_call',action:{type:'search',sources:[123,456,789].map(id=>({url:'https://www.pinterest.com/pin/'+id+'/',title:'Pin '+id}))}},
+     ...['https://atelier.example/','https://www.atelier.example/outro'].map(url=>({type:'web_search_call',action:{type:'open_page',url}})),
+     message({creativePlan:{concept:'Do material ao espaço',heroImagePrompt:'Pedra sob luz lateral',scenes},references:[
+       {pinUrl:'https://br.pinterest.com/pin/123/',siteUrl:'https://atelier.example/',insight:'Usar a textura no destaque'},
+       {pinUrl:'https://www.pinterest.com/pin/456/',siteUrl:'https://www.atelier.example/outro',insight:'Duplicado'},
+       {pinUrl:'https://www.pinterest.com/pin/789/',siteUrl:'https://inventado.example/',insight:'Composição ampla'},
+       {pinUrl:'https://www.pinterest.com/pin/999/',insight:'Pin sem evidência'},
+     ]}),
+   ]);
  };
  const planned=await ai.researchBuilder(business,options);
- assert.equal(request.messages[0].content.filter((block:any)=>block.type==='image').length,1);
+ assert.equal(request.tools[0].type,'web_search');
+ assert.equal(request.input[0].content.filter((block:any)=>block.type==='input_image').length,1);
  assert.equal(planned.creativePlan.scenes.length,4);
  assert.deepEqual(planned.sources.map((source:any)=>source.title),['Pin 123','Pin 789']);
  assert.equal(planned.sources[0].siteUrl,'https://atelier.example/');
  assert.equal(planned.sources[1].siteUrl,undefined);
  assert.match(planned.researchNotice,/2 de 4.*consultados: 1/);
- const textResponse=JSON.stringify({creativePlan:{concept:'Plano de segunda etapa',heroImagePrompt:'Foto editorial',scenes}});
- globalThis.fetch=async()=>new Response([
-  'data: '+JSON.stringify({type:'content_block_delta',delta:{type:'text_delta',text:textResponse}}),
-  'data: '+JSON.stringify({type:'message_delta',delta:{stop_reason:'end_turn'}}),
-  '',
- ].join('\n'));
+ globalThis.fetch=async()=>completed([message({creativePlan:{concept:'Plano de segunda etapa',heroImagePrompt:'Foto editorial',scenes}})]);
  assert.equal((await ai.planBuilder(business,options,planned.sources)).concept,'Plano de segunda etapa');
  globalThis.fetch=async()=>new Response('',{status:503});
  assert.equal((await ai.planBuilder(business,options,planned.sources)).scenes.length,4);
- const plannedPrompt=await ai.builderPrompt(business,BUILDER_DIRECTIONS[0],'',origin,[],'Crie o site.',undefined,[],'','pt-BR',{plan:planned.creativePlan,sources:planned.sources});
+ const plannedPrompt=await ai.builderPrompt(business,BUILDER_DIRECTIONS[0],'',origin,[],'Crie o site.',undefined,[],'','pt-BR',{plan:planned.creativePlan,sources:planned.sources,chosenDesign:options.references[0]});
  assert.match(JSON.stringify(plannedPrompt.content),/Do material ao espaço.*Usar a textura no destaque/);
- globalThis.fetch=async()=>new Response(JSON.stringify({content:[{type:'web_search_tool_result',content:{type:'web_search_tool_result_error',error_code:'unavailable'}},{type:'text',text:'{"url":"https://pinterest.com/fabricado"}'}]}));assert.equal((await ai.researchBuilder(business)).sources.length,0);
+ assert.match(JSON.stringify(plannedPrompt.content),/proposta ESCOLHIDA/);
+ globalThis.fetch=async()=>completed([message({url:'https://pinterest.com/pin/999/'})]);
+ assert.equal((await ai.researchBuilder(business)).sources.length,0);
  const refs=Array.from({length:5},(_,n)=>({name:'Ref '+n,mimeType:'image/png',data:'base64-'+n}));const prompt=await ai.builderPrompt(business,BUILDER_DIRECTIONS[0],'',origin,refs,'Crie meu site.');assert.equal(prompt.content.filter((c:any)=>c.type==='image').length,4);assert.deepEqual(prompt.content.filter((c:any)=>c.type==='image').map((c:any)=>c.source.data),refs.slice(0,4).map(r=>r.data));
  const englishPrompt=await ai.builderPrompt(business,BUILDER_DIRECTIONS[0],'',origin,[], 'Create the final website.',undefined,[],'','en-GB');
  assert.match(englishPrompt.system,/English \(UK\)/);assert.doesNotMatch(englishPrompt.system,/Português brasileiro correto\./);
  assert.match(englishPrompt.system,/title e meta description/i);
- const png=await sharp({create:{width:80,height:60,channels:3,background:'#667788'}}).png().toBuffer();globalThis.fetch=async()=>new Response(JSON.stringify({output_image:{data:png.toString('base64')}}));const photo=await ai.generateBuilderPhoto(business,'Ambiente','16:9');assert.equal(photo.mimeType,'image/webp');assert.equal(photo.width,80);assert.ok(photo.buffer.length>40);
- let imageCalls=0;
- globalThis.fetch=async(url:any,init:any)=>{
-   imageCalls++;
-   if(imageCalls===1)return new Response('',{status:404});
-   assert.match(url,/gemini-3.1-flash-image:generateContent$/);
-   assert.equal(JSON.parse(init.body).contents[0].parts[1].inlineData.mimeType,'image/webp');
-   return new Response(JSON.stringify({candidates:[{content:{parts:[{inlineData:{mimeType:'image/png',data:png.toString('base64')}}]}}]}));
+ const png=await sharp({create:{width:80,height:60,channels:3,background:'#667788'}}).png().toBuffer();
+ globalThis.fetch=async(_url:any,init:any)=>{
+   request=JSON.parse(init.body);
+   return completed([{type:'image_generation_call',result:png.toString('base64')}]);
  };
+ const photo=await ai.generateBuilderPhoto(business,'Ambiente','16:9');
+ assert.equal(photo.mimeType,'image/webp');assert.equal(photo.width,80);
+ assert.equal(request.tools[0].type,'image_generation');assert.equal(request.tools[0].quality,'medium');
  assert.equal((await ai.generateBuilderPhoto(business,'Abra o enquadramento','16:9',photo)).width,80);
- assert.equal(imageCalls,2);
-
- }finally{globalThis.fetch=originalFetch;if(oldClaude===undefined)delete process.env.ANTHROPIC_API_KEY;else process.env.ANTHROPIC_API_KEY=oldClaude;if(oldGemini===undefined)delete process.env.GEMINI_API_KEY;else process.env.GEMINI_API_KEY=oldGemini;await rm(temp,{recursive:true,force:true});}
+ assert.match(request.input[0].content[1].image_url,/^data:image\/webp;base64,/);
+ assert.equal((await ai.generateDesignMockup(business,options,planned.creativePlan,'Studio',planned.sources)).width,80);
+ }finally{globalThis.fetch=originalFetch;if(oldKey===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=oldKey;await rm(temp,{recursive:true,force:true});}
 });
