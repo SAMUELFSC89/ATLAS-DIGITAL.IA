@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { Request } from 'express';
-import { db, publicOrigin, rateLimit } from './express-store.js';
+import { db, publicOrigin } from './express-store.js';
 import { normalizeBrazilianWhatsApp } from '../../src/lib/contact.js';
 
 const creators = () => db().collection('expressBuilderCreators');
@@ -10,6 +9,17 @@ const portfolio = () => db().collection('expressBuilderPortfolioItems');
 const projects = () => db().collection('expressBuilderProjects');
 const published = () => db().collection('expressBuilderPublished');
 export const creatorKey = (email: string) => createHash('sha256').update(email.toLowerCase()).digest('hex');
+/** Contador por conta: nenhuma coleção global compartilhada bloqueia vários criadores. */
+async function mutationQuota(email: string, action: string, cap: number) {
+  const hour = Math.floor(Date.now()/3600000), ownerId=creatorKey(email);
+  const ref=db().collection('expressLimits').doc('creator-'+action+'-'+ownerId+'-'+hour);
+  return db().runTransaction(async tx=>{
+    const snap=await tx.get(ref),count=snap.data()?.count||0;
+    if(count>=cap)return false;
+    tx.set(ref,{count:count+1,expiresAt:new Date((hour+2)*3600000)});
+    return true;
+  });
+}
 const text = (value: unknown, max: number) => typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, max) : '';
 const handlePattern = /^[a-z][a-z0-9-]{2,31}$/;
 const reserved = new Set(['atlas','atlasdigital','atlas-digital','suporte','admin','api','criadores','contato','atendimento','oficial','verificado','portfolios','perfil','entrar','login','root','app','site','sites']);
@@ -76,7 +86,7 @@ export async function getOwnerPortfolio(email: string) {
 }
 
 export async function saveCreatorProfile(email: string, input: any) {
-  if (!(await rateLimit(email,'creator-profile',20,100))) fail(429,'Muitas alterações de perfil. Tente novamente mais tarde.');
+  if (!(await mutationQuota(email,'profile',20))) fail(429,'Muitas alterações de perfil. Tente novamente mais tarde.');
   const ownerId = creatorKey(email);
   const handle = text(input?.handle, 32).toLowerCase();
   const name = text(input?.name, 80);
@@ -134,7 +144,7 @@ export async function togglePortfolioSite(email: string, projectId: string, visi
 }
 
 export async function savePortfolioCaption(email: string, projectId: string, caption: string) {
-  if (!(await rateLimit(email,'creator-caption',30,100))) fail(429,'Muitas alterações. Tente novamente mais tarde.');
+  if (!(await mutationQuota(email,'caption',100))) fail(429,'Muitas alterações. Tente novamente mais tarde.');
   const ownerId=creatorKey(email);
   const ref=projects().doc(projectId), cardRef=portfolio().doc(ownerId+'_'+projectId);
   const cleaned=text(caption,230);
