@@ -1,8 +1,8 @@
-import { canProcessInboundWithAi } from './_lib/whatsapp-handoff.js';
-import { handleWhatsAppAi } from './_lib/whatsapp-draft.js';
+import { canProcessInboundWithAi } from './whatsapp-handoff.js';
+import { handleWhatsAppAi } from './whatsapp-draft.js';
 import { readDb, writeDb, decrypt, getFirestoreAdmin } from "./db-helper.js";
 import { crmAccount, recordCrmInteraction } from "./crm-store.js";
-import { createPositioningPdf, type PositioningSnapshot } from "../src/lib/positioningPdf.js";
+import { createPositioningPdf, type PositioningSnapshot } from "../../src/lib/positioningPdf.js";
 
 const WHATSAPP_GRAPH_URL = "https://graph.facebook.com/v24.0";
 

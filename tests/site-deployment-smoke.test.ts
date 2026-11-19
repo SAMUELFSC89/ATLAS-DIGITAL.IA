@@ -29,3 +29,10 @@ test('contact GET does not load checkout or builder dependencies',async()=>{
  await contact({method:'GET',query:{},headers:{}} as any,res as any);
  assert.equal(res.statusCode,405);
 });
+
+test('Vercel API stays within the configured project plan limit',async()=>{
+  const {readdir}=await import('node:fs/promises');
+  const entries=await readdir(new URL('../api/',import.meta.url),{withFileTypes:true});
+  const functions=entries.filter(entry=>entry.isFile()&&entry.name.endsWith('.ts'));
+  assert.ok(functions.length<=12,`Vercel would package ${functions.length} functions: ${functions.map(entry=>entry.name).join(', ')}`);
+});

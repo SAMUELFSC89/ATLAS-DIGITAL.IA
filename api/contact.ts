@@ -1,4 +1,4 @@
-import { getFirestoreAdmin } from './db-helper.js';
+import { getFirestoreAdmin } from './_lib/db-helper.js';
 import { CONTACT_CAMPAIGN_KEYS, normalizeBrazilianWhatsApp, type ContactCampaign } from '../src/lib/contact.js';
 import type { Request, Response } from 'express';
 

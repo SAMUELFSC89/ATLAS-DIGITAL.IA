@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { getFirestoreAdmin } from './db-helper.js';
-import type { Lead } from '../src/types.js';
-import { CRM_NEXT_ACTION, nextCrmStage, type CrmInteraction } from '../src/lib/crmPipeline.js';
+import type { Lead } from '../../src/types.js';
+import { CRM_NEXT_ACTION, nextCrmStage, type CrmInteraction } from '../../src/lib/crmPipeline.js';
 
 export const crmHash = (value: string) => createHash('sha256').update(value).digest('hex');
 

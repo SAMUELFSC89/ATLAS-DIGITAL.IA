@@ -1,5 +1,5 @@
 import { generateAiReply, readTraining } from './_lib/ai-reply.js';
-import { crmAccount } from './crm-store.js';
+import { crmAccount } from './_lib/crm-store.js';
 import { getAuthenticatedEmail } from './radar.js';
 import { EMPTY_TRAINING, AI_MEMORY_LIMIT } from '../src/lib/aiTraining.js';
 

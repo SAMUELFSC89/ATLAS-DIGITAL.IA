@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { getFirestoreAdmin } from '../db-helper.js';
+import { getFirestoreAdmin } from './db-helper.js';
 import { EXPRESS_HOURS, type ExpressOrder } from '../../src/lib/expressOrder.js';
 import { sendExpressEmail } from './express-providers.js';
 import { receiptEmail, deliveryEmail } from './express-email.js';
