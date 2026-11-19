@@ -18,12 +18,13 @@ export default function CreatorPortfolioPage(){
  const [user,setUser]=useState<User|null|undefined>();
  const [data,setData]=useState<OwnerPortfolioResponse|null>(null);
  const [draft,setDraft]=useState<Draft>(blank);
+ const [captions,setCaptions]=useState<Record<string,string>>({});
  const [busy,setBusy]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState('');
  useEffect(()=>onAuthStateChanged(auth,u=>setUser(u&&!u.isAnonymous?u:null)),[]);
  useEffect(()=>{
    if(!user)return;
    let active=true;setBusy('loading');
-   builderRequest<OwnerPortfolioResponse>('owner-portfolio').then(result=>{if(active){setData(result);setDraft(fromProfile(result.profile));}})
+   builderRequest<OwnerPortfolioResponse>('owner-portfolio').then(result=>{if(active){setData(result);setDraft(fromProfile(result.profile));setCaptions(Object.fromEntries(result.projects.map(p=>[p.id,p.caption||''])));}})
      .catch(e=>{if(active)setError((e as Error).message);})
      .finally(()=>{if(active)setBusy('');});
    return ()=>{active=false;};
@@ -36,6 +37,7 @@ export default function CreatorPortfolioPage(){
      setNotice('Perfil salvo. Você controla quais informações ficam públicas.');
    }catch(e){setError((e as Error).message);}finally{setBusy('');}
  }
+ async function saveCaption(id:string){if(busy)return;setBusy(id);setError('');setNotice('');try{const result=await builderRequest<OwnerPortfolioResponse>('portfolio-caption',{id,caption:captions[id]||''});setData(result);setNotice('Descrição pública do projeto salva.');}catch(e){setError((e as Error).message);}finally{setBusy('');}}
  async function toggle(id:string,visible:boolean){
    if(busy)return;setBusy(id);setError('');setNotice('');
    try{
@@ -79,7 +81,7 @@ export default function CreatorPortfolioPage(){
      {data?.projects.length?<div className="creator-project-grid">{data.projects.map(site=><article className="creator-project" key={site.id}>
        <div className="creator-project-art"><Globe2 size={28}/><span>{site.segment||'Site institucional'}</span></div>
        <div className="creator-project-info"><h3>{site.name}</h3><p>{site.publishedUrl?'Site publicado e acessível':'Este projeto ainda não foi publicado.'}</p><div className="creator-project-links"><a href={'/criar-site?projeto='+site.id}>Editar</a>{site.publishedUrl&&<a href={site.publishedUrl} target="_blank" rel="noreferrer">Ver site <ExternalLink size={13}/></a>}</div>
-         <label className="creator-project-toggle"><input type="checkbox" checked={Boolean(site.portfolioVisible)} disabled={Boolean(busy)||!site.publishedUrl||!profile} onChange={e=>void toggle(site.id,e.target.checked)}/><span>{site.portfolioVisible?<Eye size={15}/>:<EyeOff size={15}/>} {site.portfolioVisible?'Visível no portfólio':'Não exibir no portfólio'}</span></label>
+         <label className="creator-caption-label">Descrição exibida no portfólio<textarea rows={2} maxLength={230} value={captions[site.id]||''} onChange={e=>setCaptions({...captions,[site.id]:e.target.value})} placeholder="Descreva brevemente este projeto para os visitantes." disabled={Boolean(busy)}/></label><button className="creator-caption-button" type="button" disabled={Boolean(busy)||(captions[site.id]||'')===(site.caption||'')} onClick={()=>void saveCaption(site.id)}>Salvar descrição</button><label className="creator-project-toggle"><input type="checkbox" checked={Boolean(site.portfolioVisible)} disabled={Boolean(busy)||!site.publishedUrl||!profile} onChange={e=>void toggle(site.id,e.target.checked)}/><span>{site.portfolioVisible?<Eye size={15}/>:<EyeOff size={15}/>} {site.portfolioVisible?'Visível no portfólio':'Não exibir no portfólio'}</span></label>
        </div>
       </article>)}</div>:<div className="creator-empty"><CheckCircle2 size={24}/><h3>Seu portfólio começa com o primeiro site.</h3><p>Crie, publique e selecione os trabalhos que quer apresentar.</p><a className="creator-primary" href="/criar-site">Criar meu primeiro site</a></div>}
     </section>
