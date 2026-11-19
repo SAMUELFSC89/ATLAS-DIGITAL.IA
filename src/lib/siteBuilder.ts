@@ -1,13 +1,19 @@
 import type { ExpressAsset, ExpressBusiness } from './expressOrder';
 import type { SiteLanguage } from './siteLanguages';
 export interface BuilderReference { id: string; name: string; mimeType: string; width: number; height: number; size: number }
-export interface BuilderSource { title: string; url: string }
+export interface BuilderSource { title: string; url: string; siteUrl?: string; insight?: string }
+export const BUILDER_SCENE_EFFECTS = ['static', 'mask', 'scroll-zoom', 'overlap'] as const;
+export interface BuilderCreativePlan {
+  concept: string;
+  scenes: { section: string; goal: string; entrance: string; motion: string; transition: string; effect: typeof BUILDER_SCENE_EFFECTS[number] }[];
+  heroImagePrompt: string;
+}
 export interface BuilderDirection { id: string; name: string; description: string; accent: string; background: string; foreground: string; typography: string; layout: string }
 export interface BuilderSection { id: string; label: string; visible: boolean; texts: { id: string; tag: string; text: string }[]; images: { id: string; src: string; alt: string }[] }
 export interface BuilderMessage { id: string; role: 'user' | 'assistant'; text: string; createdAt: number; referenceIds?: string[] }
 export interface BuilderProject {
   id: string; business: ExpressBusiness; locale: SiteLanguage; references: BuilderReference[]; directions: BuilderDirection[]; directionId: string;
-  sources: BuilderSource[]; researchNotice?: string; html?: string; sections: BuilderSection[]; version: number;
+  sources: BuilderSource[]; researchNotice?: string; creativePlan?: BuilderCreativePlan | null; html?: string; sections: BuilderSection[]; version: number;
   status: 'draft' | 'working' | 'ready' | 'error'; job?: { id: string; type: 'generate' | 'edit' | 'image' | 'research'; phase: string; leaseUntil: number } | null;
   message?: string; imageNotice?: string; publishedUrl?: string; publishedVersion?: number; updatedAt: number;
   media: ExpressAsset[]; messages: BuilderMessage[];
