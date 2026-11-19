@@ -7,7 +7,7 @@ import { claudeConfigured, claudeText, extractSiteHtml } from './express-claude.
 import { prepareBuilderHtml, modifyBuilderHtml, builderCsp, builderImageUrl } from './express-builder-html.js';
 import { researchBuilder, builderPrompt, generateBuilderPhoto } from './express-builder-ai.js';
 import { auditBuilderSite, feedbackForPrompt } from './atlas-builder-skill.js';
-import { PortfolioError, getOwnerPortfolio, saveCreatorProfile, togglePortfolioSite, getPublicCreator, getPublicCreatorDirectory } from './builder-portfolio.js';
+import { PortfolioError, getOwnerPortfolio, saveCreatorProfile, togglePortfolioSite, savePortfolioCaption, getPublicCreator, getPublicCreatorDirectory } from './builder-portfolio.js';
 import { normalizeBrazilianWhatsApp } from '../../src/lib/contact.js';
 import { DEFAULT_VISUAL_PROMPT } from '../../src/lib/expressVisualPrompt.js';
 import { BUILDER_DIRECTIONS, type BuilderProject, type BuilderReference } from '../../src/lib/siteBuilder.js';
@@ -87,6 +87,10 @@ export default async function builder(req:Request,res:Response){
     if(req.method==='GET'&&action==='list'){const rows=await projects().where('ownerEmail','==',email).limit(250).get();return res.json({projects:rows.docs.map(d=>({id:d.id,name:d.data().business?.name||'Novo site',status:d.data().status,version:d.data().version,portfolioVisible:d.data().portfolioVisible===true,publishedUrl:d.data().publishedSlug?publicOrigin()+'/s/'+d.data().publishedSlug:null,updatedAt:d.data().updatedAt})).sort((a,b)=>b.updatedAt-a.updatedAt)});}
     if(req.method==='GET'&&action==='owner-portfolio')return res.json(await getOwnerPortfolio(email));
     if(req.method==='POST'&&action==='creator-profile')return res.json(await saveCreatorProfile(email,req.body));
+    if(req.method==='POST'&&action==='portfolio-caption'){
+      if(!orderId(req.body?.id)||typeof req.body?.caption!=='string'||req.body.caption.length>230)fail(400,'Informe uma descrição com até 230 caracteres.');
+      await savePortfolioCaption(email,String(req.body.id),req.body.caption);return res.json(await getOwnerPortfolio(email));
+    }
     if(req.method==='POST'&&action==='portfolio-toggle'){
       if(!orderId(req.body?.id)||typeof req.body?.visible!=='boolean')fail(400,'Escolha o projeto e a visibilidade.');
       await togglePortfolioSite(email,String(req.body.id),req.body.visible);
