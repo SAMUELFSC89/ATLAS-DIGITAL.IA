@@ -74,7 +74,7 @@ test('importação de site usa dados estruturados e link WhatsApp explícito, se
  const x=extractWebsiteBusiness(html,'https://atelier-aurora.pt/');
  assert.equal(x.business.name,'Ateliê Aurora');assert.equal(x.business.segment,'Arquitetura');
  assert.match(x.business.city,/Lisboa/);assert.match(x.business.services,/Projetos residenciais/);
- assert.equal(x.business.whatsapp,'351912345678');assert.equal(x.business.phone,'+351 912 345 678');
+ assert.equal(x.business.whatsapp,'+351912345678');assert.equal(x.business.phone,'+351 912 345 678');
  assert.equal(x.missing.length,0);
  assert.equal(extractWebsiteBusiness('<html><title>Sem contato</title></html>','https://example.org/').business.whatsapp,'');
 });
