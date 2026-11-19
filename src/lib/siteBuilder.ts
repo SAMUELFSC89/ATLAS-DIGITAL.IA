@@ -10,6 +10,8 @@ export interface BuilderProject {
   status: 'draft' | 'working' | 'ready' | 'error'; job?: { id: string; type: 'generate' | 'edit' | 'image' | 'research'; phase: string; leaseUntil: number } | null;
   message?: string; imageNotice?: string; publishedUrl?: string; publishedVersion?: number; updatedAt: number;
   media: ExpressAsset[]; messages: BuilderMessage[];
+  quality?: { score: number; skillVersion: string; checks: { id: string; ok: boolean; label: string }[] };
+  feedback?: { version: number; rating: 'good' | 'improve'; note: string; createdAt: number } | null;
 }
 export const BUILDER_DIRECTIONS: BuilderDirection[] = [
   { id: 'editorial', name: 'Editorial acolhedor', description: 'Fotografia ampla, títulos expressivos e composição sofisticada.', accent: '#56613b', background: '#f4f0e8', foreground: '#272c24', typography: 'Serif editorial com texto sem serifa', layout: 'Composição editorial assimétrica, grandes fotografias e espaço em branco.' },
