@@ -144,8 +144,9 @@ async function expandGoogle(url:URL,depth=0):Promise<URL>{
   });
 }
 function buildResult(source:'website'|'google',sourceUrl:string,b:BusinessImportResult['business']):BusinessImportResult{
+  const whatsapp=/^[1-9]\d{7,14}$/.test(b.whatsapp)?normalizeSiteWhatsApp('+'+b.whatsapp):normalizeSiteWhatsApp(b.whatsapp);
   const business={name:clip(b.name,100),segment:clip(b.segment,80),city:clip(b.city,100),services:clip(b.services,1000),
-    whatsapp:/^[1-9]\d{7,14}$/.test(b.whatsapp)?normalizeSiteWhatsApp('+'+b.whatsapp):normalizeSiteWhatsApp(b.whatsapp),phone:telephone(b.phone),website:clip(b.website,700)};
+    whatsapp:whatsapp?'+'+whatsapp:'',phone:telephone(b.phone),website:clip(b.website,700)};
   const missing=(['name','segment','city','services'] as const).filter(k=>!business[k]);
   if(!business.whatsapp&&!business.phone)missing.push('whatsapp' as never);
   return {source,sourceUrl,business,missing,note:source==='website'
