@@ -80,6 +80,8 @@ const projects = {
 }>;
 
 interface DemoSiteProps {
+  // React usa a chave apenas para remontar a demonstração ao trocar de projeto.
+  key?: ProjectType;
   project: ProjectType;
   phone?: boolean;
   solarBillValue: number;
