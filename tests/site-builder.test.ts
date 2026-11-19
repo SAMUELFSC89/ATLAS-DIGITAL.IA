@@ -36,13 +36,15 @@ test('cinematic opening pins two trusted frames and preserves its copy when edit
  const asset=(url:string)=>({id:randomUUID(),projectId:'a',kind:'photo' as const,name:'foto',mimeType:'image/webp' as const,width:1400,height:800,size:100,url});
  const second=imageUrl.replace(/file=.+/,'file='+randomUUID());
  const store='https://play.google.com/store/apps/details?id=com.desafiosemdesculpa.app';
- const source=raw.replace('</section>',`<a href="${store}&amp;from=test">Baixar</a></section>`);
+ const source=raw.replace('</section>',`<figure class="hero-visual" data-atlas-scene-visual="true" style="background:#352a32"></figure><a href="${store}&amp;from=test">Baixar</a></section>`);
  let doc=prepareBuilderHtml(source,origin,'pt-BR',[asset('https://evil.test/a.jpg'),asset(imageUrl),asset(second)]);
  let $=load(doc.html);
  assert.equal($('#inicio > [data-atlas-shot]').length,1);
  assert.deepEqual($('[data-atlas-shot-media] img').toArray().map(el=>$(el).attr('src')),[imageUrl,second]);
  assert.equal($('[data-atlas-shot-copy] h1').text(),'Seu espaço');
  assert.equal($('[data-atlas-shot-copy] a').attr('href'),store);
+ assert.equal($('.hero-visual').attr('data-atlas-shot-decoration'),'true');
+ assert.match($('#atlas-runtime-style').text(),/\[data-atlas-shot-copy\] \[data-atlas-shot-decoration\] \{ display:none !important/);
  assert.equal($('#inicio img').length,2);
  assert.match($('#atlas-runtime-style').text(),/animation-timeline:--atlas-opening/);
  doc=modifyBuilderHtml(doc.html,{type:'text',id:doc.sections[0].texts[0].id,text:'Novo destaque'},origin);
@@ -171,7 +173,7 @@ async function loadEndpoint(){
  const require=createRequire(import.meta.url);return {handler:require(out).default,close:()=>rm(temp,{recursive:true,force:true})};
 }
 test('authenticated endpoint: ownership, reference cap, model input, job retries, versions and payment gate',async t=>{
- const db=new MemoryDb();let generationCalls=0;let modelReferences:any[]=[];let requestedLocale='';let planningCalls=0;let plannedRefs=0;let usedConcept='';let imagePrompt='';let chosenDesign='';let selectedPlanInput='';const fixture:any={db:()=>db,previews:()=>db.collection('expressPreviews'),settings:()=>db.collection('expressInternal').doc('settings'),orders:()=>db.collection('expressOrders'),orderId:(v:any)=>typeof v==='string'&&/^[a-f0-9-]{36}$/i.test(v),publicOrigin:()=>origin,saoPauloDay:()=> '2026-11-18',rateLimit:async()=>true,getAuthenticatedEmail:async(req:any,verified=false)=>verified&&req.headers.verified!=='yes'?null:req.headers.authorization||null,resolveExpressAssets:async()=>[],rasterInfo:(data:Buffer)=>{assert.equal(data.subarray(1,4).toString(),'PNG');return{mimeType:'image/png',width:1,height:1};},ASSET_MAX_BYTES:750*1024,ExpressAssetError:class extends Error{},openaiAccessMessage:()=>'',openaiConfigured:()=>true,openaiText:async()=>{generationCalls++;return raw;},extractSiteHtml:(s:string)=>s,researchBuilder:async(_business:any,options:any)=>{planningCalls++;plannedRefs=options.references.length;return {sources:[{url:'https://pinterest.com/pin/123/',title:'Editorial',insight:'Abertura focada no material'}],creativePlan:{concept:'Do detalhe ao ambiente',scenes:[],heroImagePrompt:'Foto macro de pedra'},directions:BUILDER_DIRECTIONS,researchNotice:'Uma referência.'};},planBuilder:async(_b:any,_opts:any,_sources:any,visual:any)=>{selectedPlanInput=visual?.data||'';return {concept:'Do detalhe ao ambiente',scenes:[],heroImagePrompt:'Foto macro de pedra'};},builderPrompt:async(_b:any,_d:any,_c:any,_o:any,refs:any[],_inst:any,_html:any,_history:any,_learn:any,locale:string,synopsis:any)=>{modelReferences=refs;requestedLocale=locale;usedConcept=synopsis?.plan?.concept||'';chosenDesign=synopsis?.chosenDesign?.data||'';return{system:'',content:[]};},generateDesignMockup:async()=>({buffer:Buffer.from('mock design'),mimeType:'image/webp'}),generateBuilderPhoto:async(_business:any,prompt:string)=>{imagePrompt=prompt;throw new Error('Fake generator unavailable');}};
+ const db=new MemoryDb();let generationCalls=0;let modelReferences:any[]=[];let requestedLocale='';let planningCalls=0;let plannedRefs=0;let usedConcept='';let imagePrompt='';let chosenDesign='';let selectedPlanInput='';let imageDesign='';const fixture:any={db:()=>db,previews:()=>db.collection('expressPreviews'),settings:()=>db.collection('expressInternal').doc('settings'),orders:()=>db.collection('expressOrders'),orderId:(v:any)=>typeof v==='string'&&/^[a-f0-9-]{36}$/i.test(v),publicOrigin:()=>origin,saoPauloDay:()=> '2026-11-18',rateLimit:async()=>true,getAuthenticatedEmail:async(req:any,verified=false)=>verified&&req.headers.verified!=='yes'?null:req.headers.authorization||null,resolveExpressAssets:async()=>[],rasterInfo:(data:Buffer)=>{assert.equal(data.subarray(1,4).toString(),'PNG');return{mimeType:'image/png',width:1,height:1};},ASSET_MAX_BYTES:750*1024,ExpressAssetError:class extends Error{},openaiAccessMessage:()=>'',openaiConfigured:()=>true,openaiText:async()=>{generationCalls++;return raw;},extractSiteHtml:(s:string)=>s,researchBuilder:async(_business:any,options:any)=>{planningCalls++;plannedRefs=options.references.length;return {sources:[{url:'https://pinterest.com/pin/123/',title:'Editorial',insight:'Abertura focada no material'}],creativePlan:{concept:'Do detalhe ao ambiente',scenes:[],heroImagePrompt:'Foto macro de pedra'},directions:BUILDER_DIRECTIONS,researchNotice:'Uma referência.'};},planBuilder:async(_b:any,_opts:any,_sources:any,visual:any)=>{selectedPlanInput=visual?.data||'';return {concept:'Do detalhe ao ambiente',scenes:[],heroImagePrompt:'Foto macro de pedra'};},builderPrompt:async(_b:any,_d:any,_c:any,_o:any,refs:any[],_inst:any,_html:any,_history:any,_learn:any,locale:string,synopsis:any)=>{modelReferences=refs;requestedLocale=locale;usedConcept=synopsis?.plan?.concept||'';chosenDesign=synopsis?.chosenDesign?.data||'';return{system:'',content:[]};},generateDesignMockup:async()=>({buffer:Buffer.from('mock design'),mimeType:'image/webp'}),generateBuilderPhoto:async(_business:any,prompt:string,_aspect:string,reference:any)=>{imagePrompt=prompt;imageDesign=reference?.isMockup?reference.buffer.toString():'';throw new Error('Fake generator unavailable');}};
  (globalThis as any).__atlasBuilderTest=fixture;const endpoint=await loadEndpoint();
  const call=async(action:string,body:any={},user:string|null='cliente@example.com',method='POST')=>{const r:any={statusCode:200,headers:{},setHeader(k:string,v:any){this.headers[k]=v;},status(n:number){this.statusCode=n;return this;},json(d:any){this.body=d;return this;},send(d:any){this.body=d;return this;},end(){return this;}};await endpoint.handler({method,query:{action,...(method==='GET'?body:{})},body,headers:{...(user?{authorization:user}:{})}},r);return r;};
  try{
@@ -215,13 +217,20 @@ test('authenticated endpoint: ownership, reference cap, model input, job retries
  assert.equal((await call('run',{id:importedId})).body.project.job.phase,'designs');
  for(let n=0;n<3;n++)await call('run',{id:importedId});
  const importedOptions=(await call('state',{id:importedId},undefined,'GET')).body.project.designOptions;
+ db.data.get('expressBuilderProjects/'+importedId).media=[{kind:'photo',id:randomUUID(),url:imageUrl}];
  assert.equal((await call('choose-design',{id:importedId,optionId:importedOptions[0].id})).body.project.job.phase,'selected-planning');
  assert.equal((await call('run',{id:importedId})).body.project.job.phase,'images');
  const failedImage=await call('run',{id:importedId});
  assert.match(imagePrompt,/^Foto macro de pedra.*Enquadramento fechado/);
+ assert.equal(imageDesign,'mock design');
  assert.equal(failedImage.body.project.job.phase,'building');
  assert.match(failedImage.body.project.imageNotice,/Não foi possível criar/);
  assert.equal((await call('run',{id:importedId})).body.project.status,'ready');
+ const rebuilt=await call('start',{id:importedId,requestId:randomUUID(),type:'generate',reuseSelectedDesign:true});
+ assert.equal(rebuilt.body.project.job.phase,'selected-planning');
+ assert.equal(rebuilt.body.project.selectedDesign,importedOptions[0].id);
+ assert.equal(rebuilt.body.project.designOptions.length,3);
+ assert.equal((await call('run',{id:importedId})).body.project.job.phase,'images');
  const checked=await call('feedback',{id,version:1,rating:'improve',note:'Dar mais destaque ao hero'});assert.equal(checked.statusCode,200);assert.equal(checked.body.project.feedback.rating,'improve');assert.equal((await call('feedback',{id,version:1,rating:'good'},'outro@example.com')).statusCode,404);
  const textId=runs.find(r=>r.body.project.html)?.body.project.sections[0].texts[0].id;
  assert.equal((await call('modify',{id,version:0,operation:{type:'text',id:textId,text:'Wrong'}})).statusCode,409);assert.equal((await call('modify',{id,version:1,operation:{type:'text',id:textId,text:'Novo título'}})).body.project.version,2);assert.equal((await call('restore',{id,version:1})).body.project.version,3);
