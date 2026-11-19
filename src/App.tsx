@@ -77,6 +77,8 @@ import { useScrollReveal } from './lib/useScrollReveal';
 import { Lead, LeadStatus, IntegrationConfig, LocalSearchPosition } from './types';
 
 const SiteBuilderPage = lazy(() => import('./components/SiteBuilderPage'));
+const CreatorPortfolioPage = lazy(() => import('./components/CreatorPortfolioPage'));
+const CreatorShowcasePage = lazy(() => import('./components/CreatorShowcasePage'));
 const SiteExpressPage = lazy(() => import('./components/SiteExpressPage'));
 const ExpressOrdersPanel = lazy(() => import('./components/ExpressOrdersPanel'));
 const expressLoading = <p role="status" className="p-5 text-sm text-zinc-300">Carregando Site Express…</p>;
@@ -96,7 +98,7 @@ export default function App() {
   const [auditLead, setAuditLead] = useState<Lead>();
   const [selectedLeadForCopilot, setSelectedLeadForCopilot] = useState<Lead | null>(null);
 
-  useScrollReveal(!isPortalActive && !['/site-express', '/criar-site'].includes(window.location.pathname.replace(/\/$/, '')));
+  useScrollReveal(!isPortalActive && !['/site-express', '/criar-site', '/meu-portfolio'].includes(window.location.pathname.replace(/\/$/, '')) && !window.location.pathname.startsWith('/criadores'));
 
   useEffect(() => onAuthStateChanged(auth, (user) => {
     setCrmLeads([]);
@@ -278,6 +280,8 @@ export default function App() {
     }
   }
 
+  if (window.location.pathname.replace(/\/$/, '') === '/meu-portfolio') return <Suspense fallback={expressLoading}><CreatorPortfolioPage /></Suspense>;
+  if (window.location.pathname.replace(/\/$/, '') === '/criadores' || window.location.pathname.startsWith('/criadores/')) return <Suspense fallback={expressLoading}><CreatorShowcasePage /></Suspense>;
   if (window.location.pathname.replace(/\/$/, '') === '/criar-site' || (window.location.pathname.replace(/\/$/, '') === '/site-express' && !new URLSearchParams(location.search).has('previa') && !new URLSearchParams(location.search).has('pedido'))) return <Suspense fallback={expressLoading}><SiteBuilderPage /></Suspense>;
   if (window.location.pathname.replace(/\/$/, '') === '/site-express') return <Suspense fallback={expressLoading}><SiteExpressPage /></Suspense>;
 
