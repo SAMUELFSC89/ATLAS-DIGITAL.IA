@@ -11,7 +11,7 @@ import { prepareBuilderHtml, modifyBuilderHtml, builderCsp, builderImageUrl } fr
 import { previewPrompt } from '../api/_lib/express-claude.ts';
 import { BUILDER_DIRECTIONS } from '../src/lib/siteBuilder.ts';
 import { CARTA_SECRETA_BUILDER, auditBuilderSite, feedbackForPrompt } from '../api/_lib/atlas-builder-skill.ts';
-import { SITE_LANGUAGES, languagePrompt, parseSiteLanguage } from '../src/lib/siteLanguages.ts';
+import { SITE_LANGUAGES, languagePrompt, parseSiteLanguage, normalizeSiteWhatsApp } from '../src/lib/siteLanguages.ts';
 
 const origin='https://atlasdigital.ia.br';
 const imageUrl=origin+'/api/site-express?view=builder&action=media&id='+randomUUID()+'&file='+randomUUID();
@@ -51,6 +51,10 @@ test('idiomas permitidos, HTML lang e escrita da direita para a esquerda',()=>{
  assert.ok(SITE_LANGUAGES.length>=10);
  assert.equal(parseSiteLanguage('en-GB'),'en-GB');
  assert.equal(parseSiteLanguage('xx-XX'),null);
+ assert.equal(normalizeSiteWhatsApp('+1 (416) 555-0123'),'14165550123');
+ assert.equal(normalizeSiteWhatsApp('+351 912 345 678'),'351912345678');
+ assert.equal(normalizeSiteWhatsApp('(51) 99999-9999'),'5551999999999');
+ assert.equal(normalizeSiteWhatsApp('4165550123'),'');
  assert.match(languagePrompt('fr'),/Français/);
  assert.match(languagePrompt('ar'),/RTL/);
  assert.equal(load(prepareBuilderHtml(raw,origin,'en-GB').html)('html').attr('lang'),'en-GB');
@@ -87,7 +91,7 @@ test('authenticated endpoint: ownership, reference cap, model input, job retries
  (globalThis as any).__atlasBuilderTest=fixture;const endpoint=await loadEndpoint();
  const call=async(action:string,body:any={},user:string|null='cliente@example.com',method='POST')=>{const r:any={statusCode:200,headers:{},setHeader(k:string,v:any){this.headers[k]=v;},status(n:number){this.statusCode=n;return this;},json(d:any){this.body=d;return this;},send(d:any){this.body=d;return this;},end(){return this;}};await endpoint.handler({method,query:{action,...(method==='GET'?body:{})},body,headers:{...(user?{authorization:user}:{})}},r);return r;};
  try{
- const id=randomUUID();assert.equal((await call('create',{id,business},null)).statusCode,401);const created=await call('create',{id,business,locale:'en-GB'});assert.equal(created.statusCode,200);assert.equal(created.body.project.version,0);assert.equal(created.body.project.locale,'en-GB');assert.equal((await call('language',{id,locale:'invalid'})).statusCode,400);assert.equal((await call('state',{id},'outro@example.com','GET')).statusCode,404);
+ const id=randomUUID();assert.equal((await call('create',{id,business},null)).statusCode,401);const created=await call('create',{id,business,locale:'en-GB'});assert.equal(created.statusCode,200);assert.equal(created.body.project.version,0);assert.equal(created.body.project.locale,'en-GB');assert.equal((await call('language',{id,locale:'invalid'})).statusCode,400);assert.equal((await call('language',{id,locale:'fr'})).body.project.locale,'fr');assert.equal((await call('language',{id,locale:'en-GB'})).body.project.locale,'en-GB');assert.equal((await call('state',{id},'outro@example.com','GET')).statusCode,404);
  const png=Buffer.concat([Buffer.from([137,80,78,71]),Buffer.alloc(64)]).toString('base64');const upload=()=>call('upload-reference',{id,fileId:randomUUID(),name:'Referência de estilo',data:png});const results=await Promise.all([upload(),upload(),upload(),upload(),upload()]);assert.equal(results.filter(r=>r.statusCode===200).length,4);assert.equal(results.filter(r=>r.statusCode===400).length,1);
  const state=await call('state',{id},undefined,'GET');assert.equal(state.body.project.references.length,4);assert.ok(!JSON.stringify(state.body).includes('ownerEmail'));assert.ok(!JSON.stringify(state.body).includes(png));const file=state.body.project.references[0].id;
  assert.equal((await call('reference',{id,file},null,'GET')).statusCode,401);assert.equal((await call('reference',{id,file},'outro@example.com','GET')).statusCode,404);assert.equal((await call('reference',{id,file},undefined,'GET')).statusCode,200);
