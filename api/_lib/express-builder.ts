@@ -1,5 +1,6 @@
 import { randomUUID, createHash } from 'node:crypto';
 import type { Request, Response } from 'express';
+import type { DocumentReference } from 'firebase-admin/firestore';
 import { getAuthenticatedEmail } from '../radar.js';
 import { db, previews, settings, orders, orderId, publicOrigin, saoPauloDay, rateLimit } from './express-store.js';
 import { resolveExpressAssets, rasterInfo, ASSET_MAX_BYTES, ExpressAssetError } from './express-assets.js';
@@ -31,7 +32,7 @@ function businessInput(input:any):ExpressBusiness{
 function complete(b:ExpressBusiness){if(!b.name||!b.segment||!b.city||!b.services)fail(400,'Não foi possível identificar todos os dados básicos. Confira nome, ramo, localidade e descrição dos serviços.');if(!b.whatsapp&&(!b.phone||b.phone.replace(/\D/g,'').length<8))fail(400,'Informe um WhatsApp ou telefone comercial válido para o site ter um contato funcional.');}
 async function owned(id:any,email:string){if(!orderId(id))fail(400,'Projeto inválido.');const p=(await projects().doc(id).get()).data();if(!p||p.ownerEmail!==email)fail(404,'Projeto não encontrado nesta conta.');return p;}
 const publicMediaUrl=(id:string,file:string)=>`${publicOrigin()}/api/site-express?view=builder&action=media&id=${id}&file=${file}`;
-async function state(id:string,p:any):Promise<BuilderProject>{const messages=await projects().doc(id).collection('messages').orderBy('createdAt','desc').limit(30).get();return {id,business:p.business,locale:parseSiteLanguage(p.locale)||DEFAULT_SITE_LANGUAGE,references:p.references||[],directions:p.directions||BUILDER_DIRECTIONS,directionId:p.directionId||'editorial',sources:p.sources||[],researchNotice:p.researchNotice||'',html:p.html||'',sections:p.sections||[],version:p.version||0,status:p.status||'draft',job:p.job?{id:p.job.id,type:p.job.type,phase:p.job.phase,leaseUntil:p.job.leaseUntil||0}:null,message:p.message||'',imageNotice:p.imageNotice||'',publishedUrl:p.publishedSlug?`${publicOrigin()}/s/${p.publishedSlug}`:undefined,publishedVersion:p.publishedVersion||0,portfolioVisible:p.portfolioVisible===true,updatedAt:p.updatedAt,media:p.media||[],quality:p.quality,feedback:p.feedback,messages:messages.docs.reverse().map(doc=>({id:doc.id,...doc.data()} as any))};}
+async function state(id:string,p:any):Promise<BuilderProject>{const messages=await projects().doc(id).collection('messages').orderBy('createdAt','desc').limit(30).get();return {id,business:p.business,locale:parseSiteLanguage(p.locale)||DEFAULT_SITE_LANGUAGE,references:p.references||[],directions:p.directions||BUILDER_DIRECTIONS,directionId:p.directionId||'editorial',sources:p.sources||[],researchNotice:p.researchNotice||'',creativePlan:p.creativePlan||null,html:p.html||'',sections:p.sections||[],version:p.version||0,status:p.status||'draft',job:p.job?{id:p.job.id,type:p.job.type,phase:p.job.phase,leaseUntil:p.job.leaseUntil||0}:null,message:p.message||'',imageNotice:p.imageNotice||'',publishedUrl:p.publishedSlug?`${publicOrigin()}/s/${p.publishedSlug}`:undefined,publishedVersion:p.publishedVersion||0,portfolioVisible:p.portfolioVisible===true,updatedAt:p.updatedAt,media:p.media||[],quality:p.quality,feedback:p.feedback,messages:messages.docs.reverse().map(doc=>({id:doc.id,...doc.data()} as any))};}
 async function addMessage(id:string,role:'user'|'assistant',text:string,referenceIds:string[]=[],key:string=randomUUID()){await projects().doc(id).collection('messages').doc(key).set({role,text:text.slice(0,3000),referenceIds,createdAt:Date.now()});}
 async function saveVersion(id:string,p:any,document:{html:string;sections:any[]},extra:any={}){return db().runTransaction(async tx=>{const ref=projects().doc(id);const current=(await tx.get(ref)).data();if(!current||current.version!==p.version||current.job)fail(409,'O site foi atualizado. Recarregue antes de salvar.');const version=(current.version||0)+1;tx.create(ref.collection('versions').doc(String(version)),{...document,locale:parseSiteLanguage(extra.locale)||parseSiteLanguage(current.locale)||DEFAULT_SITE_LANGUAGE,version,createdAt:Date.now()});tx.update(ref,{...document,...extra,quality:auditBuilderSite(document.html),feedback:null,version,status:'ready',message:'',updatedAt:Date.now()});return {...current,...document,...extra,quality:auditBuilderSite(document.html),feedback:null,version,status:'ready',message:'',updatedAt:Date.now()};});}
 async function startJob(id:string,email:string,type:string,body:any){
@@ -44,29 +45,58 @@ async function startJob(id:string,email:string,type:string,body:any){
   return db().runTransaction(async tx=>{const ref=projects().doc(id);const budget=db().collection('expressBuilderLimits').doc(`${saoPauloDay(Date.now())}-${type}`);const own=budget.collection('users').doc(createHash('sha256').update(email).digest('hex'));
     const [snap,all,used]=await tx.getAll(ref,budget,own);const p=snap.data();if(!p||p.ownerEmail!==email)fail(404,'Projeto não encontrado.');if(p.lastRequestId===body.requestId)return p;if(p.job)fail(409,'Já há uma operação em andamento.');complete(p.business);if(type==='edit'&&!p.html)fail(409,'Gere o site antes de solicitar ajustes.');
     if((used.data()?.count||0)>=limits[type]||(all.data()?.count||0)>=100)fail(429,'O limite de criações de hoje foi atingido. Seus projetos continuam salvos.');
-    const job={id:body.requestId,type,...(targetLocale?{targetLocale}:{}),phase:type==='generate'&&!(p.business.assets||[]).some((a:any)=>a.kind==='photo')&&!(p.media||[]).length?'images':type==='research'?'references':type==='image'?'image':'building',instruction,referenceIds:(p.references||[]).map((r:any)=>r.id),leaseUntil:0,aspect:body.aspect==='3:4'?'3:4':'16:9',createdAt:Date.now()};
+    const job={id:body.requestId,type,...(targetLocale?{targetLocale}:{}),phase:type==='generate'?'planning':type==='research'?'references':type==='image'?'image':'building',instruction,referenceIds:(p.references||[]).map((r:any)=>r.id),leaseUntil:0,aspect:body.aspect==='3:4'?'3:4':'16:9',createdAt:Date.now()};
     tx.set(budget,{count:(all.data()?.count||0)+1});tx.set(own,{count:(used.data()?.count||0)+1});tx.update(ref,{job,lastRequestId:body.requestId,status:'working',message:'',updatedAt:Date.now()});return {...p,job,lastRequestId:body.requestId,status:'working',message:''};
   });
 }
 async function storeGenerated(id:string,photo:Awaited<ReturnType<typeof generateBuilderPhoto>>){const file=randomUUID();const asset:ExpressAsset={id:file,projectId:id,kind:'photo',name:'Imagem ilustrativa criada por IA',mimeType:photo.mimeType,width:photo.width,height:photo.height,size:photo.buffer.length,url:publicMediaUrl(id,file)};await projects().doc(id).collection('media').doc(file).create({...asset,data:photo.buffer,createdAt:Date.now()});return asset;}
+async function loadVisualReferences(ref:DocumentReference, ids:string[]){
+  const files=await Promise.all(ids.slice(0,4).map(id=>ref.collection('references').doc(id).get()));
+  return files.flatMap(file=>{
+    const data=file.data();
+    return data?.data?[{name:data.name,mimeType:data.mimeType,data:Buffer.from(data.data).toString('base64')}]:[];
+  });
+}
+
+function advancePhase(ref:DocumentReference,token:string,phase:string,patch:Record<string,unknown>){
+  return db().runTransaction(async tx=>{
+    const current=(await tx.get(ref)).data();
+    if(current?.job?.leaseToken!==token)return current;
+    const updatedAt=Date.now();
+    tx.update(ref,{...patch,'job.phase':phase,'job.leaseUntil':0,updatedAt});
+    return {...current,...patch,job:{...current.job,phase,leaseUntil:0},updatedAt};
+  });
+}
+
 async function advance(id:string,email:string){
   const ref=projects().doc(id),token=randomUUID();
   const claim=await db().runTransaction(async tx=>{const snap=await tx.get(ref);const p=snap.data();if(!p||p.ownerEmail!==email)fail(404,'Projeto não encontrado.');if(!p.job||p.job.leaseUntil>Date.now())return null;tx.update(ref,{'job.leaseUntil':Date.now()+290000,'job.leaseToken':token});return p;});
   if(!claim)return (await ref.get()).data();const job=claim.job;let patch:any={},assistant='';let doc:any=null;
   try{
-    if(job.type==='research'){patch=await researchBuilder(claim.business);assistant=patch.sources.length?'Encontrei referências públicas e preparei três direções visuais. Escolha uma delas para o seu site.':patch.researchNotice;}
+    if(job.phase==='planning'&&job.type==='generate'){
+      let planPatch:Pick<BuilderProject,'sources'|'creativePlan'|'researchNotice'>={sources:[],creativePlan:null,researchNotice:'A busca no Pinterest ficou indisponível. A criação continua com o briefing e as referências anexadas.'};
+      try{
+        const direction=(claim.directions||BUILDER_DIRECTIONS).find((d:any)=>d.id===claim.directionId)||BUILDER_DIRECTIONS[0];
+        const result=await researchBuilder(claim.business,{direction,instruction:job.instruction,locale:parseSiteLanguage(claim.locale)||DEFAULT_SITE_LANGUAGE,references:await loadVisualReferences(ref,job.referenceIds||[])});
+        planPatch={sources:result.sources,creativePlan:result.creativePlan||null,researchNotice:result.researchNotice};
+      }catch(error){
+        console.warn('[Atlas Builder] Planejamento indisponível.',{status:Number((error as any)?.status)||0,name:error instanceof Error?error.name:'unknown'});
+      }
+      const hasPhoto=(claim.business.assets||[]).some((asset:ExpressAsset)=>asset.kind==='photo')||(claim.media||[]).some((asset:ExpressAsset)=>asset.kind==='photo');
+      return await advancePhase(ref,token,hasPhoto?'building':'images',planPatch);
+    }
+    if(job.type==='research'){const {directions,sources,researchNotice}=await researchBuilder(claim.business);patch={directions,sources,researchNotice};assistant=patch.sources.length?'Encontrei referências públicas e preparei três direções visuais. Escolha uma delas para o seu site.':patch.researchNotice;}
     else if(job.phase==='images'||job.type==='image'){
-      try{const photo=await generateBuilderPhoto(claim.business,job.instruction||`Fotografia de destaque para ${claim.business.segment}, com composição sofisticada e luz natural.`,job.aspect);const asset=await storeGenerated(id,photo);patch={media:[...(claim.media||[]),asset].slice(-12),imageNotice:''};assistant='A imagem foi criada e adicionada à sua biblioteca. Escolha onde deseja usá-la no site.';}
+      try{const photo=await generateBuilderPhoto(claim.business,(job.phase==='images'?claim.creativePlan?.heroImagePrompt:'')||job.instruction||`Fotografia de destaque para ${claim.business.segment}, com composição sofisticada e luz natural.`,job.aspect);const asset=await storeGenerated(id,photo);patch={media:[...(claim.media||[]),asset].slice(-12),imageNotice:''};assistant='A imagem foi criada e adicionada à sua biblioteca. Escolha onde deseja usá-la no site.';}
       catch(error){if(job.type==='image')throw error;patch={imageNotice:'Não foi possível criar a imagem de destaque agora. Você pode enviar fotos ou tentar novamente na biblioteca de imagens.'};}
-      if(job.phase==='images'){return await db().runTransaction(async tx=>{const p=(await tx.get(ref)).data();if(p?.job?.leaseToken!==token)return p;const next={...p,...patch,job:{...p.job,phase:'building',leaseUntil:0},updatedAt:Date.now()};tx.update(ref,{...patch,'job.phase':'building','job.leaseUntil':0,updatedAt:Date.now()});return next;});}
+      if(job.phase==='images')return await advancePhase(ref,token,'building',patch);
     }else{
-      const config=(await settings().get()).data();const refs=[];
-      for(const refId of job.referenceIds||[]){const r=(await ref.collection('references').doc(refId).get()).data();if(r?.data)refs.push({name:r.name,mimeType:r.mimeType,data:Buffer.from(r.data).toString('base64')});}
+      const config=(await settings().get()).data();const refs=await loadVisualReferences(ref,job.referenceIds||[]);
       const history=await ref.collection('messages').orderBy('createdAt','desc').limit(16).get();
       const learning=(await learnings().doc(ownerLearningId(email)).get()).data();
       const learningContext=feedbackForPrompt(learning?.entries,claim.business.segment);
       const resultLocale=parseSiteLanguage(job.targetLocale)||parseSiteLanguage(claim.locale)||DEFAULT_SITE_LANGUAGE;
-      const prompt=await builderPrompt({...claim.business,assets:[...(claim.business.assets||[]),...(claim.media||[])]},(claim.directions||BUILDER_DIRECTIONS).find((d:any)=>d.id===claim.directionId)||BUILDER_DIRECTIONS[0],typeof config?.visualPrompt==='string'?config.visualPrompt:DEFAULT_VISUAL_PROMPT,publicOrigin(),refs,job.instruction||'Crie o site completo.',job.type==='edit'?claim.html:undefined,history.docs.filter(d=>d.data().role==='user').reverse().map(d=>d.data().text),learningContext,resultLocale);
+      const prompt=await builderPrompt({...claim.business,assets:[...(claim.business.assets||[]),...(claim.media||[])]},(claim.directions||BUILDER_DIRECTIONS).find((d:any)=>d.id===claim.directionId)||BUILDER_DIRECTIONS[0],typeof config?.visualPrompt==='string'?config.visualPrompt:DEFAULT_VISUAL_PROMPT,publicOrigin(),refs,job.instruction||'Crie o site completo.',job.type==='edit'?claim.html:undefined,history.docs.filter(d=>d.data().role==='user').reverse().map(d=>d.data().text),learningContext,resultLocale,{plan:claim.creativePlan||null,sources:job.type==='generate'?claim.sources||[]:[]});
       doc=prepareBuilderHtml(extractSiteHtml(await claudeText(prompt.system,prompt.content,265000)),publicOrigin(),resultLocale);
       patch={...patch,locale:resultLocale,quality:auditBuilderSite(doc.html),feedback:null};
       assistant=job.type==='edit'?'O site foi atualizado. Revise as alterações no editor.':'Seu site está criado. Você pode editar os textos, as cores e as imagens ou pedir ajustes pelo chat.';
