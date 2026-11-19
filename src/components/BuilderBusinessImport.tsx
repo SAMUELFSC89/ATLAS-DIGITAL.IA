@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Globe2,Link2,LoaderCircle,Search,CheckCircle2} from 'lucide-react';
+import {Globe2,Link2,LoaderCircle,Search} from 'lucide-react';
 import {builderRequest} from '../lib/builderApi';
 import type {ExpressBusiness} from '../lib/expressOrder';
 
