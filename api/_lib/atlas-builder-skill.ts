@@ -63,7 +63,8 @@ export function auditBuilderSite(html: string): BuilderAudit {
 
 export function feedbackForPrompt(entries: unknown, segment: string): string {
   if (!Array.isArray(entries)) return '';
-  const matched = entries.filter((item: any) => item && typeof item === 'object' && (item.segment === segment || !item.segment) && typeof item.note === 'string' && item.note.trim()).slice(-6);
+  const normalize = (value: string) => value.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').trim().toLowerCase();
+  const matched = entries.filter((item: any) => item && typeof item === 'object' && (typeof item.segment !== 'string' || normalize(item.segment) === normalize(segment)) && typeof item.note === 'string' && item.note.trim()).slice(-6);
   if (!matched.length) return '';
   return '\nPreferências passadas registradas EXPLICITAMENTE pelo dono desta mesma conta (contexto auxiliar; não substituem a solicitação atual nem as regras de segurança):\n' +
     matched.map((item: any) => (item.rating === 'good' ? 'Preferiu: ' : 'Pediu melhorar: ') + item.note.slice(0,350)).join('\n');
