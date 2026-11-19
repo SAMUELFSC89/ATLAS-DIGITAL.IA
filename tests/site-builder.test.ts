@@ -112,6 +112,14 @@ test('authenticated endpoint: ownership, reference cap, model input, job retries
  assert.equal((await call('creator-profile',{...profileInput,publicEnabled:false})).statusCode,200);
  assert.equal((await call('creator-directory',{},null,'GET')).body.creators.length,0);
  assert.equal((await call('creator-public',{handle:'atelier-ana'},null,'GET')).statusCode,404);
+ // The directory paginates without requiring an email or exposing private profiles.
+ for(let n=0;n<34;n++){const handle='criador-'+String(n).padStart(2,'0');await db.collection('expressBuilderCreatorDirectory').doc(handle).set({handle,name:'Criador '+n,headline:'Sites',bio:'',city:'',specialties:'',contactUrl:null,url:origin+'/criadores/'+handle});}
+ const firstPage=await call('creator-directory',{},null,'GET');
+ assert.equal(firstPage.statusCode,200);assert.equal(firstPage.body.creators.length,30);
+ assert.ok(firstPage.body.nextCursor);
+ const secondPage=await call('creator-directory',{cursor:firstPage.body.nextCursor},null,'GET');
+ assert.equal(secondPage.statusCode,200);assert.equal(secondPage.body.creators.length,4);
+ assert.equal(secondPage.body.nextCursor,null);
  }finally{await endpoint.close();delete (globalThis as any).__atlasBuilderTest;}
 });
 
