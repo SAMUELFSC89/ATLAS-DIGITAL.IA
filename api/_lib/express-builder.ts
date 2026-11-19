@@ -41,12 +41,25 @@ async function startJob(id:string,email:string,type:string,body:any){
   const instruction=clean(body.text,type==='image'?1500:3000);if(['edit','image'].includes(type)&&!instruction)fail(400,'Descreva o que deseja criar ou alterar.');
   const targetLocale=body.targetLocale===undefined?undefined:parseSiteLanguage(body.targetLocale);
   if(body.targetLocale!==undefined&&(!targetLocale||type!=='edit'))fail(400,'Selecione um idioma válido para a tradução.');
-  const limits:Record<string,number>={generate:3,edit:20,research:6,image:8};
-  return db().runTransaction(async tx=>{const ref=projects().doc(id);const budget=db().collection('expressBuilderLimits').doc(`${saoPauloDay(Date.now())}-${type}`);const own=budget.collection('users').doc(createHash('sha256').update(email).digest('hex'));
-    const [snap,all,used]=await tx.getAll(ref,budget,own);const p=snap.data();if(!p||p.ownerEmail!==email)fail(404,'Projeto não encontrado.');if(p.lastRequestId===body.requestId)return p;if(p.job)fail(409,'Já há uma operação em andamento.');complete(p.business);if(type==='edit'&&!p.html)fail(409,'Gere o site antes de solicitar ajustes.');
-    if((used.data()?.count||0)>=limits[type]||(all.data()?.count||0)>=100)fail(429,'O limite de criações de hoje foi atingido. Seus projetos continuam salvos.');
+  const limits:Record<string,number>={edit:20,research:6,image:8};
+  return db().runTransaction(async tx=>{
+    const ref=projects().doc(id);
+    const limit=limits[type];
+    const budget=limit?db().collection('expressBuilderLimits').doc(`${saoPauloDay(Date.now())}-${type}`):null;
+    const own=budget?.collection('users').doc(createHash('sha256').update(email).digest('hex'));
+    const [snap,all,used]=await tx.getAll(ref,...(budget&&own?[budget,own]:[]));
+    const p=snap.data();
+    if(!p||p.ownerEmail!==email)fail(404,'Projeto não encontrado.');
+    if(p.lastRequestId===body.requestId)return p;
+    if(p.job)fail(409,'Já há uma operação em andamento.');
+    complete(p.business);
+    if(type==='edit'&&!p.html)fail(409,'Gere o site antes de solicitar ajustes.');
+    const ownCount=used?.data()?.count||0;
+    const totalCount=all?.data()?.count||0;
+    if(limit&&(ownCount>=limit||totalCount>=100))fail(429,'O limite desta operação foi atingido hoje. Seus projetos continuam salvos.');
     const job={id:body.requestId,type,...(targetLocale?{targetLocale}:{}),phase:type==='generate'?'planning':type==='research'?'references':type==='image'?'image':'building',instruction,referenceIds:(p.references||[]).map((r:any)=>r.id),leaseUntil:0,aspect:body.aspect==='3:4'?'3:4':'16:9',createdAt:Date.now()};
-    tx.set(budget,{count:(all.data()?.count||0)+1});tx.set(own,{count:(used.data()?.count||0)+1});tx.update(ref,{job,lastRequestId:body.requestId,status:'working',message:'',updatedAt:Date.now()});return {...p,job,lastRequestId:body.requestId,status:'working',message:''};
+    if(budget&&own){tx.set(budget,{count:totalCount+1});tx.set(own,{count:ownCount+1});}
+    tx.update(ref,{job,lastRequestId:body.requestId,status:'working',message:'',updatedAt:Date.now()});return {...p,job,lastRequestId:body.requestId,status:'working',message:''};
   });
 }
 async function storeGenerated(id:string,photo:Awaited<ReturnType<typeof generateBuilderPhoto>>){const file=randomUUID();const asset:ExpressAsset={id:file,projectId:id,kind:'photo',name:'Imagem ilustrativa criada por IA',mimeType:photo.mimeType,width:photo.width,height:photo.height,size:photo.buffer.length,url:publicMediaUrl(id,file)};await projects().doc(id).collection('media').doc(file).create({...asset,data:photo.buffer,createdAt:Date.now()});return asset;}
