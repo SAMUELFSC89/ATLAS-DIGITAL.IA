@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Lead, RadarLead } from '../types';
 import { ApiError, DEFAULT_APPROACH, fillMessage, formatWhatsApp, searchRadar } from '../lib/radarApi';
+import { RADAR_COUNTRIES, radarCountryName } from '../lib/radarGeography';
 import { createPositioningPdf, positioningFromLead } from '../lib/positioningPdf';
 import { exportLeadsToExcel, exportLeadsToPdf } from '../lib/radarExport';
 import RecurringRadarPanel from './RecurringRadarPanel';
@@ -65,8 +66,8 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads, onOpenSetting
   // Search parameters state
   const [segment, setSegment] = useState('Marmoraria');
   const [city, setCity] = useState('');
-  const [state, setState] = useState('SP');
-  const [country] = useState('Brasil');
+  const [state, setState] = useState('');
+  const [countryCode, setCountryCode] = useState('BR');
   const [radius, setRadius] = useState('10');
   const [leadQuantity, setLeadQuantity] = useState('5');
   const [siteFilter, setSiteFilter] = useState<'all' | 'has_site' | 'no_site'>('all');
@@ -133,8 +134,8 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads, onOpenSetting
 
   const handleProspect = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!city.trim()) {
-      alert("Por favor, informe ao menos a Cidade para refinar o Radar.");
+    if (!city.trim() || !segment.trim()) {
+      alert("Informe a cidade e a categoria de negócios para pesquisar.");
       return;
     }
 
@@ -147,15 +148,15 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads, onOpenSetting
 
     try {
       const data = await searchRadar({
-        segment, city: city.trim(), state, radius, quantity: leadQuantity,
+        segment: segment.trim(), city: city.trim(), state: state.trim(), countryCode, radius, quantity: leadQuantity,
         siteFilter, minRating, minReviews, keyword
       });
       setResults(data.leads);
-      setSearchSummary(`Empresas analisadas no Google: ${data.scanned}. Sites lidos: ${data.enrichedSites}.`);
+      setSearchSummary(`Local: ${[city.trim(),state.trim(),radarCountryName(countryCode)].filter(Boolean).join(', ')}. Empresas analisadas no Google: ${data.scanned}. Sites lidos: ${data.enrichedSites}.`);
       if (data.leads.length === 0) {
         setSearchError({
           code: 'empty',
-          message: 'Nenhuma empresa passou pelos filtros. Aumente o raio ou afrouxe os filtros de nota, avaliações e site.'
+          message: 'Nenhuma empresa passou pelos filtros na cidade e no país escolhidos. Confira a região, aumente o raio ou ajuste os filtros.'
         });
       }
     } catch (err) {
@@ -246,7 +247,7 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads, onOpenSetting
           Radar de Mercado Inteligente
         </h2>
         <p className="text-xs text-gray-400 mt-1">
-          Rastreie automaticamente dados de empresas locais qualificadas na sua região de atuação. Encontre oportunidades críticas sem site ou com SEO defasado prontas para vendas.
+          Prospecte empresas em cidades de países do mundo inteiro. Filtre por categoria, país, estado/província, cidade, distância e presença digital.
         </p>
       </div>
       <button type="button" aria-expanded={showDraft} onClick={() => setShowDraft(value => !value)}
@@ -264,7 +265,7 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads, onOpenSetting
         approach={approach}
         onOpenSettings={onOpenSettings}
         filters={{
-          segment, city, state, radiusKm: Number(radius), quantity: Number(leadQuantity), siteFilter, keyword,
+          segment, city, state, countryCode, radiusKm: Number(radius), quantity: Number(leadQuantity), siteFilter, keyword,
           minRating: minRating === 'all' ? null : Number(minRating),
           minReviews: minReviews === 'all' ? null : Number(minReviews),
         }}
