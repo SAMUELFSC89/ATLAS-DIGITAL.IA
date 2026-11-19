@@ -8,7 +8,7 @@ import { prepareBuilderHtml, modifyBuilderHtml, builderCsp, builderImageUrl } fr
 import { researchBuilder, builderPrompt, generateBuilderPhoto } from './express-builder-ai.js';
 import { auditBuilderSite, feedbackForPrompt } from './atlas-builder-skill.js';
 import { PortfolioError, getOwnerPortfolio, saveCreatorProfile, togglePortfolioSite, savePortfolioCaption, getPublicCreator, getPublicCreatorDirectory } from './builder-portfolio.js';
-import { normalizeBrazilianWhatsApp } from '../../src/lib/contact.js';
+import { normalizeSiteWhatsApp } from '../../src/lib/siteLanguages.js';
 import { DEFAULT_VISUAL_PROMPT } from '../../src/lib/expressVisualPrompt.js';
 import { BUILDER_DIRECTIONS, type BuilderProject, type BuilderReference } from '../../src/lib/siteBuilder.js';
 import { parseSiteLanguage, DEFAULT_SITE_LANGUAGE } from '../../src/lib/siteLanguages.js';
@@ -22,8 +22,8 @@ const clean=(v:unknown,n:number)=>typeof v==='string'?v.replace(/[\u0000-\u001f\
 class BuilderError extends Error {constructor(public status:number,message:string){super(message);}}
 const fail=(status:number,text:string):never=>{throw new BuilderError(status,text);};
 const editable=(p:any)=>{if(p.job)fail(409,'Aguarde a operação em andamento antes de alterar o projeto.');};
-function businessInput(input:any):ExpressBusiness{return {name:clean(input?.name,100),segment:clean(input?.segment,80),city:clean(input?.city,100),services:clean(input?.services,1000),whatsapp:normalizeBrazilianWhatsApp(clean(input?.whatsapp,30)),photo:'',assets:[]};}
-function complete(b:ExpressBusiness){if(!b.name||!b.segment||!b.city||!b.services||!b.whatsapp)fail(400,'Complete os dados da empresa e informe um WhatsApp brasileiro com DDD.');}
+function businessInput(input:any):ExpressBusiness{return {name:clean(input?.name,100),segment:clean(input?.segment,80),city:clean(input?.city,100),services:clean(input?.services,1000),whatsapp:normalizeSiteWhatsApp(clean(input?.whatsapp,30)),photo:'',assets:[]};}
+function complete(b:ExpressBusiness){if(!b.name||!b.segment||!b.city||!b.services||!b.whatsapp)fail(400,'Complete os dados da empresa e informe um WhatsApp válido. Para outros países, use +DDI e número.');}
 async function owned(id:any,email:string){if(!orderId(id))fail(400,'Projeto inválido.');const p=(await projects().doc(id).get()).data();if(!p||p.ownerEmail!==email)fail(404,'Projeto não encontrado nesta conta.');return p;}
 const publicMediaUrl=(id:string,file:string)=>`${publicOrigin()}/api/site-express?view=builder&action=media&id=${id}&file=${file}`;
 async function state(id:string,p:any):Promise<BuilderProject>{const messages=await projects().doc(id).collection('messages').orderBy('createdAt','desc').limit(30).get();return {id,business:p.business,locale:parseSiteLanguage(p.locale)||DEFAULT_SITE_LANGUAGE,references:p.references||[],directions:p.directions||BUILDER_DIRECTIONS,directionId:p.directionId||'editorial',sources:p.sources||[],researchNotice:p.researchNotice||'',html:p.html||'',sections:p.sections||[],version:p.version||0,status:p.status||'draft',job:p.job?{id:p.job.id,type:p.job.type,phase:p.job.phase,leaseUntil:p.job.leaseUntil||0}:null,message:p.message||'',imageNotice:p.imageNotice||'',publishedUrl:p.publishedSlug?`${publicOrigin()}/s/${p.publishedSlug}`:undefined,publishedVersion:p.publishedVersion||0,portfolioVisible:p.portfolioVisible===true,updatedAt:p.updatedAt,media:p.media||[],quality:p.quality,feedback:p.feedback,messages:messages.docs.reverse().map(doc=>({id:doc.id,...doc.data()} as any))};}
