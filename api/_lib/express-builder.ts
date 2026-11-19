@@ -117,7 +117,9 @@ export default async function builder(req:Request,res:Response){
         const [siteSnap,learningSnap]=await tx.getAll(ref,learningRef);
         const site=siteSnap.data();if(!site||site.ownerEmail!==email||site.version!==p.version||site.job)fail(409,'Este site foi atualizado. Recarregue antes de avaliar.');
         const feedback={version:p.version,rating,note,createdAt:timestamp};
-        const entry={projectId:String(id),version:p.version,segment:site.business.segment,rating,note,createdAt:timestamp};
+        const selectedDirection=(site.directions||BUILDER_DIRECTIONS).find((d:any)=>d.id===site.directionId)||BUILDER_DIRECTIONS[0];
+        const learnedNote=note||(rating==='good'?`Cliente aprovou a direção visual ${selectedDirection.name}: ${selectedDirection.typography}; ${selectedDirection.layout}`.slice(0,350):'');
+        const entry={projectId:String(id),version:p.version,segment:site.business.segment,rating,note:learnedNote,createdAt:timestamp};
         const prior=Array.isArray(learningSnap.data()?.entries)?learningSnap.data().entries.filter((e:any)=>!(e.projectId===id&&e.version===p.version)):[];
         tx.set(learningRef,{entries:[...prior.slice(-11),entry],updatedAt:timestamp},{merge:true});
         tx.update(ref,{feedback,updatedAt:timestamp});
