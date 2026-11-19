@@ -11,8 +11,10 @@ export interface BuilderCreativePlan {
 export interface BuilderDirection { id: string; name: string; description: string; accent: string; background: string; foreground: string; typography: string; layout: string }
 export interface BuilderSection { id: string; label: string; visible: boolean; texts: { id: string; tag: string; text: string }[]; images: { id: string; src: string; alt: string }[] }
 export interface BuilderMessage { id: string; role: 'user' | 'assistant'; text: string; createdAt: number; referenceIds?: string[] }
+export interface BuilderDesignOption { id: string; direction: BuilderDirection }
 export interface BuilderProject {
   id: string; business: ExpressBusiness; locale: SiteLanguage; references: BuilderReference[]; directions: BuilderDirection[]; directionId: string;
+  designOptions?: BuilderDesignOption[]; awaitingDesign?: boolean;
   sources: BuilderSource[]; researchNotice?: string; creativePlan?: BuilderCreativePlan | null; html?: string; sections: BuilderSection[]; version: number;
   status: 'draft' | 'working' | 'ready' | 'error'; job?: { id: string; type: 'generate' | 'edit' | 'image' | 'research'; phase: string; leaseUntil: number } | null;
   message?: string; imageNotice?: string; publishedUrl?: string; publishedVersion?: number; updatedAt: number;
