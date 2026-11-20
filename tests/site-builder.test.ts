@@ -314,8 +314,16 @@ test('authenticated endpoint: ownership, reference cap, model input, job retries
  const proposalProject=(await call('state',{id:proposalId},undefined,'GET')).body.project;
  assert.equal(proposalProject.version,1);
  assert.equal(proposalProject.publishedUrl,undefined);
- assert.equal(proposalProject.proposal.version,1);
- const proposalToken=proposalProject.proposal.url.split('/').pop();
+ assert.equal(proposalProject.proposal,undefined);
+ assert.match(proposalProject.message,/foto de destaque/);
+ assert.equal((await call('prepare-proposal',{id:proposalId})).statusCode,409);
+ db.data.get('expressBuilderProjects/'+proposalId).business.assets=[
+   {id:randomUUID(),kind:'photo',width:1536,height:1024,url:imageUrl},
+ ];
+ const ready=await call('prepare-proposal',{id:proposalId});
+ assert.equal(ready.statusCode,200);
+ assert.equal(ready.body.project.proposal.version,1);
+ const proposalToken=ready.body.project.proposal.url.split('/').pop();
  const preview=await call('proposal',{token:proposalToken},null,'GET');
  assert.equal(preview.statusCode,200);
  assert.match(preview.headers['X-Robots-Tag'],/noindex/);
