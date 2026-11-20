@@ -41,11 +41,24 @@ const sequenceUrl=(id:string,file:string)=>`${publicOrigin()}/api/site-express?v
 async function state(id:string,p:any):Promise<BuilderProject>{const messages=await projects().doc(id).collection('messages').orderBy('createdAt','desc').limit(30).get();const legacy=p.html&&hasLegacyBuilderOpening(p.html)?prepareBuilderHtml(p.html,publicOrigin(),parseSiteLanguage(p.locale)||undefined):null;return {id,business:p.business,proposalMode:p.proposalMode===true,proposal:p.proposal?.expiresAt>Date.now()?{url:proposalLink(p.proposal.token),version:p.proposal.version,expiresAt:p.proposal.expiresAt}:undefined,locale:parseSiteLanguage(p.locale)||DEFAULT_SITE_LANGUAGE,references:p.references||[],directions:p.directions||BUILDER_DIRECTIONS,directionId:p.directionId||'editorial',sources:p.sources||[],researchNotice:p.researchNotice||'',creativePlan:p.creativePlan||null,designOptions:p.designOptions||[],selectedDesign:p.selectedDesign||undefined,awaitingDesign:Boolean(p.pendingDesign),html:legacy?.html||p.html||'',sections:legacy?.sections||p.sections||[],version:p.version||0,status:p.status||'draft',job:p.job?{id:p.job.id,type:p.job.type,phase:p.job.phase,leaseUntil:p.job.leaseUntil||0}:null,message:p.message||'',imageNotice:p.imageNotice||'',publishedUrl:p.publishedSlug?`${publicOrigin()}/s/${p.publishedSlug}`:undefined,publishedVersion:p.publishedVersion||0,portfolioVisible:p.portfolioVisible===true,updatedAt:p.updatedAt,media:p.media||[],quality:p.quality,feedback:p.feedback,messages:messages.docs.reverse().map(doc=>({id:doc.id,...doc.data()} as any))};}
 async function addMessage(id:string,role:'user'|'assistant',text:string,referenceIds:string[]=[],key:string=randomUUID()){await projects().doc(id).collection('messages').doc(key).set({role,text:text.slice(0,3000),referenceIds,createdAt:Date.now()});}
 async function saveVersion(id:string,p:any,document:{html:string;sections:any[]},extra:any={}){return db().runTransaction(async tx=>{const ref=projects().doc(id);const current=(await tx.get(ref)).data();if(!current||current.version!==p.version||current.job)fail(409,'O site foi atualizado. Recarregue antes de salvar.');const version=(current.version||0)+1;tx.create(ref.collection('versions').doc(String(version)),{...document,locale:parseSiteLanguage(extra.locale)||parseSiteLanguage(current.locale)||DEFAULT_SITE_LANGUAGE,version,createdAt:Date.now()});tx.update(ref,{...document,...extra,quality:auditBuilderSite(document.html),feedback:null,version,status:'ready',message:'',updatedAt:Date.now()});return {...current,...document,...extra,quality:auditBuilderSite(document.html),feedback:null,version,status:'ready',message:'',updatedAt:Date.now()};});}
+const PROPOSAL_BRIEF='Crie um site premium para apresentar à empresa. Use uma direção de arte específica para o ramo, fotografia editorial como protagonista, composição assimétrica equilibrada e contraste legível. Escolha uma família de títulos e uma família de texto coerentes com a marca, com alternativas de sistema. Use no máximo dois pesos por família, carregamento com display=swap, títulos responsivos e corpo confortável no celular. Garanta links e CTA com o canal comercial confirmado. Use somente fatos fornecidos. Evite inventar serviços específicos, preços, horários, avaliações, promoções, equipe, garantias ou vínculos com a Atlas.';
+function proposalIssue(document:ReturnType<typeof prepareBuilderHtml>,assets:ExpressAsset[]){
+  const opening=document.sections.find(section=>section.id==='inicio'&&section.visible);
+  const origin=publicOrigin();
+  const heroImages=new Set(opening?.images.map(image=>image.src));
+  const hasHeroImage=assets.some(asset=>asset.kind==='photo'&&asset.width>=960&&asset.height>=600&&heroImages.has(builderImageUrl(asset.url,origin)));
+  if(!hasHeroImage)return 'Adicione uma foto de destaque com pelo menos 960 × 600 px para preparar a prévia.';
+  const checks=auditBuilderSite(document.html).checks;
+  if(checks.some(check=>['viewport','hero','secao','contato'].includes(check.id)&&!check.ok)){
+    return 'Revise o título, a adaptação para celular, as seções e os links de contato antes de preparar a prévia.';
+  }
+  return '';
+}
 async function startJob(id:string,email:string,type:string,body:any){
   if(!['generate','edit','research','image'].includes(type)||!orderId(body.requestId))fail(400,'Operação inválida.');
   if(!openaiConfigured())fail(503,'O assistente está indisponível no momento.');
   const fromRadar=body.proposal===true&&type==='generate';
-  const instruction=clean(body.text,type==='image'?1500:3000)||(fromRadar?'Crie uma proposta de site para apresentar à empresa. Use o ramo e o contato fornecidos. Use somente fatos confirmados e textos comerciais neutros. Evite inventar serviços específicos, preços, horários, avaliações, promoções, equipe, garantias ou vínculos com a Atlas.':'');if(['edit','image'].includes(type)&&!instruction)fail(400,'Descreva o que deseja criar ou alterar.');
+  const instruction=[fromRadar?PROPOSAL_BRIEF:'',clean(body.text,type==='image'?1500:3000)].filter(Boolean).join('\n');if(['edit','image'].includes(type)&&!instruction)fail(400,'Descreva o que deseja criar ou alterar.');
   const targetLocale=body.targetLocale===undefined?undefined:parseSiteLanguage(body.targetLocale);
   if(body.targetLocale!==undefined&&(!targetLocale||type!=='edit'))fail(400,'Selecione um idioma válido para a tradução.');
   const limits:Record<string,number>={edit:20,research:6,image:8};
@@ -217,7 +230,9 @@ async function advance(id:string,email:string){
         const planned=claim.creativePlan?.heroImagePrompt||job.instruction||`Fotografia de destaque para ${claim.business.segment}.`;
         const picked=automatic&&claim.selectedDesign?(await ref.collection('designs').doc(claim.selectedDesign).get()).data():null;
         const reference=picked?.data?{buffer:Buffer.from(picked.data),mimeType:picked.mimeType,isMockup:true}:undefined;
-        const direction=automatic?planned+' Enquadramento fechado, com o assunto visível no lado direito e espaço negativo para a chamada no lado esquerdo. Preserve a luz e a paleta da proposta.':'';
+        const direction=automatic?planned+(job.proposal
+          ? ' Fotografia editorial premium específica para o ramo. Iluminação natural ou de estúdio motivada pela cena, materiais autênticos, profundidade, assunto em foco e área de respiro para o texto. Sem marcas, textos ou aparência de banco de imagens.'
+          : ' Enquadramento fechado, com o assunto visível no lado direito e espaço negativo para a chamada no lado esquerdo. Preserve a luz e a paleta da proposta.'):'';
         const close=await generateBuilderPhoto(claim.business,direction||job.instruction,automatic?'16:9':job.aspect,reference);
         const assets=[await storeGenerated(id,close)];
         if(automatic){
@@ -260,12 +275,13 @@ async function advance(id:string,email:string){
     }
     return await db().runTransaction(async tx=>{const current=(await tx.get(ref)).data();if(current?.job?.leaseToken!==token)return current;const version=doc?(current.version||0)+1:current.version||0;
       if(doc)tx.create(ref.collection('versions').doc(String(version)),{...doc,locale:patch.locale,version,createdAt:Date.now()});
-      if(doc&&job.proposal){
+      const issue=doc&&job.proposal?proposalIssue(doc,[...(current.business.assets||[]),...(current.media||[])]):'';
+      if(doc&&job.proposal&&!issue){
         const proposal={token:randomUUID(),version,expiresAt:Date.now()+PROPOSAL_DURATION};
         tx.create(proposals().doc(proposal.token),{html:doc.html,expiresAt:proposal.expiresAt});
         patch.proposal=proposal;
       }
-      const update={...patch,...(doc||{}),version,job:null,status:doc||current.html?'ready':'draft',message:'',updatedAt:Date.now()};tx.update(ref,update);
+      const update={...patch,...(doc||{}),version,job:null,status:doc||current.html?'ready':'draft',message:issue,updatedAt:Date.now()};tx.update(ref,update);
       if(assistant)tx.set(ref.collection('messages').doc(job.id+'-assistant'),{role:'assistant',text:assistant,createdAt:Date.now(),referenceIds:[]});return {...current,...update};
     });
   }catch(error){console.warn('[Atlas Builder] Operação interrompida.',{type:job.type,status:Number((error as any)?.status)||0,name:error instanceof Error?error.name:'unknown',code:(error as any)?.code||''});
@@ -406,6 +422,8 @@ export default async function builder(req:Request,res:Response){
         const current=(await tx.get(ref)).data();
         editable(current);
         if(current?.version!==p.version)fail(409,'O site mudou. Atualize o editor antes de preparar o envio.');
+        const issue=proposalIssue(document,[...(current.business.assets||[]),...(current.media||[])]);
+        if(issue)fail(409,issue);
         const proposal={token:randomUUID(),version:p.version,expiresAt:Date.now()+PROPOSAL_DURATION};
         tx.create(proposals().doc(proposal.token),{html:document.html,expiresAt:proposal.expiresAt});
         tx.update(ref,{proposal});
