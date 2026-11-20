@@ -203,6 +203,7 @@ test('authenticated endpoint: ownership, reference cap, model input, job retries
  for(let n=0;n<3;n++)assert.equal((await call('run',{id})).statusCode,200);
  const waiting=(await call('state',{id},undefined,'GET')).body.project;
  assert.equal(waiting.awaitingDesign,true);assert.equal(waiting.designOptions.length,3);
+ assert.ok(waiting.designOptions.every((option:any)=>option.format==='scroll-storyboard'));
  assert.equal(waiting.job,null);assert.equal(waiting.version,0);
  assert.equal((await call('run',{id})).body.project.version,0);
  const chosen=waiting.designOptions[1].id;
@@ -321,6 +322,19 @@ test('OpenAI research uses observed sources, vision and image generation',async(
  assert.equal(planned.sources[0].siteUrl,'https://atelier.example/');
  assert.equal(planned.sources[1].siteUrl,undefined);
  assert.match(planned.researchNotice,/2 de 4.*consultados: 1/);
+ const storyboard={opening:'Close da pedra',transition:'A câmera recua',nextScene:'A bancada aparece'};
+ const projectUrl='https://studio.example/projetos/bancada';
+ globalThis.fetch=async()=>completed([
+   {type:'web_search_call',action:{type:'search',sources:[{url:projectUrl,title:'Projeto de bancada'}]}},
+   message({directions:[{storyboard}],references:[
+     {siteUrl:projectUrl,insight:'Continuidade do material'},
+     {siteUrl:'https://inventado.example/',insight:'Sem evidência'},
+   ]}),
+ ]);
+ const complementary=await ai.researchBuilder(business,options);
+ assert.deepEqual(complementary.directions[0].storyboard,storyboard);
+ assert.deepEqual(complementary.sources,[{url:projectUrl,title:'Projeto de bancada',insight:'Continuidade do material'}]);
+ assert.match(complementary.researchNotice,/diretamente em sites: 1/);
  globalThis.fetch=async()=>completed([message({creativePlan:{concept:'Plano de segunda etapa',heroImagePrompt:'Foto editorial',scenes}})]);
  assert.equal((await ai.planBuilder(business,options,planned.sources)).concept,'Plano de segunda etapa');
  globalThis.fetch=async()=>new Response('',{status:503});
@@ -345,6 +359,8 @@ test('OpenAI research uses observed sources, vision and image generation',async(
  assert.equal((await ai.generateBuilderPhoto(business,'Abra o enquadramento','16:9',photo)).width,80);
  assert.match(request.input[0].content[1].image_url,/^data:image\/webp;base64,/);
  assert.equal((await ai.generateDesignMockup(business,options,planned.creativePlan,'Studio',planned.sources)).width,80);
+ assert.equal(request.tools[0].size,'1024x1536');
+ assert.match(request.instructions,/exatamente três quadros desktop/);
  }finally{globalThis.fetch=originalFetch;if(oldKey===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=oldKey;await rm(temp,{recursive:true,force:true});}
 });
 

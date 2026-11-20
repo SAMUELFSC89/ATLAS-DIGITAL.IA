@@ -144,7 +144,7 @@ async function advance(id:string,email:string){
         direction,instruction:job.instruction,locale:parseSiteLanguage(claim.locale)||DEFAULT_SITE_LANGUAGE,
         references:await loadVisualReferences(ref,job.referenceIds||[]),
       },claim.creativePlan,typeof config?.visualPrompt==='string'?config.visualPrompt:DEFAULT_VISUAL_PROMPT,claim.sources||[]);
-      const option={id:randomUUID(),direction};
+      const option:BuilderDesignOption={id:randomUUID(),direction,format:'scroll-storyboard'};
       return await db().runTransaction(async tx=>{
         const current=(await tx.get(ref)).data();
         if(current?.job?.leaseToken!==token)return current;

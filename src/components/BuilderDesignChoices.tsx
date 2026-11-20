@@ -19,9 +19,10 @@ function DesignCard({projectId,option,disabled,onChoose}:{key?:string;projectId:
     return ()=>{controller.abort();if(objectUrl)URL.revokeObjectURL(objectUrl);};
   },[projectId,option.id,attempt]);
 
-  return <article className="builder-design-option">
+  const storyboard=option.format==='scroll-storyboard';
+  return <article className={storyboard?'builder-design-option builder-design-storyboard':'builder-design-option'}>
     {url?<a href={url} target="_blank" rel="noreferrer" aria-label={`Ampliar proposta ${option.direction.name}`}>
-      <img src={url} alt={`Proposta de página: ${option.direction.name}`}/>
+      <img src={url} alt={storyboard?`${option.direction.name} — abertura, transição e próxima cena`:`Proposta de página: ${option.direction.name}`}/>
     </a>:<div className="builder-design-placeholder" role="status">{failed
       ? <button type="button" className="builder-button secondary" onClick={()=>setAttempt(n=>n+1)}>Recarregar imagem</button>
       : 'Carregando proposta…'}</div>}
@@ -36,7 +37,9 @@ function DesignCard({projectId,option,disabled,onChoose}:{key?:string;projectId:
 export default function BuilderDesignChoices({projectId,options,disabled,onSelect,onDismiss}:{projectId:string;options:BuilderDesignOption[];disabled:boolean;onSelect:(optionId:string)=>void;onDismiss:()=>void}){
   return <section className="builder-style-setup builder-design-choice" aria-label="Propostas visuais">
     <h1>Escolha seu site</h1>
-    <p>Abra as imagens para comparar. A Atlas transforma a proposta escolhida em um site editável.</p>
+    <p>{options.some(option=>option.format==='scroll-storyboard')
+      ? 'Cada proposta mostra a abertura, a transição da rolagem e a próxima cena. Abra as imagens para comparar.'
+      : 'Abra as imagens para comparar. A Atlas transforma a proposta escolhida em um site editável.'}</p>
     <div className="builder-design-grid">{options.map(option=>
       <DesignCard key={option.id} projectId={projectId} option={option} disabled={disabled} onChoose={()=>onSelect(option.id)}/>
     )}</div>
