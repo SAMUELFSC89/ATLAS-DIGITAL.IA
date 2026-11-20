@@ -168,12 +168,12 @@ async function loadEndpoint(){
  const temp=await mkdtemp(path.join(process.cwd(),'.builder-test-'));const out=path.join(temp,'endpoint.cjs');
  await build({entryPoints:['api/_lib/express-builder.ts'],outfile:out,bundle:true,platform:'node',format:'cjs',packages:'external',logLevel:'silent',plugins:[{name:'fixtures',setup(b){
  b.onResolve({filter:/express-store\.js$|\/radar\.js$|express-assets\.js$|express-claude\.js$|express-openai\.js$|express-builder-ai\.js$/},args=>({path:args.path,namespace:'fixture'}));
- b.onLoad({filter:/.*/,namespace:'fixture'},args=>{let names=args.path.includes('express-store')?['db','previews','settings','orders','orderId','publicOrigin','saoPauloDay','rateLimit']:args.path.includes('radar')?['getAuthenticatedEmail']:args.path.includes('express-assets')?['resolveExpressAssets','rasterInfo','ASSET_MAX_BYTES','ExpressAssetError']:args.path.includes('express-claude')?['extractSiteHtml']:args.path.includes('express-openai')?['openaiAccessMessage','openaiConfigured','openaiText']:['researchBuilder','planBuilder','builderPrompt','generateBuilderPhoto','generateDesignMockup'];return {contents:names.map(n=>`export const ${n}=globalThis.__atlasBuilderTest.${n};`).join('\n'),loader:'js'};});
+ b.onLoad({filter:/.*/,namespace:'fixture'},args=>{let names=args.path.includes('express-store')?['db','previews','settings','orders','orderId','publicOrigin','saoPauloDay','rateLimit']:args.path.includes('radar')?['getAuthenticatedEmail']:args.path.includes('express-assets')?['readExpressAsset','resolveExpressAssets','rasterInfo','ASSET_MAX_BYTES','ExpressAssetError']:args.path.includes('express-claude')?['extractSiteHtml']:args.path.includes('express-openai')?['openaiAccessMessage','openaiConfigured','openaiText']:['researchBuilder','planBuilder','builderPrompt','generateBuilderPhoto','generateDesignMockup'];return {contents:names.map(n=>`export const ${n}=globalThis.__atlasBuilderTest.${n};`).join('\n'),loader:'js'};});
  }}]});
  const require=createRequire(import.meta.url);return {handler:require(out).default,close:()=>rm(temp,{recursive:true,force:true})};
 }
 test('authenticated endpoint: ownership, reference cap, model input, job retries, versions and payment gate',async t=>{
- const db=new MemoryDb();let generationCalls=0;let modelReferences:any[]=[];let requestedLocale='';let planningCalls=0;let plannedRefs=0;let usedConcept='';let imagePrompt='';let chosenDesign='';let selectedPlanInput='';let imageDesign='';const fixture:any={db:()=>db,previews:()=>db.collection('expressPreviews'),settings:()=>db.collection('expressInternal').doc('settings'),orders:()=>db.collection('expressOrders'),orderId:(v:any)=>typeof v==='string'&&/^[a-f0-9-]{36}$/i.test(v),publicOrigin:()=>origin,saoPauloDay:()=> '2026-11-18',rateLimit:async()=>true,getAuthenticatedEmail:async(req:any,verified=false)=>verified&&req.headers.verified!=='yes'?null:req.headers.authorization||null,resolveExpressAssets:async()=>[],rasterInfo:(data:Buffer)=>{assert.equal(data.subarray(1,4).toString(),'PNG');return{mimeType:'image/png',width:1,height:1};},ASSET_MAX_BYTES:750*1024,ExpressAssetError:class extends Error{},openaiAccessMessage:()=>'',openaiConfigured:()=>true,openaiText:async()=>{generationCalls++;return raw;},extractSiteHtml:(s:string)=>s,researchBuilder:async(_business:any,options:any)=>{planningCalls++;plannedRefs=options.references.length;return {sources:[{url:'https://pinterest.com/pin/123/',title:'Editorial',insight:'Abertura focada no material'}],creativePlan:{concept:'Do detalhe ao ambiente',scenes:[],heroImagePrompt:'Foto macro de pedra'},directions:BUILDER_DIRECTIONS,researchNotice:'Uma referência.'};},planBuilder:async(_b:any,_opts:any,_sources:any,visual:any)=>{selectedPlanInput=visual?.data||'';return {concept:'Do detalhe ao ambiente',scenes:[],heroImagePrompt:'Foto macro de pedra'};},builderPrompt:async(_b:any,_d:any,_c:any,_o:any,refs:any[],_inst:any,_html:any,_history:any,_learn:any,locale:string,synopsis:any)=>{modelReferences=refs;requestedLocale=locale;usedConcept=synopsis?.plan?.concept||'';chosenDesign=synopsis?.chosenDesign?.data||'';return{system:'',content:[]};},generateDesignMockup:async()=>({buffer:Buffer.from('mock design'),mimeType:'image/webp'}),generateBuilderPhoto:async(_business:any,prompt:string,_aspect:string,reference:any)=>{imagePrompt=prompt;imageDesign=reference?.isMockup?reference.buffer.toString():'';throw new Error('Fake generator unavailable');}};
+ const db=new MemoryDb();let generationCalls=0;let modelReferences:any[]=[];let requestedLocale='';let planningCalls=0;let plannedRefs=0;let usedConcept='';let imagePrompt='';let chosenDesign='';let selectedPlanInput='';let imageDesign='';const fixture:any={db:()=>db,previews:()=>db.collection('expressPreviews'),settings:()=>db.collection('expressInternal').doc('settings'),orders:()=>db.collection('expressOrders'),orderId:(v:any)=>typeof v==='string'&&/^[a-f0-9-]{36}$/i.test(v),publicOrigin:()=>origin,saoPauloDay:()=> '2026-11-18',rateLimit:async()=>true,getAuthenticatedEmail:async(req:any,verified=false)=>verified&&req.headers.verified!=='yes'?null:req.headers.authorization||null,readExpressAsset:async()=>({buffer:await sharp({create:{width:640,height:360,channels:3,background:'#b27641'}}).png().toBuffer()}),resolveExpressAssets:async()=>[],rasterInfo:(data:Buffer)=>{assert.equal(data.subarray(1,4).toString(),'PNG');return{mimeType:'image/png',width:1,height:1};},ASSET_MAX_BYTES:750*1024,ExpressAssetError:class extends Error{},openaiAccessMessage:()=>'',openaiConfigured:()=>true,openaiText:async()=>{generationCalls++;return raw;},extractSiteHtml:(s:string)=>s,researchBuilder:async(_business:any,options:any)=>{planningCalls++;plannedRefs=options.references.length;return {sources:[{url:'https://pinterest.com/pin/123/',title:'Editorial',insight:'Abertura focada no material'}],creativePlan:{concept:'Do detalhe ao ambiente',scenes:[],heroImagePrompt:'Foto macro de pedra'},directions:BUILDER_DIRECTIONS,researchNotice:'Uma referência.'};},planBuilder:async(_b:any,_opts:any,_sources:any,visual:any)=>{selectedPlanInput=visual?.data||'';return {concept:'Do detalhe ao ambiente',scenes:[],heroImagePrompt:'Foto macro de pedra'};},builderPrompt:async(_b:any,_d:any,_c:any,_o:any,refs:any[],_inst:any,_html:any,_history:any,_learn:any,locale:string,synopsis:any)=>{modelReferences=refs;requestedLocale=locale;usedConcept=synopsis?.plan?.concept||'';chosenDesign=synopsis?.chosenDesign?.data||'';return{system:'',content:[]};},generateDesignMockup:async()=>({buffer:Buffer.from('mock design'),mimeType:'image/webp'}),generateBuilderPhoto:async(_business:any,prompt:string,_aspect:string,reference:any)=>{imagePrompt=prompt;imageDesign=reference?.isMockup?reference.buffer.toString():'';throw new Error('Fake generator unavailable');}};
  (globalThis as any).__atlasBuilderTest=fixture;const endpoint=await loadEndpoint();
  const call=async(action:string,body:any={},user:string|null='cliente@example.com',method='POST')=>{const r:any={statusCode:200,headers:{},setHeader(k:string,v:any){this.headers[k]=v;},status(n:number){this.statusCode=n;return this;},json(d:any){this.body=d;return this;},send(d:any){this.body=d;return this;},end(){return this;}};await endpoint.handler({method,query:{action,...(method==='GET'?body:{})},body,headers:{...(user?{authorization:user}:{})}},r);return r;};
  try{
@@ -195,7 +195,7 @@ test('authenticated endpoint: ownership, reference cap, model input, job retries
  const state=await call('state',{id},undefined,'GET');assert.equal(state.body.project.references.length,4);assert.ok(!JSON.stringify(state.body).includes('ownerEmail'));assert.ok(!JSON.stringify(state.body).includes(png));const file=state.body.project.references[0].id;
  assert.equal((await call('reference',{id,file},null,'GET')).statusCode,401);assert.equal((await call('reference',{id,file},'outro@example.com','GET')).statusCode,404);assert.equal((await call('reference',{id,file},undefined,'GET')).statusCode,200);
  // Existing business photo skips automatic image phase; fake media is not published externally.
- const p=db.data.get('expressBuilderProjects/'+id);p.business.assets=[{kind:'photo',id:randomUUID()}];const requestId=randomUUID();assert.equal((await call('start',{id,requestId,type:'generate',text:'Use estas referências.'})).statusCode,200);assert.equal((await upload()).statusCode,409);
+ const p=db.data.get('expressBuilderProjects/'+id);p.business.assets=[{kind:'photo',id:randomUUID(),url:imageUrl}];const requestId=randomUUID();assert.equal((await call('start',{id,requestId,type:'generate',text:'Use estas referências.'})).statusCode,200);assert.equal((await upload()).statusCode,409);
  const planned=await Promise.all([call('run',{id}),call('run',{id})]);
  assert.equal(planningCalls,1);assert.equal(plannedRefs,4);assert.equal(generationCalls,0);
  const plannedProject=planned.find(r=>r.body.project.creativePlan)?.body.project;
@@ -203,6 +203,7 @@ test('authenticated endpoint: ownership, reference cap, model input, job retries
  for(let n=0;n<3;n++)assert.equal((await call('run',{id})).statusCode,200);
  const waiting=(await call('state',{id},undefined,'GET')).body.project;
  assert.equal(waiting.awaitingDesign,true);assert.equal(waiting.designOptions.length,3);
+ assert.ok(waiting.designOptions.every((option:any)=>option.format==='scroll-storyboard'));
  assert.equal(waiting.job,null);assert.equal(waiting.version,0);
  assert.equal((await call('run',{id})).body.project.version,0);
  const chosen=waiting.designOptions[1].id;
@@ -210,9 +211,14 @@ test('authenticated endpoint: ownership, reference cap, model input, job retries
  assert.equal((await call('design',{id,file:chosen},undefined,'GET')).body.toString(),'mock design');
  assert.equal((await call('choose-design',{id,optionId:randomUUID()})).statusCode,400);
  assert.equal((await call('choose-design',{id,optionId:chosen})).body.project.job.phase,'selected-planning');
+ assert.equal((await call('run',{id})).body.project.job.phase,'sequence');
  assert.equal((await call('run',{id})).body.project.job.phase,'building');
+ const camera=await call('sequence',{id,file:requestId},null,'GET');
+ assert.equal(camera.headers['Content-Type'],'image/webp');
+ assert.equal((await sharp(camera.body).metadata()).width,2048);
+ assert.equal((await sharp(camera.body).metadata()).height,1728);
  assert.equal(selectedPlanInput,Buffer.from('mock design').toString('base64'));
- const runs=await Promise.all([call('run',{id}),call('run',{id})]);assert.equal(generationCalls,1);assert.equal(modelReferences.length,4);assert.equal(chosenDesign,Buffer.from('mock design').toString('base64'));assert.equal(usedConcept,'Do detalhe ao ambiente');assert.equal(requestedLocale,'en-GB');assert.equal(load((await call('state',{id},undefined,'GET')).body.project.html)('html').attr('lang'),'en-GB');assert.equal((await call('language',{id,locale:'fr'})).statusCode,409);assert.equal((await call('state',{id},undefined,'GET')).body.project.version,1);assert.equal((await call('start',{id,requestId,type:'generate'})).body.project.job,null);assert.equal(generationCalls,1);
+ const runs=await Promise.all([call('run',{id}),call('run',{id})]);assert.equal(load(runs.find(r=>r.body.project.version===1).body.project.html)('figure[data-atlas-sequence] > canvas').length,1);assert.equal(generationCalls,1);assert.equal(modelReferences.length,4);assert.equal(chosenDesign,Buffer.from('mock design').toString('base64'));assert.equal(usedConcept,'Do detalhe ao ambiente');assert.equal(requestedLocale,'en-GB');assert.equal(load((await call('state',{id},undefined,'GET')).body.project.html)('html').attr('lang'),'en-GB');assert.equal((await call('language',{id,locale:'fr'})).statusCode,409);assert.equal((await call('state',{id},undefined,'GET')).body.project.version,1);assert.equal((await call('start',{id,requestId,type:'generate'})).body.project.job,null);assert.equal(generationCalls,1);
  await call('start',{id:importedId,requestId:randomUUID(),type:'generate'});
  assert.equal((await call('run',{id:importedId})).body.project.job.phase,'designs');
  for(let n=0;n<3;n++)await call('run',{id:importedId});
@@ -223,7 +229,8 @@ test('authenticated endpoint: ownership, reference cap, model input, job retries
  const failedImage=await call('run',{id:importedId});
  assert.match(imagePrompt,/^Foto macro de pedra.*Enquadramento fechado/);
  assert.equal(imageDesign,'mock design');
- assert.equal(failedImage.body.project.job.phase,'building');
+ assert.equal(failedImage.body.project.job.phase,'sequence');
+ assert.equal((await call('run',{id:importedId})).body.project.job.phase,'building');
  assert.match(failedImage.body.project.imageNotice,/Não foi possível criar/);
  assert.equal((await call('run',{id:importedId})).body.project.status,'ready');
  const rebuilt=await call('start',{id:importedId,requestId:randomUUID(),type:'generate',reuseSelectedDesign:true});
@@ -321,6 +328,19 @@ test('OpenAI research uses observed sources, vision and image generation',async(
  assert.equal(planned.sources[0].siteUrl,'https://atelier.example/');
  assert.equal(planned.sources[1].siteUrl,undefined);
  assert.match(planned.researchNotice,/2 de 4.*consultados: 1/);
+ const storyboard={opening:'Close da pedra',transition:'A câmera recua',nextScene:'A bancada aparece'};
+ const projectUrl='https://studio.example/projetos/bancada';
+ globalThis.fetch=async()=>completed([
+   {type:'web_search_call',action:{type:'search',sources:[{url:projectUrl,title:'Projeto de bancada'}]}},
+   message({directions:[{storyboard}],references:[
+     {siteUrl:projectUrl,insight:'Continuidade do material'},
+     {siteUrl:'https://inventado.example/',insight:'Sem evidência'},
+   ]}),
+ ]);
+ const complementary=await ai.researchBuilder(business,options);
+ assert.deepEqual(complementary.directions[0].storyboard,storyboard);
+ assert.deepEqual(complementary.sources,[{url:projectUrl,title:'Projeto de bancada',insight:'Continuidade do material'}]);
+ assert.match(complementary.researchNotice,/diretamente em sites: 1/);
  globalThis.fetch=async()=>completed([message({creativePlan:{concept:'Plano de segunda etapa',heroImagePrompt:'Foto editorial',scenes}})]);
  assert.equal((await ai.planBuilder(business,options,planned.sources)).concept,'Plano de segunda etapa');
  globalThis.fetch=async()=>new Response('',{status:503});
@@ -345,6 +365,8 @@ test('OpenAI research uses observed sources, vision and image generation',async(
  assert.equal((await ai.generateBuilderPhoto(business,'Abra o enquadramento','16:9',photo)).width,80);
  assert.match(request.input[0].content[1].image_url,/^data:image\/webp;base64,/);
  assert.equal((await ai.generateDesignMockup(business,options,planned.creativePlan,'Studio',planned.sources)).width,80);
+ assert.equal(request.tools[0].size,'1024x1536');
+ assert.match(request.instructions,/exatamente três quadros desktop/);
  }finally{globalThis.fetch=originalFetch;if(oldKey===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=oldKey;await rm(temp,{recursive:true,force:true});}
 });
 

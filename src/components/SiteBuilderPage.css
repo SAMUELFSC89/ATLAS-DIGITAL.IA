@@ -53,6 +53,7 @@
 .builder-design-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:24px 0}
 .builder-design-option{display:flex;flex-direction:column;min-width:0;border:1px solid var(--builder-border);background:#17181d;border-radius:14px;overflow:hidden}
 .builder-design-option img,.builder-design-placeholder{display:block;width:100%;aspect-ratio:3/2;object-fit:cover;object-position:top;background:#111216}
+.builder-design-storyboard img,.builder-design-storyboard .builder-design-placeholder{aspect-ratio:2/3;object-fit:contain}
 .builder-design-option a:focus-visible{outline:2px solid var(--builder-gold);outline-offset:-3px}
 .builder-design-placeholder{display:grid;place-items:center;text-align:center;color:#aaaab2;padding:14px;font-size:14px}
 .builder-design-info{display:flex;flex-direction:column;flex:1;gap:10px;padding:14px}

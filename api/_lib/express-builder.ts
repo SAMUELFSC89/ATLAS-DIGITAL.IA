@@ -3,12 +3,13 @@ import type { Request, Response } from 'express';
 import type { DocumentReference } from 'firebase-admin/firestore';
 import { getAuthenticatedEmail } from '../radar.js';
 import { db, previews, settings, orders, orderId, publicOrigin, saoPauloDay, rateLimit } from './express-store.js';
-import { resolveExpressAssets, rasterInfo, ASSET_MAX_BYTES, ExpressAssetError } from './express-assets.js';
+import { readExpressAsset, resolveExpressAssets, rasterInfo, ASSET_MAX_BYTES, ExpressAssetError } from './express-assets.js';
 import { extractSiteHtml } from './express-claude.js';
 import { openaiAccessMessage, openaiConfigured, openaiText } from './express-openai.js';
 import { prepareBuilderHtml, modifyBuilderHtml, builderCsp, builderImageUrl, hasLegacyBuilderOpening } from './express-builder-html.js';
 import { researchBuilder, planBuilder, builderPrompt, generateBuilderPhoto, generateDesignMockup } from './express-builder-ai.js';
 import { auditBuilderSite, feedbackForPrompt } from './atlas-builder-skill.js';
+import { renderCameraSequence } from './builder-camera-sequence.js';
 import { PortfolioError, getOwnerPortfolio, saveCreatorProfile, togglePortfolioSite, savePortfolioCaption, getPublicCreator, getPublicCreatorDirectory } from './builder-portfolio.js';
 import { normalizeSiteWhatsApp } from '../../src/lib/siteLanguages.js';
 import { DEFAULT_VISUAL_PROMPT } from '../../src/lib/expressVisualPrompt.js';
@@ -33,6 +34,7 @@ function businessInput(input:any):ExpressBusiness{
 function complete(b:ExpressBusiness){if(!b.name||!b.segment||!b.city||!b.services)fail(400,'Não foi possível identificar todos os dados básicos. Confira nome, ramo, localidade e descrição dos serviços.');if(!b.whatsapp&&(!b.phone||b.phone.replace(/\D/g,'').length<8))fail(400,'Informe um WhatsApp ou telefone comercial válido para o site ter um contato funcional.');}
 async function owned(id:any,email:string){if(!orderId(id))fail(400,'Projeto inválido.');const p=(await projects().doc(id).get()).data();if(!p||p.ownerEmail!==email)fail(404,'Projeto não encontrado nesta conta.');return p;}
 const publicMediaUrl=(id:string,file:string)=>`${publicOrigin()}/api/site-express?view=builder&action=media&id=${id}&file=${file}`;
+const sequenceUrl=(id:string,file:string)=>`${publicOrigin()}/api/site-express?view=builder&action=sequence&id=${id}&file=${file}`;
 async function state(id:string,p:any):Promise<BuilderProject>{const messages=await projects().doc(id).collection('messages').orderBy('createdAt','desc').limit(30).get();const legacy=p.html&&hasLegacyBuilderOpening(p.html)?prepareBuilderHtml(p.html,publicOrigin(),parseSiteLanguage(p.locale)||undefined):null;return {id,business:p.business,locale:parseSiteLanguage(p.locale)||DEFAULT_SITE_LANGUAGE,references:p.references||[],directions:p.directions||BUILDER_DIRECTIONS,directionId:p.directionId||'editorial',sources:p.sources||[],researchNotice:p.researchNotice||'',creativePlan:p.creativePlan||null,designOptions:p.designOptions||[],selectedDesign:p.selectedDesign||undefined,awaitingDesign:Boolean(p.pendingDesign),html:legacy?.html||p.html||'',sections:legacy?.sections||p.sections||[],version:p.version||0,status:p.status||'draft',job:p.job?{id:p.job.id,type:p.job.type,phase:p.job.phase,leaseUntil:p.job.leaseUntil||0}:null,message:p.message||'',imageNotice:p.imageNotice||'',publishedUrl:p.publishedSlug?`${publicOrigin()}/s/${p.publishedSlug}`:undefined,publishedVersion:p.publishedVersion||0,portfolioVisible:p.portfolioVisible===true,updatedAt:p.updatedAt,media:p.media||[],quality:p.quality,feedback:p.feedback,messages:messages.docs.reverse().map(doc=>({id:doc.id,...doc.data()} as any))};}
 async function addMessage(id:string,role:'user'|'assistant',text:string,referenceIds:string[]=[],key:string=randomUUID()){await projects().doc(id).collection('messages').doc(key).set({role,text:text.slice(0,3000),referenceIds,createdAt:Date.now()});}
 async function saveVersion(id:string,p:any,document:{html:string;sections:any[]},extra:any={}){return db().runTransaction(async tx=>{const ref=projects().doc(id);const current=(await tx.get(ref)).data();if(!current||current.version!==p.version||current.job)fail(409,'O site foi atualizado. Recarregue antes de salvar.');const version=(current.version||0)+1;tx.create(ref.collection('versions').doc(String(version)),{...document,locale:parseSiteLanguage(extra.locale)||parseSiteLanguage(current.locale)||DEFAULT_SITE_LANGUAGE,version,createdAt:Date.now()});tx.update(ref,{...document,...extra,quality:auditBuilderSite(document.html),feedback:null,version,status:'ready',message:'',updatedAt:Date.now()});return {...current,...document,...extra,quality:auditBuilderSite(document.html),feedback:null,version,status:'ready',message:'',updatedAt:Date.now()};});}
@@ -82,19 +84,21 @@ async function loadVisualReferences(ref:DocumentReference, ids:string[]){
   });
 }
 
-function advancePhase(ref:DocumentReference,token:string,phase:string,patch:Record<string,unknown>){
+function advancePhase(ref:DocumentReference,token:string,phase:string,patch:Record<string,unknown>,sequence?:Buffer){
   return db().runTransaction(async tx=>{
     const current=(await tx.get(ref)).data();
     if(current?.job?.leaseToken!==token)return current;
     const updatedAt=Date.now();
-    tx.update(ref,{...patch,'job.phase':phase,'job.leaseUntil':0,updatedAt});
-    return {...current,...patch,job:{...current.job,phase,leaseUntil:0},updatedAt};
+    const sequenceId=sequence?current.job.id:null;
+    if(sequenceId)tx.create(ref.collection('sequences').doc(sequenceId),{data:sequence});
+    tx.update(ref,{...patch,'job.phase':phase,'job.leaseUntil':0,...(sequenceId?{'job.sequenceId':sequenceId}:{}),updatedAt});
+    return {...current,...patch,job:{...current.job,phase,leaseUntil:0,...(sequenceId?{sequenceId}:{})},updatedAt};
   });
 }
 
 function afterDesign(project:any){
   const photos:ExpressAsset[]=project.business.assets||[];
-  return photos.some((asset:ExpressAsset)=>asset.kind==='photo')?'building':'images';
+  return photos.some(asset=>asset.kind==='photo')?'sequence':'images';
 }
 
 async function chooseDesign(ref:DocumentReference,email:string,optionId:string|null){
@@ -144,7 +148,7 @@ async function advance(id:string,email:string){
         direction,instruction:job.instruction,locale:parseSiteLanguage(claim.locale)||DEFAULT_SITE_LANGUAGE,
         references:await loadVisualReferences(ref,job.referenceIds||[]),
       },claim.creativePlan,typeof config?.visualPrompt==='string'?config.visualPrompt:DEFAULT_VISUAL_PROMPT,claim.sources||[]);
-      const option={id:randomUUID(),direction};
+      const option:BuilderDesignOption={id:randomUUID(),direction,format:'scroll-storyboard'};
       return await db().runTransaction(async tx=>{
         const current=(await tx.get(ref)).data();
         if(current?.job?.leaseToken!==token)return current;
@@ -165,6 +169,20 @@ async function advance(id:string,email:string){
       const options={direction:option.direction,instruction:job.instruction,locale:parseSiteLanguage(claim.locale)||DEFAULT_SITE_LANGUAGE,references:await loadVisualReferences(ref,job.referenceIds||[])};
       const creativePlan=await planBuilder(claim.business,options,claim.sources||[],chosen);
       return await advancePhase(ref,token,afterDesign(claim),{creativePlan});
+    }
+    if(job.phase==='sequence'&&job.type==='generate'){
+      const photo=(claim.business.assets||[]).find((asset:ExpressAsset)=>asset.kind==='photo');
+      const generated=(claim.openingAssetIds||[]).at(-1);
+      let sequence:Buffer|undefined;
+      try{
+        const original=photo?await readExpressAsset(id,photo.id):null;
+        const stored=!photo&&generated?(await ref.collection('media').doc(generated).get()).data():null;
+        const source=original?.buffer||(stored?.data?Buffer.from(stored.data):null);
+        if(source)sequence=await renderCameraSequence(source);
+      }catch(error){
+        console.warn('[Atlas Builder] Sequência de câmera indisponível.',{name:error instanceof Error?error.name:'unknown'});
+      }
+      return await advancePhase(ref,token,'building',{},sequence);
     }
     if(job.type==='research'){const {directions,sources,researchNotice}=await researchBuilder(claim.business);patch={directions,sources,researchNotice};assistant=patch.sources.length?'Encontrei referências públicas e preparei três direções visuais. Escolha uma delas para o seu site.':patch.researchNotice;}
     else if(job.phase==='images'||job.type==='image'){
@@ -187,8 +205,8 @@ async function advance(id:string,email:string){
         patch={media:[...(claim.media||[]),...assets].slice(-12),imageNotice:'',...(automatic?{openingAssetIds:assets.map(asset=>asset.id)}:{})};
         assistant='A imagem foi criada e adicionada à sua biblioteca. Escolha onde deseja usá-la no site.';
       }
-      catch(error){if(job.type==='image')throw error;patch={imageNotice:'Não foi possível criar a imagem de destaque agora. Você pode enviar fotos ou tentar novamente na biblioteca de imagens.'};}
-      if(job.phase==='images')return await advancePhase(ref,token,'building',patch);
+      catch(error){if(job.type==='image')throw error;patch={openingAssetIds:[],imageNotice:'Não foi possível criar a imagem de destaque agora. Você pode enviar fotos ou tentar novamente na biblioteca de imagens.'};}
+      if(job.phase==='images')return await advancePhase(ref,token,'sequence',patch);
     }else{
       const config=(await settings().get()).data();const refs=await loadVisualReferences(ref,job.referenceIds||[]);
       const history=await ref.collection('messages').orderBy('createdAt','desc').limit(16).get();
@@ -198,12 +216,15 @@ async function advance(id:string,email:string){
       const allAssets:ExpressAsset[]=[...(claim.business.assets||[]),...(claim.media||[])];
       const businessPhotos:ExpressAsset[]=(claim.business.assets||[]).filter((asset:ExpressAsset)=>asset.kind==='photo');
       const generatedShots:ExpressAsset[]=(claim.openingAssetIds||[]).flatMap((assetId:string)=>allAssets.filter(asset=>asset.id===assetId));
-      const opening=job.type==='generate'?(businessPhotos.length?businessPhotos.slice(0,1):generatedShots.length?generatedShots:allAssets.filter(asset=>asset.kind==='photo').slice(0,1)):[];
+      const sequenceId=job.type==='generate'?job.sequenceId:claim.openingSequenceId;
+      const opening=job.type==='generate'||sequenceId
+        ? (businessPhotos.length?businessPhotos.slice(0,1):generatedShots.length?(sequenceId?generatedShots.slice(-1):generatedShots):allAssets.filter(asset=>asset.kind==='photo').slice(0,1))
+        : [];
       const selected=claim.selectedDesign?(await ref.collection('designs').doc(claim.selectedDesign).get()).data():null;
       const chosenDesign=selected?.data?{name:'Proposta escolhida',mimeType:selected.mimeType,data:Buffer.from(selected.data).toString('base64')}:undefined;
       const prompt=await builderPrompt({...claim.business,assets:[...(claim.business.assets||[]),...(claim.media||[])]},(claim.directions||BUILDER_DIRECTIONS).find((d:any)=>d.id===claim.directionId)||BUILDER_DIRECTIONS[0],typeof config?.visualPrompt==='string'?config.visualPrompt:DEFAULT_VISUAL_PROMPT,publicOrigin(),refs,job.instruction||'Crie o site completo.',job.type==='edit'?claim.html:undefined,history.docs.filter(d=>d.data().role==='user').reverse().map(d=>d.data().text),learningContext,resultLocale,{plan:claim.creativePlan||null,sources:job.type==='generate'?claim.sources||[]:[],cinematic:opening.length>0,chosenDesign});
-      doc=prepareBuilderHtml(extractSiteHtml(await openaiText(prompt.system,prompt.content,265000)),publicOrigin(),resultLocale,opening,job.type==='generate'?claim.creativePlan:undefined);
-      patch={...patch,locale:resultLocale,quality:auditBuilderSite(doc.html),feedback:null};
+      doc=prepareBuilderHtml(extractSiteHtml(await openaiText(prompt.system,prompt.content,265000)),publicOrigin(),resultLocale,opening,job.type==='generate'?claim.creativePlan:undefined,sequenceId?sequenceUrl(id,sequenceId):undefined);
+      patch={...patch,locale:resultLocale,quality:auditBuilderSite(doc.html),feedback:null,...(job.type==='generate'?{openingSequenceId:sequenceId||null}:{})};
       assistant=job.type==='edit'?'O site foi atualizado. Revise as alterações no editor.':'Seu site está criado. Você pode editar os textos, as cores e as imagens ou pedir ajustes pelo chat.';
     }
     return await db().runTransaction(async tx=>{const current=(await tx.get(ref)).data();if(current?.job?.leaseToken!==token)return current;const version=doc?(current.version||0)+1:current.version||0;
@@ -226,6 +247,14 @@ export default async function builder(req:Request,res:Response){
     }
     if(req.method==='GET'&&action==='media'){
       if(!orderId(req.query.id)||!orderId(req.query.file))return res.status(404).end();const p=(await projects().doc(req.query.id).get()).data();if(!(p?.media||[]).some((a:any)=>a.id===req.query.file))return res.status(404).end();const file=(await projects().doc(req.query.id).collection('media').doc(String(req.query.file)).get()).data();if(!file?.data)return res.status(404).end();res.setHeader('Content-Type',file.mimeType);res.setHeader('Cache-Control','public,max-age=86400,s-maxage=86400');return res.send(Buffer.from(file.data));
+    }
+    if(req.method==='GET'&&action==='sequence'){
+      if(!orderId(req.query.id)||!orderId(req.query.file))return res.status(404).end();
+      const sequence=(await projects().doc(req.query.id).collection('sequences').doc(req.query.file).get()).data();
+      if(!sequence?.data)return res.status(404).end();
+      res.setHeader('Content-Type','image/webp');
+      res.setHeader('Cache-Control','public,max-age=86400,s-maxage=86400,immutable');
+      return res.send(Buffer.from(sequence.data));
     }
     const email=(await getAuthenticatedEmail(req))?.toLowerCase();if(!email)return res.status(401).json({error:'Entre na sua conta para criar e editar seus sites.'});
     if(req.method==='GET'&&action==='list'){const rows=await projects().where('ownerEmail','==',email).limit(250).get();return res.json({projects:rows.docs.map(d=>({id:d.id,name:d.data().business?.name||'Novo site',status:d.data().status,version:d.data().version,portfolioVisible:d.data().portfolioVisible===true,publishedUrl:d.data().publishedSlug?publicOrigin()+'/s/'+d.data().publishedSlug:null,updatedAt:d.data().updatedAt})).sort((a,b)=>b.updatedAt-a.updatedAt)});}

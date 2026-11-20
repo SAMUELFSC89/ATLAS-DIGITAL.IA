@@ -4,15 +4,18 @@ export interface BuilderReference { id: string; name: string; mimeType: string; 
 export interface BuilderSource { title: string; url: string; siteUrl?: string; insight?: string }
 export const BUILDER_SCENE_EFFECTS = ['static', 'mask', 'scroll-zoom', 'overlap'] as const;
 export const BUILDER_SCENE_TRANSITIONS = ['cut', 'wipe', 'match', 'overlap'] as const;
+export const CAMERA_COLUMNS = 4;
+export const CAMERA_ROWS = 6;
 export interface BuilderCreativePlan {
   concept: string;
   scenes: { section: string; goal: string; entrance: string; motion: string; transition: string; transitionEffect?: typeof BUILDER_SCENE_TRANSITIONS[number]; effect: typeof BUILDER_SCENE_EFFECTS[number] }[];
   heroImagePrompt: string;
 }
-export interface BuilderDirection { id: string; name: string; description: string; accent: string; background: string; foreground: string; typography: string; layout: string }
+export interface BuilderStoryboard { opening: string; transition: string; nextScene: string }
+export interface BuilderDirection { id: string; name: string; description: string; accent: string; background: string; foreground: string; typography: string; layout: string; storyboard?: BuilderStoryboard }
 export interface BuilderSection { id: string; label: string; visible: boolean; texts: { id: string; tag: string; text: string }[]; images: { id: string; src: string; alt: string }[] }
 export interface BuilderMessage { id: string; role: 'user' | 'assistant'; text: string; createdAt: number; referenceIds?: string[] }
-export interface BuilderDesignOption { id: string; direction: BuilderDirection }
+export interface BuilderDesignOption { id: string; direction: BuilderDirection; format?: 'scroll-storyboard' }
 export interface BuilderProject {
   id: string; business: ExpressBusiness; locale: SiteLanguage; references: BuilderReference[]; directions: BuilderDirection[]; directionId: string;
   designOptions?: BuilderDesignOption[]; awaitingDesign?: boolean; selectedDesign?: string;
