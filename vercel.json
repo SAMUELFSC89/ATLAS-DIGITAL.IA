@@ -2,6 +2,10 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/proposta/:token",
+      "destination": "/api/site-express?view=builder&action=proposal&token=:token"
+    },
+    {
       "source": "/s/:slug",
       "destination": "/api/site-express?view=builder&action=published&slug=:slug"
     },

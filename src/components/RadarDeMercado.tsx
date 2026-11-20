@@ -4,6 +4,7 @@ import {
   AlertCircle, Plus, Loader2, MessageCircle, FileSpreadsheet, FileText, ExternalLink, Pencil, Send
 } from 'lucide-react';
 import { Lead, RadarLead } from '../types';
+import { builderRequest } from '../lib/builderApi';
 import { ApiError, DEFAULT_APPROACH, fillMessage, formatWhatsApp, searchRadar } from '../lib/radarApi';
 import { RADAR_COUNTRIES, radarCountryName } from '../lib/radarGeography';
 import { createPositioningPdf, positioningFromLead } from '../lib/positioningPdf';
@@ -74,6 +75,32 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads, onOpenSetting
   const [minRating, setMinRating] = useState('all');
   const [minReviews, setMinReviews] = useState('all');
   const [keyword, setKeyword] = useState('');
+
+  const [proposing, setProposing] = useState<string | null>(null);
+  const [proposalError, setProposalError] = useState('');
+  async function createProposal(lead: RadarLead) {
+    if (proposing) return;
+    setProposing(lead.id);
+    setProposalError('');
+    const id = crypto.randomUUID();
+    try {
+      await builderRequest('create', {
+        id, proposal: true,
+        business: {
+          name: lead.companyName, segment: lead.segment,
+          city: [lead.city, lead.state].filter(Boolean).join(', '),
+          services: lead.segment, phone: lead.phone,
+          whatsapp: lead.whatsappConfidence === 'confirmado' ? lead.whatsapp : '',
+          sourceUrl: lead.googleProfile,
+        },
+      });
+      await builderRequest('start', { id, type: 'generate', proposal: true, requestId: crypto.randomUUID() });
+      window.location.assign('/criar-site?projeto=' + id);
+    } catch (error) {
+      setProposalError(error instanceof Error ? error.message : 'Não foi possível preparar a proposta.');
+      setProposing(null);
+    }
+  }
 
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
@@ -644,7 +671,7 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads, onOpenSetting
                         </span>
                       ) : (
                         <span className="text-[9px] uppercase tracking-wider bg-red-500/10 text-red-400 border border-red-900/20 rounded-full px-2.5 py-0.5 font-bold font-mono">
-                          Sem Site (Crítico)
+                          Sem site próprio no Google
                         </span>
                       )}
 
@@ -727,6 +754,13 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads, onOpenSetting
                       )}
                     </button>
 
+                    {!lead.website && (
+                      <button type="button" disabled={Boolean(proposing)} onClick={() => void createProposal(lead)}
+                        className="rounded-xl border border-[#E2B755]/50 text-[#E2B755] px-4 py-2.5 text-xs font-semibold disabled:opacity-50">
+                        {proposing === lead.id ? 'Abrindo o criador…' : 'Criar site para proposta'}
+                      </button>
+                    )}
+
                     {lead.whatsapp && (
                       <button
                         type="button"
@@ -746,6 +780,7 @@ export default function RadarDeMercado({ onAddLeadToCrm, crmLeads, onOpenSetting
         </div>
       )}
 
+      {proposalError && <p role="alert" className="text-sm text-red-300">{proposalError}</p>}
       {/* Explanatory footer */}
       <div className="bg-gray-950/60 border border-gray-900/40 rounded-xl p-4 flex items-start gap-3">
         <AlertCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />

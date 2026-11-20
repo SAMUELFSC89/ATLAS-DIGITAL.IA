@@ -20,6 +20,9 @@ import type { ExpressBusiness, ExpressAsset } from '../../src/lib/expressOrder.j
 
 const projects=()=>db().collection('expressBuilderProjects');
 const published=()=>db().collection('expressBuilderPublished');
+const proposals=()=>db().collection('expressBuilderProposals');
+const PROPOSAL_DURATION=7*24*60*60*1000;
+const proposalLink=(token:string)=>publicOrigin()+'/proposta/'+token;
 const learnings=()=>db().collection('expressBuilderLearning');
 const ownerLearningId=(email:string)=>createHash('sha256').update(email).digest('hex');
 const clean=(v:unknown,n:number)=>typeof v==='string'?v.replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,n):'';
@@ -35,13 +38,14 @@ function complete(b:ExpressBusiness){if(!b.name||!b.segment||!b.city||!b.service
 async function owned(id:any,email:string){if(!orderId(id))fail(400,'Projeto inválido.');const p=(await projects().doc(id).get()).data();if(!p||p.ownerEmail!==email)fail(404,'Projeto não encontrado nesta conta.');return p;}
 const publicMediaUrl=(id:string,file:string)=>`${publicOrigin()}/api/site-express?view=builder&action=media&id=${id}&file=${file}`;
 const sequenceUrl=(id:string,file:string)=>`${publicOrigin()}/api/site-express?view=builder&action=sequence&id=${id}&file=${file}`;
-async function state(id:string,p:any):Promise<BuilderProject>{const messages=await projects().doc(id).collection('messages').orderBy('createdAt','desc').limit(30).get();const legacy=p.html&&hasLegacyBuilderOpening(p.html)?prepareBuilderHtml(p.html,publicOrigin(),parseSiteLanguage(p.locale)||undefined):null;return {id,business:p.business,locale:parseSiteLanguage(p.locale)||DEFAULT_SITE_LANGUAGE,references:p.references||[],directions:p.directions||BUILDER_DIRECTIONS,directionId:p.directionId||'editorial',sources:p.sources||[],researchNotice:p.researchNotice||'',creativePlan:p.creativePlan||null,designOptions:p.designOptions||[],selectedDesign:p.selectedDesign||undefined,awaitingDesign:Boolean(p.pendingDesign),html:legacy?.html||p.html||'',sections:legacy?.sections||p.sections||[],version:p.version||0,status:p.status||'draft',job:p.job?{id:p.job.id,type:p.job.type,phase:p.job.phase,leaseUntil:p.job.leaseUntil||0}:null,message:p.message||'',imageNotice:p.imageNotice||'',publishedUrl:p.publishedSlug?`${publicOrigin()}/s/${p.publishedSlug}`:undefined,publishedVersion:p.publishedVersion||0,portfolioVisible:p.portfolioVisible===true,updatedAt:p.updatedAt,media:p.media||[],quality:p.quality,feedback:p.feedback,messages:messages.docs.reverse().map(doc=>({id:doc.id,...doc.data()} as any))};}
+async function state(id:string,p:any):Promise<BuilderProject>{const messages=await projects().doc(id).collection('messages').orderBy('createdAt','desc').limit(30).get();const legacy=p.html&&hasLegacyBuilderOpening(p.html)?prepareBuilderHtml(p.html,publicOrigin(),parseSiteLanguage(p.locale)||undefined):null;return {id,business:p.business,proposalMode:p.proposalMode===true,proposal:p.proposal?.expiresAt>Date.now()?{url:proposalLink(p.proposal.token),version:p.proposal.version,expiresAt:p.proposal.expiresAt}:undefined,locale:parseSiteLanguage(p.locale)||DEFAULT_SITE_LANGUAGE,references:p.references||[],directions:p.directions||BUILDER_DIRECTIONS,directionId:p.directionId||'editorial',sources:p.sources||[],researchNotice:p.researchNotice||'',creativePlan:p.creativePlan||null,designOptions:p.designOptions||[],selectedDesign:p.selectedDesign||undefined,awaitingDesign:Boolean(p.pendingDesign),html:legacy?.html||p.html||'',sections:legacy?.sections||p.sections||[],version:p.version||0,status:p.status||'draft',job:p.job?{id:p.job.id,type:p.job.type,phase:p.job.phase,leaseUntil:p.job.leaseUntil||0}:null,message:p.message||'',imageNotice:p.imageNotice||'',publishedUrl:p.publishedSlug?`${publicOrigin()}/s/${p.publishedSlug}`:undefined,publishedVersion:p.publishedVersion||0,portfolioVisible:p.portfolioVisible===true,updatedAt:p.updatedAt,media:p.media||[],quality:p.quality,feedback:p.feedback,messages:messages.docs.reverse().map(doc=>({id:doc.id,...doc.data()} as any))};}
 async function addMessage(id:string,role:'user'|'assistant',text:string,referenceIds:string[]=[],key:string=randomUUID()){await projects().doc(id).collection('messages').doc(key).set({role,text:text.slice(0,3000),referenceIds,createdAt:Date.now()});}
 async function saveVersion(id:string,p:any,document:{html:string;sections:any[]},extra:any={}){return db().runTransaction(async tx=>{const ref=projects().doc(id);const current=(await tx.get(ref)).data();if(!current||current.version!==p.version||current.job)fail(409,'O site foi atualizado. Recarregue antes de salvar.');const version=(current.version||0)+1;tx.create(ref.collection('versions').doc(String(version)),{...document,locale:parseSiteLanguage(extra.locale)||parseSiteLanguage(current.locale)||DEFAULT_SITE_LANGUAGE,version,createdAt:Date.now()});tx.update(ref,{...document,...extra,quality:auditBuilderSite(document.html),feedback:null,version,status:'ready',message:'',updatedAt:Date.now()});return {...current,...document,...extra,quality:auditBuilderSite(document.html),feedback:null,version,status:'ready',message:'',updatedAt:Date.now()};});}
 async function startJob(id:string,email:string,type:string,body:any){
   if(!['generate','edit','research','image'].includes(type)||!orderId(body.requestId))fail(400,'Operação inválida.');
   if(!openaiConfigured())fail(503,'O assistente está indisponível no momento.');
-  const instruction=clean(body.text,type==='image'?1500:3000);if(['edit','image'].includes(type)&&!instruction)fail(400,'Descreva o que deseja criar ou alterar.');
+  const fromRadar=body.proposal===true&&type==='generate';
+  const instruction=clean(body.text,type==='image'?1500:3000)||(fromRadar?'Crie uma proposta de site para apresentar à empresa. Use o ramo e o contato fornecidos. Use somente fatos confirmados e textos comerciais neutros. Evite inventar serviços específicos, preços, horários, avaliações, promoções, equipe, garantias ou vínculos com a Atlas.':'');if(['edit','image'].includes(type)&&!instruction)fail(400,'Descreva o que deseja criar ou alterar.');
   const targetLocale=body.targetLocale===undefined?undefined:parseSiteLanguage(body.targetLocale);
   if(body.targetLocale!==undefined&&(!targetLocale||type!=='edit'))fail(400,'Selecione um idioma válido para a tradução.');
   const limits:Record<string,number>={edit:20,research:6,image:8};
@@ -66,7 +70,8 @@ async function startJob(id:string,email:string,type:string,body:any){
       fail(409,'Escolha uma proposta antes de refazer o site.');
     }
     const newDesign=type==='generate'&&!reuseDesign;
-    const job={id:body.requestId,type,...(targetLocale?{targetLocale}:{}),phase:reuseDesign?'selected-planning':newDesign?'planning':type==='research'?'references':type==='image'?'image':'building',instruction:reuseDesign?(p.selectedInstruction||instruction):instruction,referenceIds:(p.references||[]).map((r:any)=>r.id),leaseUntil:0,aspect:body.aspect==='3:4'?'3:4':'16:9',createdAt:Date.now()};
+    const proposal=p.proposalMode===true&&newDesign&&body.proposal===true;
+    const job={id:body.requestId,type,...(proposal?{proposal:true}:{}),...(targetLocale?{targetLocale}:{}),phase:reuseDesign?'selected-planning':newDesign?'planning':type==='research'?'references':type==='image'?'image':'building',instruction:reuseDesign?(p.selectedInstruction||instruction):instruction,referenceIds:(p.references||[]).map((r:any)=>r.id),leaseUntil:0,aspect:body.aspect==='3:4'?'3:4':'16:9',createdAt:Date.now()};
     if(budget&&own){tx.set(budget,{count:totalCount+1});tx.set(own,{count:ownCount+1});}
     const reset=newDesign?{designOptions:[],selectedDesign:null,selectedInstruction:''}:{};
     if(newDesign)for(const option of p.designOptions||[])tx.delete(ref.collection('designs').doc(option.id));
@@ -137,7 +142,7 @@ async function advance(id:string,email:string){
         console.warn('[Atlas Builder] Planejamento indisponível.',{status:Number((error as any)?.status)||0,name:error instanceof Error?error.name:'unknown'});
       }
       if(!planPatch.creativePlan)planPatch.creativePlan=await planBuilder(claim.business,options,planPatch.sources);
-      return await advancePhase(ref,token,'designs',planPatch);
+      return await advancePhase(ref,token,job.proposal?afterDesign(claim):'designs',planPatch);
     }
     if(job.phase==='designs'&&job.type==='generate'){
       const prior:BuilderDesignOption[]=claim.designOptions||[];
@@ -255,6 +260,11 @@ async function advance(id:string,email:string){
     }
     return await db().runTransaction(async tx=>{const current=(await tx.get(ref)).data();if(current?.job?.leaseToken!==token)return current;const version=doc?(current.version||0)+1:current.version||0;
       if(doc)tx.create(ref.collection('versions').doc(String(version)),{...doc,locale:patch.locale,version,createdAt:Date.now()});
+      if(doc&&job.proposal){
+        const proposal={token:randomUUID(),version,expiresAt:Date.now()+PROPOSAL_DURATION};
+        tx.create(proposals().doc(proposal.token),{html:doc.html,expiresAt:proposal.expiresAt});
+        patch.proposal=proposal;
+      }
       const update={...patch,...(doc||{}),version,job:null,status:doc||current.html?'ready':'draft',message:'',updatedAt:Date.now()};tx.update(ref,update);
       if(assistant)tx.set(ref.collection('messages').doc(job.id+'-assistant'),{role:'assistant',text:assistant,createdAt:Date.now(),referenceIds:[]});return {...current,...update};
     });
@@ -268,6 +278,16 @@ export default async function builder(req:Request,res:Response){
     const action=String(req.query.action||req.body?.action||'state');
     if(req.method==='GET'&&action==='creator-directory')return res.json(await getPublicCreatorDirectory(String(req.query.cursor||'')));
     if(req.method==='GET'&&action==='creator-public')return res.json(await getPublicCreator(String(req.query.handle||'')));
+    if(req.method==='GET'&&action==='proposal'){
+      res.setHeader('X-Robots-Tag','noindex, nofollow, nosnippet');
+      res.setHeader('Referrer-Policy','no-referrer');
+      const token=String(req.query.token||'');
+      const proposed=orderId(token)?(await proposals().doc(token).get()).data():null;
+      if(!proposed?.html||proposed.expiresAt<=Date.now())return res.status(404).send('Prévia indisponível ou expirada.');
+      res.setHeader('Content-Type','text/html; charset=utf-8');
+      res.setHeader('Content-Security-Policy',builderCsp(publicOrigin())+"; frame-ancestors 'none'");
+      return res.send(proposed.html.replace('</body>','<aside style="position:fixed;bottom:8px;left:8px;z-index:2147483647;background:#171717;color:#fff;padding:6px 10px;border-radius:4px;font:12px system-ui">Proposta de site · Atlas Digital</aside></body>'));
+    }
     if(req.method==='GET'&&action==='published'){
       const slug=String(req.query.slug||'');if(!/^[a-z0-9-]{5,70}$/.test(slug))return res.status(404).send('Site não encontrado.');const site=(await published().doc(slug).get()).data();if(!site?.html)return res.status(404).send('Site não encontrado.');res.setHeader('Content-Security-Policy',builderCsp(publicOrigin())+"; frame-ancestors 'none'");res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Content-Type','text/html; charset=utf-8');res.setHeader('Cache-Control','public,max-age=60,s-maxage=60');return res.send(site.html);
     }
@@ -306,7 +326,7 @@ export default async function builder(req:Request,res:Response){
       if(!orderId(id))fail(400,'Projeto inválido.');const existing=(await projects().doc(id).get()).data();if(existing){if(existing.ownerEmail!==email)fail(404,'Projeto não encontrado.');return res.json({project:await state(id,existing)});}
       if(!(await rateLimit(email,'builder-create',12,100)))fail(429,'Muitos projetos criados em pouco tempo. Aguarde e tente novamente.');const business=businessInput(req.body.business);complete(business);business.assets=await resolveExpressAssets(req.body,id);business.photo=business.assets.find(a=>a.kind==='photo')?.url||'';
       const locale=req.body?.locale===undefined?DEFAULT_SITE_LANGUAGE:parseSiteLanguage(req.body.locale);if(!locale)fail(400,'Selecione um idioma válido para o site.');
-      const p={ownerEmail:email,business,locale,references:[],directions:BUILDER_DIRECTIONS,directionId:'editorial',sources:[],version:0,html:'',sections:[],media:[],status:'draft',job:null,createdAt:Date.now(),updatedAt:Date.now()};
+      const p={ownerEmail:email,business,locale,proposalMode:req.body.proposal===true,references:[],directions:BUILDER_DIRECTIONS,directionId:'editorial',sources:[],version:0,html:'',sections:[],media:[],status:'draft',job:null,createdAt:Date.now(),updatedAt:Date.now()};
       const batch=db().batch();batch.create(projects().doc(id),p);batch.create(previews().doc(id),{business,title:business.name,introduction:'',offers:[],createdAt:Date.now()});await batch.commit();return res.json({project:await state(id,p)});
     }
     const p=await owned(id,email);const ref=projects().doc(String(id));
@@ -379,6 +399,17 @@ export default async function builder(req:Request,res:Response){
       }else await saveVersion(String(id),p,modifyBuilderHtml(p.html,operation,publicOrigin()));
     }else if(action==='restore'){
       if(!Number.isInteger(req.body.version)||req.body.version<1)fail(400,'Versão inválida.');const old=(await ref.collection('versions').doc(String(req.body.version)).get()).data();if(!old?.html)fail(404,'Versão não encontrada.');const oldLocale=parseSiteLanguage(old.locale)||DEFAULT_SITE_LANGUAGE;await saveVersion(String(id),p,prepareBuilderHtml(old.html,publicOrigin(),oldLocale),{locale:oldLocale});
+    }else if(action==='prepare-proposal'){
+      if(!p.proposalMode||!p.html)fail(409,'Crie o rascunho da proposta primeiro.');
+      const document=prepareBuilderHtml(p.html,publicOrigin(),parseSiteLanguage(p.locale)||DEFAULT_SITE_LANGUAGE);
+      await db().runTransaction(async tx=>{
+        const current=(await tx.get(ref)).data();
+        editable(current);
+        if(current?.version!==p.version)fail(409,'O site mudou. Atualize o editor antes de preparar o envio.');
+        const proposal={token:randomUUID(),version:p.version,expiresAt:Date.now()+PROPOSAL_DURATION};
+        tx.create(proposals().doc(proposal.token),{html:document.html,expiresAt:proposal.expiresAt});
+        tx.update(ref,{proposal});
+      });
     }else if(action==='publish'){
       if(!p.html||!p.version)fail(409,'Crie o site antes de publicar.');
       const configuredOwner=(process.env.ATLAS_CONTACT_OWNER_EMAIL||'samuelfsc89@gmail.com').trim().toLowerCase();const owner=email===configuredOwner&&(await getAuthenticatedEmail(req,true))?.toLowerCase()===email;

@@ -25,6 +25,7 @@ export interface BuilderProject {
   status: 'draft' | 'working' | 'ready' | 'error'; job?: { id: string; type: 'generate' | 'edit' | 'image' | 'research'; phase: string; leaseUntil: number } | null;
   message?: string; imageNotice?: string; publishedUrl?: string; publishedVersion?: number; updatedAt: number;
   media: ExpressAsset[]; messages: BuilderMessage[];
+  proposalMode?: boolean; proposal?: {url:string;version:number;expiresAt:number};
   portfolioVisible?: boolean;
   quality?: { score: number; skillVersion: string; checks: { id: string; ok: boolean; label: string }[] };
   feedback?: { version: number; rating: 'good' | 'improve'; note: string; createdAt: number } | null;
