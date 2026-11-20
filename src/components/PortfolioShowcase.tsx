@@ -99,7 +99,7 @@ export default function PortfolioShowcase({ openContact }: { openContact: (subje
           </div>
         </article>)}
       </div>
-      <div className="mt-9 flex flex-col items-center justify-center gap-3 text-center text-sm text-zinc-300 sm:flex-row sm:gap-5" data-reveal><p>A identidade da sua empresa. O cuidado da Atlas.</p><a className="inline-flex min-h-11 items-center gap-2 font-semibold text-[#E2B755] underline underline-offset-4" href="/criar-site">Criar meu site <ArrowRight size={16} /></a></div>
+      <p className="mt-9 text-center text-sm text-zinc-300" data-reveal>A identidade da sua empresa. O cuidado da Atlas.</p>
     </div>
     <dialog ref={dialog} onCancel={close} onClose={close} className="atlas-portfolio-dialog fixed inset-0 m-auto max-h-[94dvh] w-[96vw] max-w-4xl overflow-auto rounded-2xl border border-white/20 bg-[#111419] p-3 text-white shadow-2xl backdrop:bg-black/85 sm:p-5" aria-label={`Demonstração ampliada de ${chosen?.name || 'site'}`}>
       {chosen && <><div className="sticky top-0 z-10 mb-3 flex items-center justify-between gap-3 rounded-lg bg-[#111419] p-2"><div><p className="font-semibold">{chosen.name}</p><p className="mt-1 text-xs text-zinc-400">Modelo demonstrativo · Atlas Digital</p></div><button type="button" autoFocus onClick={close} aria-label="Fechar demonstração" className="flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-white/20"><X size={20} /></button></div>
