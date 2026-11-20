@@ -36,7 +36,6 @@ import {
   Target,
   Star,
   MessageCircle,
-  ArrowRight,
   Menu,
   X,
   Phone,
@@ -646,9 +645,6 @@ export default function App() {
               >
                 Solicitar diagnóstico digital
               </button>
-              <a href="/criar-site" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#E2B755]/50 px-5 py-3 text-sm font-semibold text-[#E2B755] transition-colors hover:bg-[#E2B755]/10">
-                Criar meu site <ArrowRight size={16} />
-              </a>
               
               <button
                 onClick={() => openContactWithPrefill('Solicitação de Diagnóstico Gratuito - Home')}
