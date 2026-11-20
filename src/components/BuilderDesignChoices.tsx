@@ -34,14 +34,18 @@ function DesignCard({projectId,option,disabled,onChoose}:{key?:string;projectId:
   </article>;
 }
 
-export default function BuilderDesignChoices({projectId,options,disabled,onSelect,onDismiss}:{projectId:string;options:BuilderDesignOption[];disabled:boolean;onSelect:(optionId:string)=>void;onDismiss:()=>void}){
+export default function BuilderDesignChoices({projectId,options,disabled,onSelect,onDismiss}:{projectId:string;options:BuilderDesignOption[];disabled:boolean;onSelect:(optionId:string,notes:string)=>void;onDismiss:()=>void}){
+  const [notes,setNotes]=useState('');
   return <section className="builder-style-setup builder-design-choice" aria-label="Propostas visuais">
     <h1>Escolha seu site</h1>
     <p>{options.some(option=>option.format==='scroll-storyboard')
       ? 'Cada proposta mostra a abertura, a transição da rolagem e a próxima cena. Abra as imagens para comparar.'
       : 'Abra as imagens para comparar. A Atlas transforma a proposta escolhida em um site editável.'}</p>
+    <label className="builder-design-notes">Ajustes antes de construir
+      <textarea rows={2} maxLength={800} value={notes} disabled={disabled} onChange={event=>setNotes(event.target.value)} placeholder="Descreva um efeito ou detalhe para a opção que vai escolher."/>
+    </label>
     <div className="builder-design-grid">{options.map(option=>
-      <DesignCard key={option.id} projectId={projectId} option={option} disabled={disabled} onChoose={()=>onSelect(option.id)}/>
+      <DesignCard key={option.id} projectId={projectId} option={option} disabled={disabled} onChoose={()=>onSelect(option.id,notes.trim())}/>
     )}</div>
     <button type="button" className="builder-button secondary" disabled={disabled} onClick={onDismiss}>Voltar ao briefing</button>
   </section>;
