@@ -10,6 +10,8 @@ export interface BuilderCreativePlan {
   concept: string;
   scenes: { section: string; goal: string; entrance: string; motion: string; transition: string; transitionEffect?: typeof BUILDER_SCENE_TRANSITIONS[number]; effect: typeof BUILDER_SCENE_EFFECTS[number] }[];
   heroImagePrompt: string;
+  actionImagePrompt?: string;
+  nextImagePrompt?: string;
 }
 export interface BuilderStoryboard { opening: string; transition: string; nextScene: string }
 export interface BuilderDirection { id: string; name: string; description: string; accent: string; background: string; foreground: string; typography: string; layout: string; storyboard?: BuilderStoryboard }

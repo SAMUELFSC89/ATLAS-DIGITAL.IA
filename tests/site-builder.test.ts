@@ -7,6 +7,7 @@ import path from 'node:path';
 import { build } from 'esbuild';
 import { load } from 'cheerio';
 import sharp from 'sharp';
+import { renderCameraSequence } from '../api/_lib/builder-camera-sequence.ts';
 import { prepareBuilderHtml, modifyBuilderHtml, builderCsp, builderImageUrl } from '../api/_lib/express-builder-html.ts';
 import { previewPrompt } from '../api/_lib/express-claude.ts';
 import { BUILDER_DIRECTIONS } from '../src/lib/siteBuilder.ts';
@@ -52,6 +53,21 @@ test('cinematic opening pins two trusted frames and preserves its copy when edit
  assert.equal($('[data-atlas-shot]').length,1);
  assert.equal($('[data-atlas-shot-copy] h1').text(),'Novo destaque');
  assert.equal($('#inicio img').length,2);
+});
+
+test('cinematic camera changes pose and draws lightning only at the catch',async()=>{
+ const photo=(background:string)=>sharp({create:{width:640,height:360,channels:3,background}}).png().toBuffer();
+ const base=await photo('#232a35'),pose=await photo('#4e2020');
+ const sprite=await renderCameraSequence(base,{action:pose,lightning:true});
+ const quiet=await renderCameraSequence(base,{action:pose});
+ const frame=(source:Buffer,index:number)=>sharp(source).extract({left:(index%4)*512,top:Math.floor(index/4)*288,width:512,height:288}).removeAlpha().raw().toBuffer();
+ const first=await frame(sprite,0),last=await frame(sprite,23);
+ assert.ok(first[2]>first[0]);
+ assert.ok(last[0]>last[2]*1.8);
+ const lit=await frame(sprite,12),plain=await frame(quiet,12);
+ assert.ok(lit.some((value,index)=>value>plain[index]+85));
+ const quietLast=await frame(quiet,23);
+ assert.ok(last.every((value,index)=>Math.abs(value-quietLast[index])<4));
 });
 
 test('Carta Secreta applies scene transitions to visual surfaces and keeps CTAs readable',()=>{

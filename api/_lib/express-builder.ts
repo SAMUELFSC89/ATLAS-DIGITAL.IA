@@ -101,7 +101,7 @@ function afterDesign(project:any){
   return photos.some(asset=>asset.kind==='photo')?'sequence':'images';
 }
 
-async function chooseDesign(ref:DocumentReference,email:string,optionId:string|null){
+async function chooseDesign(ref:DocumentReference,email:string,optionId:string|null,notes:string){
   return db().runTransaction(async tx=>{
     const current=(await tx.get(ref)).data();
     if(!current||current.ownerEmail!==email)fail(404,'Projeto não encontrado.');
@@ -109,9 +109,11 @@ async function chooseDesign(ref:DocumentReference,email:string,optionId:string|n
     if(current.job||!current.pendingDesign)fail(409,'As propostas já mudaram. Atualize o editor.');
     const option=current.designOptions?.find((entry:BuilderDesignOption)=>entry.id===optionId);
     if(optionId&&!option)fail(400,'Selecione uma das três propostas.');
+    const previous=current.pendingDesign.instruction||'';
+    const instruction=notes?`Ajustes aprovados: ${notes}\n\nBriefing: ${previous}`.slice(0,3800):previous;
     const update=option
-      ? {pendingDesign:null,selectedDesign:option.id,selectedInstruction:current.pendingDesign.instruction||'',directionId:option.direction.id,
-         job:{...current.pendingDesign,phase:'selected-planning',leaseUntil:0},status:'working',message:'',updatedAt:Date.now()}
+      ? {pendingDesign:null,selectedDesign:option.id,selectedInstruction:instruction,directionId:option.direction.id,
+         job:{...current.pendingDesign,instruction,phase:'selected-planning',leaseUntil:0},status:'working',message:'',updatedAt:Date.now()}
       : {pendingDesign:null,job:null,status:current.html?'ready':'draft',message:'',updatedAt:Date.now()};
     tx.update(ref,update);
     return {...current,...update};
@@ -168,7 +170,20 @@ async function advance(id:string,email:string){
       const chosen={name:option.direction.name,mimeType:image.mimeType,data:Buffer.from(image.data).toString('base64')};
       const options={direction:option.direction,instruction:job.instruction,locale:parseSiteLanguage(claim.locale)||DEFAULT_SITE_LANGUAGE,references:await loadVisualReferences(ref,job.referenceIds||[])};
       const creativePlan=await planBuilder(claim.business,options,claim.sources||[],chosen);
-      return await advancePhase(ref,token,afterDesign(claim),{creativePlan});
+      return await advancePhase(ref,token,afterDesign(claim),{creativePlan,openingNextId:null});
+    }
+    if(job.phase==='next-image'&&job.type==='generate'){
+      try{
+        const last=(claim.openingAssetIds||[]).at(-1);
+        const reference=last?(await ref.collection('media').doc(last).get()).data():null;
+        const photo=await generateBuilderPhoto(claim.business,claim.creativePlan.nextImagePrompt,'16:9',
+          reference?.data?{buffer:Buffer.from(reference.data),mimeType:reference.mimeType}:undefined);
+        const asset=await storeGenerated(id,photo);
+        return await advancePhase(ref,token,'sequence',{openingNextId:asset.id,media:[...(claim.media||[]),asset].slice(-12)});
+      }catch(error){
+        console.warn('[Atlas Builder] Fotografia da próxima cena indisponível.',{name:error instanceof Error?error.name:'unknown'});
+        return await advancePhase(ref,token,'sequence',{});
+      }
     }
     if(job.phase==='sequence'&&job.type==='generate'){
       const photo=(claim.business.assets||[]).find((asset:ExpressAsset)=>asset.kind==='photo');
@@ -178,7 +193,13 @@ async function advance(id:string,email:string){
         const original=photo?await readExpressAsset(id,photo.id):null;
         const stored=!photo&&generated?(await ref.collection('media').doc(generated).get()).data():null;
         const source=original?.buffer||(stored?.data?Buffer.from(stored.data):null);
-        if(source)sequence=await renderCameraSequence(source);
+        const first=(claim.openingAssetIds||[])[0];
+        const action=Boolean(claim.creativePlan?.actionImagePrompt)&&!photo&&first&&first!==generated;
+        const opening=action?(await ref.collection('media').doc(first).get()).data():null;
+        const lightning=/\b(raios?|rel[aâ]mpagos?)\b/iu.test(job.instruction||'');
+        if(source)sequence=opening?.data
+          ? await renderCameraSequence(Buffer.from(opening.data),{action:source,lightning})
+          : await renderCameraSequence(source,{lightning});
       }catch(error){
         console.warn('[Atlas Builder] Sequência de câmera indisponível.',{name:error instanceof Error?error.name:'unknown'});
       }
@@ -196,7 +217,11 @@ async function advance(id:string,email:string){
         const assets=[await storeGenerated(id,close)];
         if(automatic){
           try{
-            const wide=await generateBuilderPhoto(claim.business,'Crie o segundo plano da mesma cena, em ângulo aberto. Preserve ambiente, sujeito, materiais, figurino e luz da imagem anexa. O objeto permanece no lado direito, revele o contexto ao redor.', '16:9',close);
+            const action=claim.creativePlan?.actionImagePrompt;
+            const shot=action
+              ? `Crie o instante decisivo: ${action}. Preserve exatamente o personagem, figurino, ambiente e paleta da fotografia anterior. Enquadre a ação no centro-direita, deixando espaço limpo à esquerda. Fotograma sem textos.`
+              : 'Crie o segundo plano da mesma cena, em ângulo aberto. Preserve ambiente, sujeito, materiais, figurino e luz da imagem anexa. O objeto permanece no lado direito, revele o contexto ao redor.';
+            const wide=await generateBuilderPhoto(claim.business,shot,'16:9',close);
             assets.push(await storeGenerated(id,wide));
           }catch(error){
             console.warn('[Atlas Builder] Segundo enquadramento indisponível.',{status:Number((error as any)?.status)||0});
@@ -206,7 +231,7 @@ async function advance(id:string,email:string){
         assistant='A imagem foi criada e adicionada à sua biblioteca. Escolha onde deseja usá-la no site.';
       }
       catch(error){if(job.type==='image')throw error;patch={openingAssetIds:[],imageNotice:'Não foi possível criar a imagem de destaque agora. Você pode enviar fotos ou tentar novamente na biblioteca de imagens.'};}
-      if(job.phase==='images')return await advancePhase(ref,token,'sequence',patch);
+      if(job.phase==='images')return await advancePhase(ref,token,claim.creativePlan?.nextImagePrompt?'next-image':'sequence',patch);
     }else{
       const config=(await settings().get()).data();const refs=await loadVisualReferences(ref,job.referenceIds||[]);
       const history=await ref.collection('messages').orderBy('createdAt','desc').limit(16).get();
@@ -218,11 +243,12 @@ async function advance(id:string,email:string){
       const generatedShots:ExpressAsset[]=(claim.openingAssetIds||[]).flatMap((assetId:string)=>allAssets.filter(asset=>asset.id===assetId));
       const sequenceId=job.type==='generate'?job.sequenceId:claim.openingSequenceId;
       const opening=job.type==='generate'||sequenceId
-        ? (businessPhotos.length?businessPhotos.slice(0,1):generatedShots.length?(sequenceId?generatedShots.slice(-1):generatedShots):allAssets.filter(asset=>asset.kind==='photo').slice(0,1))
+        ? (businessPhotos.length?businessPhotos.slice(0,1):generatedShots.length?(sequenceId&&!claim.creativePlan?.actionImagePrompt?generatedShots.slice(-1):generatedShots):allAssets.filter(asset=>asset.kind==='photo').slice(0,1))
         : [];
+      const nextImage=job.type==='generate'?allAssets.find(asset=>asset.id===claim.openingNextId):undefined;
       const selected=claim.selectedDesign?(await ref.collection('designs').doc(claim.selectedDesign).get()).data():null;
       const chosenDesign=selected?.data?{name:'Proposta escolhida',mimeType:selected.mimeType,data:Buffer.from(selected.data).toString('base64')}:undefined;
-      const prompt=await builderPrompt({...claim.business,assets:[...(claim.business.assets||[]),...(claim.media||[])]},(claim.directions||BUILDER_DIRECTIONS).find((d:any)=>d.id===claim.directionId)||BUILDER_DIRECTIONS[0],typeof config?.visualPrompt==='string'?config.visualPrompt:DEFAULT_VISUAL_PROMPT,publicOrigin(),refs,job.instruction||'Crie o site completo.',job.type==='edit'?claim.html:undefined,history.docs.filter(d=>d.data().role==='user').reverse().map(d=>d.data().text),learningContext,resultLocale,{plan:claim.creativePlan||null,sources:job.type==='generate'?claim.sources||[]:[],cinematic:opening.length>0,chosenDesign});
+      const prompt=await builderPrompt({...claim.business,assets:allAssets},(claim.directions||BUILDER_DIRECTIONS).find((d:any)=>d.id===claim.directionId)||BUILDER_DIRECTIONS[0],typeof config?.visualPrompt==='string'?config.visualPrompt:DEFAULT_VISUAL_PROMPT,publicOrigin(),refs,job.instruction||'Crie o site completo.',job.type==='edit'?claim.html:undefined,history.docs.filter(d=>d.data().role==='user').reverse().map(d=>d.data().text),learningContext,resultLocale,{plan:claim.creativePlan||null,sources:job.type==='generate'?claim.sources||[]:[],cinematic:opening.length>0,chosenDesign,nextImageUrl:nextImage?.url});
       doc=prepareBuilderHtml(extractSiteHtml(await openaiText(prompt.system,prompt.content,265000)),publicOrigin(),resultLocale,opening,job.type==='generate'?claim.creativePlan:undefined,sequenceId?sequenceUrl(id,sequenceId):undefined);
       patch={...patch,locale:resultLocale,quality:auditBuilderSite(doc.html),feedback:null,...(job.type==='generate'?{openingSequenceId:sequenceId||null}:{})};
       assistant=job.type==='edit'?'O site foi atualizado. Revise as alterações no editor.':'Seu site está criado. Você pode editar os textos, as cores e as imagens ou pedir ajustes pelo chat.';
@@ -306,7 +332,7 @@ export default async function builder(req:Request,res:Response){
     if(action==='choose-design'||action==='dismiss-designs'){
       const optionId=action==='choose-design'?req.body.optionId:null;
       if(action==='choose-design'&&!orderId(optionId))fail(400,'Proposta inválida.');
-      return res.json({project:await state(String(id),await chooseDesign(ref,email,optionId))});
+      return res.json({project:await state(String(id),await chooseDesign(ref,email,optionId,clean(req.body.notes,800)))});
     }
     editable(p);
     if(p.pendingDesign)fail(409,'Escolha uma das propostas ou descarte as opções primeiro.');
