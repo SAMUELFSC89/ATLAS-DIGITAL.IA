@@ -305,6 +305,25 @@ test('authenticated endpoint: ownership, reference cap, model input, job retries
  const secondPage=await call('creator-directory',{cursor:firstPage.body.nextCursor},null,'GET');
  assert.equal(secondPage.statusCode,200);assert.equal(secondPage.body.creators.length,4);
  assert.equal(secondPage.body.nextCursor,null);
+ const proposalId=randomUUID();
+ assert.equal((await call('create',{id:proposalId,business,proposal:true})).statusCode,200);
+ await call('start',{id:proposalId,type:'generate',proposal:true,requestId:randomUUID()});
+ const plan=await call('run',{id:proposalId});
+ assert.equal(plan.body.project.job.phase,'images');
+ for(let step=0;step<3;step++)assert.equal((await call('run',{id:proposalId})).statusCode,200);
+ const proposalProject=(await call('state',{id:proposalId},undefined,'GET')).body.project;
+ assert.equal(proposalProject.version,1);
+ assert.equal(proposalProject.publishedUrl,undefined);
+ assert.equal(proposalProject.proposal.version,1);
+ const proposalToken=proposalProject.proposal.url.split('/').pop();
+ const preview=await call('proposal',{token:proposalToken},null,'GET');
+ assert.equal(preview.statusCode,200);
+ assert.match(preview.headers['X-Robots-Tag'],/noindex/);
+ assert.match(preview.body,/Proposta de site/);
+ db.data.get('expressBuilderProposals/'+proposalToken).expiresAt=Date.now()-1;
+ assert.equal((await call('proposal',{token:proposalToken},null,'GET')).statusCode,404);
+ assert.equal((await call('prepare-proposal',{id:proposalId},'outra@example.com')).statusCode,404);
+ assert.equal((await call('prepare-proposal',{id:proposalId})).statusCode,200);
  }finally{await endpoint.close();delete (globalThis as any).__atlasBuilderTest;}
 });
 
