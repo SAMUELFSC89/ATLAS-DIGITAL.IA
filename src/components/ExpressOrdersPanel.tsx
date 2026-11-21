@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ExternalLink, RefreshCw } from 'lucide-react';
+import { Download, ExternalLink, RefreshCw } from 'lucide-react';
 import { auth } from '../lib/firebase';
 import { expressDate, expressMoney, type ExpressOrder, type ExpressStatus } from '../lib/expressOrder';
 import { DEFAULT_VISUAL_PROMPT } from '../lib/expressVisualPrompt';
@@ -15,10 +15,10 @@ const button = 'rounded-lg border border-white/15 px-3 py-2 text-sm font-semibol
 const input = 'min-w-0 rounded-lg border border-white/20 bg-black/35 px-3 py-2 text-sm text-white';
 const isOpen = (order: PanelOrder) => order.status === 'paid' || order.status === 'production';
 
-async function request<T>(body?: object): Promise<T> {
+async function request<T>(body?: object, query?: URLSearchParams): Promise<T> {
   const user = auth.currentUser;
   if (!user) throw new Error('Entre na conta da Atlas.');
-  const response = await fetch('/api/site-express?view=admin', {
+  const response = await fetch('/api/site-express?view=admin' + (query ? '&' + query : ''), {
     method: body ? 'POST' : 'GET', headers: {
       'Content-Type': 'application/json', Authorization: 'Bearer ' + await user.getIdToken(),
     }, ...(body && { body: JSON.stringify(body) }),
@@ -36,7 +36,7 @@ export default function ExpressOrdersPanel() {
   const [visualEnabled, setVisualEnabled] = useState(false);
   const [visualLastIssue, setVisualLastIssue] = useState<List['visualLastIssue']>();
   const [resumeLink, setResumeLink] = useState('');
-  const [filter, setFilter] = useState<'active' | 'all' | ExpressStatus>('active');
+  const [filter, setFilter] = useState<'paid-orders' | 'all' | ExpressStatus>('paid-orders');
   const [busy, setBusy] = useState('load');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -70,7 +70,23 @@ export default function ExpressOrdersPanel() {
     finally { setBusy(''); }
   }
 
-  const visible = orders.filter(order => filter === 'all' || (filter === 'active' ? isOpen(order) : order.status === filter))
+  async function downloadApprovedSite(id: string) {
+    setError('');
+    try {
+      const query = new URLSearchParams({ action: 'approved-site', id });
+      const { html } = await request<{ html: string }>(undefined, query);
+      const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'atlas-site-' + id + '.html';
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) { setError((e as Error).message); }
+  }
+
+  const visible = orders.filter(order => filter === 'all' || (filter === 'paid-orders'
+    ? order.mode === 'live' && (isOpen(order) || order.status === 'delivered')
+    : order.status === filter))
     .sort((a, b) => (a.dueAt ?? Infinity) - (b.dueAt ?? Infinity) || b.createdAt - a.createdAt);
 
   return (
@@ -94,7 +110,7 @@ export default function ExpressOrdersPanel() {
         </form>
         <label className="text-sm text-zinc-300">Exibir
           <select className={input + ' mt-1 block'} value={filter} onChange={e => setFilter(e.target.value as typeof filter)}>
-            <option value="active">Fila de produção</option><option value="all">Todos os pedidos</option>
+            <option value="paid-orders">Pedidos pagos</option><option value="all">Todos os pedidos</option>
             {Object.entries(labels).map(([value, text]) => <option value={value} key={value}>{text}</option>)}
           </select>
         </label>
@@ -144,7 +160,9 @@ export default function ExpressOrdersPanel() {
               </div>
               <p className="rounded-full bg-[#E2B755]/15 px-3 py-1 text-sm font-semibold text-[#E2B755]">{labels[order.status]}{order.mode === 'test' ? ' · Teste' : ''}</p>
             </div>
-            <p className="break-words text-sm text-zinc-300">{order.email} · +{order.business.whatsapp}</p>
+            <p className="break-words text-sm text-zinc-300">{order.email}{order.business.whatsapp ? ' · +' + order.business.whatsapp : order.business.phone ? ' · ' + order.business.phone : ''}</p>
+            {order.requestedDomain && <p className="break-words text-sm text-zinc-300">Domínio solicitado <strong>{order.requestedDomain}</strong></p>}
+            {order.approvedVersion && <p className="text-sm text-zinc-300">Versão aprovada pelo cliente <strong>{order.approvedVersion}</strong></p>}
             <p className="break-words text-sm text-zinc-300">{order.business.services}</p>
             {Boolean(order.business.assets?.length) && <details className="rounded-lg border border-white/10 p-3">
               <summary className="cursor-pointer text-sm font-semibold text-[#E2B755]">Fotos e logo do projeto ({order.business.assets!.length})</summary>
@@ -158,7 +176,11 @@ export default function ExpressOrdersPanel() {
             </p>}
             {order.deliveredAt && <p className="text-sm text-zinc-300">Enviado em {expressDate(order.deliveredAt)}</p>}
             <div className="flex flex-wrap items-center gap-2">
-              <a className={button + ' inline-flex items-center gap-2'} href={`/site-express?previa=${order.previewId}`} target="_blank" rel="noreferrer">Abrir prévia <ExternalLink size={13} /></a>
+              {order.approvedVersion ? (isOpen(order) || order.status === 'delivered') && (
+                <button className={button + ' inline-flex items-center gap-2'} onClick={() => void downloadApprovedSite(order.id)}>
+                  <Download size={14} /> Baixar versão aprovada
+                </button>
+              ) : <a className={button + ' inline-flex items-center gap-2'} href={`/site-express?previa=${order.previewId}`} target="_blank" rel="noreferrer">Abrir prévia <ExternalLink size={13} /></a>}
               {order.status === 'paid' && <button className={button} disabled={Boolean(busy)} onClick={() => void run({ action: 'production', id: order.id }, 'Pedido em produção.')}>Iniciar produção</button>}
               {(isOpen(order) || order.status === 'delivered') && !order.receiptSentAt &&
                 <button className={button} disabled={Boolean(busy)} onClick={() => void run({ action: 'receipt', id: order.id }, 'Confirmação enviada.')}>Enviar confirmação</button>}
@@ -170,10 +192,14 @@ export default function ExpressOrdersPanel() {
             {isOpen(order) && <form className="flex flex-wrap gap-2" onSubmit={(event: FormEvent<HTMLFormElement>) => {
               event.preventDefault();
               const data = new FormData(event.currentTarget);
-              void run({ action: 'deliver', id: order.id, finalUrl: data.get('finalUrl') }, 'Entrega enviada por e-mail.');
+              void run({ action: 'deliver', id: order.id, finalUrl: data.get('finalUrl'), domainVerified: data.get('domainVerified') === 'on' }, 'Entrega enviada por e-mail.');
             }}>
               <input name="finalUrl" aria-label="Link HTTPS do site final" required type="url" placeholder="https://…"
                 defaultValue={order.deliveryUrl} maxLength={800} className={input + ' flex-1 basis-48'} />
+              {order.requestedDomain && <label className="flex basis-full items-start gap-2 text-sm text-zinc-300">
+                <input name="domainVerified" type="checkbox" required className="mt-1" />
+                Publiquei o site e conferi que o domínio final abre por HTTPS.
+              </label>}
               <button className={button} disabled={Boolean(busy)}>Enviar entrega</button>
             </form>}
           </article>

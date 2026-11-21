@@ -1,5 +1,5 @@
 import { ATLAS_WHATSAPP } from '../../src/lib/contact.js';
-import { EXPRESS_HOURS, expressDate, expressMoney } from '../../src/lib/expressOrder.js';
+import { expressDate, expressMoney } from '../../src/lib/expressOrder.js';
 
 export interface ExpressEmail {
   subject: string;
@@ -50,8 +50,8 @@ ${body}
 </td></tr></table></body></html>`;
 }
 
-export function receiptEmail(input: { id: string; name: string; amount: number; dueAt: number; origin: string }): ExpressEmail {
-  const { id, name, amount, dueAt, origin } = input;
+export function receiptEmail(input: { id: string; name: string; amount: number; dueAt: number; deliveryHours: number; origin: string }): ExpressEmail {
+  const { id, name, amount, dueAt, deliveryHours, origin } = input;
   const trackingUrl = `${origin}/site-express?pedido=${encodeURIComponent(id)}`;
   const deadline = expressDate(dueAt);
   const price = expressMoney(amount);
@@ -61,7 +61,7 @@ export function receiptEmail(input: { id: string; name: string; amount: number; 
       `Olá! Recebemos o pagamento do Site Express para ${name}. Sua compra está confirmada.`,
       `Pedido ${id} · ${price}`,
       'Agora nossa equipe vai preparar e revisar seu site. A prévia apresentada na compra é uma demonstração.',
-      `Prazo de entrega: até ${EXPRESS_HOURS} horas após a aprovação do pagamento. Entrega até ${deadline} (horário de Brasília).`,
+      `Prazo de entrega: até ${deliveryHours} horas após a aprovação do pagamento. Entrega até ${deadline} (horário de Brasília).`,
       'Você receberá o link do site concluído neste mesmo e-mail assim que a entrega estiver pronta.',
       `Acompanhe seu pedido: ${trackingUrl}`,
       `Envie informações, fotos ou dúvidas ao suporte pelo WhatsApp da Atlas Digital: ${supportUrl(id)}`,
@@ -79,7 +79,7 @@ export function receiptEmail(input: { id: string; name: string; amount: number; 
         paragraph('Agora nossa equipe vai preparar e revisar seu site. A prévia que você viu na compra é uma demonstração do projeto.') +
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#17181B" style="margin:24px 0;border-radius:6px;"><tr><td style="padding:22px;">
 <p style="margin:0 0 6px;color:#E2B755;font-size:11px;font-weight:bold;letter-spacing:1.5px;">PRAZO DE ENTREGA</p>
-<p style="margin:0 0 8px;color:#FFFFFF;font-size:25px;line-height:32px;font-weight:bold;">Até ${EXPRESS_HOURS} horas</p>
+<p style="margin:0 0 8px;color:#FFFFFF;font-size:25px;line-height:32px;font-weight:bold;">Até ${deliveryHours} horas</p>
 <p style="margin:0;color:#D7D7D7;font-size:14px;line-height:23px;">Após a aprovação do pagamento.<br>Entrega até <strong style="color:#FFFFFF;">${escape(deadline)}</strong><br>Horário de Brasília.</p>
 </td></tr></table>` +
         paragraph('Assim que estiver concluído, você receberá o link do site neste mesmo e-mail. Enquanto isso, acompanhe o andamento do seu pedido.') +
