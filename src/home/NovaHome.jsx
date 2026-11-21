@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import HeroCarrosselDeImagens from './componentes/hero-carrossel-de-imagens'
 import NotasCaindo from './componentes/NotasCaindo'
-import logoAtlas from './assets/logo-atlas-site.png'
+import MenuAtlas from './MenuAtlas'
 
 /*
   Página inicial da Atlas Digital (rota "/").
@@ -108,75 +108,6 @@ function useReveal() {
     els.forEach((el) => io.observe(el))
     return () => io.disconnect()
   }, [])
-}
-
-function Nav({ onPedirOrcamento, onEntrar, onSobre }) {
-  const [aberto, setAberto] = useState(false)
-  const [rolou, setRolou] = useState(false)
-  useEffect(() => {
-    const onScroll = () => setRolou(window.scrollY > 20)
-    window.addEventListener('scroll', onScroll)
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-  // [texto, link] ou [texto, null, ação]
-  const links = [
-    ['Serviços', '#serviços'],
-    ['Projetos', '#projetos'],
-    ['Como funciona', '#processo'],
-    ['Soluções', '/solucoes'],
-    ['Sobre nós', null, onSobre],
-    ['Contato', '#contato'],
-  ]
-  return (
-    <header className={`fixed inset-x-0 top-0 z-50 transition-all ${rolou ? 'bg-ink/80 backdrop-blur-md border-b border-white/10' : ''}`}>
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-        <a href="/" aria-label="Atlas Digital">
-          <img src={logoAtlas} alt="Atlas Digital" className="h-12 w-auto md:h-14" />
-        </a>
-        <ul className="hidden gap-8 text-sm text-paper/70 lg:flex">
-          {links.map(([l, href, acao]) => (
-            <li key={l}>
-              {href ? (
-                <a href={href} className="transition hover:text-paper">{l}</a>
-              ) : (
-                <button type="button" onClick={acao} className="transition hover:text-paper">{l}</button>
-              )}
-            </li>
-          ))}
-        </ul>
-        <div className="hidden items-center gap-5 lg:flex">
-          <button type="button" onClick={onEntrar} className="text-sm text-paper/70 transition hover:text-paper">Entrar</button>
-          <button type="button" onClick={() => onPedirOrcamento('Orçamento - Página inicial (menu)')} className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-ink transition hover:scale-105">
-            Pedir orçamento
-          </button>
-        </div>
-        <button onClick={() => setAberto(!aberto)} className="lg:hidden" aria-label="Menu">
-          <div className="space-y-1.5">
-            <span className={`block h-0.5 w-6 bg-paper transition ${aberto ? 'translate-y-2 rotate-45' : ''}`} />
-            <span className={`block h-0.5 w-6 bg-paper transition ${aberto ? 'opacity-0' : ''}`} />
-            <span className={`block h-0.5 w-6 bg-paper transition ${aberto ? '-translate-y-2 -rotate-45' : ''}`} />
-          </div>
-        </button>
-      </nav>
-      {aberto && (
-        <ul className="space-y-4 border-t border-white/10 bg-ink px-6 py-6 lg:hidden">
-          {links.map(([l, href, acao]) => (
-            <li key={l}>
-              {href ? (
-                <a onClick={() => setAberto(false)} href={href} className="text-3xl font-bold tracking-tighter">{l}</a>
-              ) : (
-                <button type="button" onClick={() => { setAberto(false); acao() }} className="text-3xl font-bold tracking-tighter">{l}</button>
-              )}
-            </li>
-          ))}
-          <li className="flex gap-3 pt-2">
-            <button type="button" onClick={() => { setAberto(false); onPedirOrcamento('Orçamento - Página inicial (menu)') }} className="rounded-full bg-accent px-5 py-3 text-sm font-semibold text-ink">Pedir orçamento</button>
-            <button type="button" onClick={() => { setAberto(false); onEntrar() }} className="rounded-full border border-white/20 px-5 py-3 text-sm">Entrar</button>
-          </li>
-        </ul>
-      )}
-    </header>
-  )
 }
 
 function Marquee() {
@@ -426,6 +357,12 @@ function Rodape({ onDocLegal }) {
 
 export default function NovaHome({ onPedirOrcamento = () => {}, onEntrar = () => {}, onDocLegal = () => {} }) {
   useReveal()
+  useEffect(() => {
+    const id = decodeURIComponent(window.location.hash.slice(1))
+    if (!id) return
+    const t = setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }), 350)
+    return () => clearTimeout(t)
+  }, [])
   // o botão "Começar projeto" do hero abre a mesma janela de contato do site
   const cliqueNoHero = (e) => {
     if (e.target.closest('button')) onPedirOrcamento('Começar projeto - Página inicial')
@@ -433,7 +370,7 @@ export default function NovaHome({ onPedirOrcamento = () => {}, onEntrar = () =>
   return (
     <div className="nova-home min-h-screen bg-ink font-sans text-paper antialiased">
       <NotasCaindo />
-      <Nav onPedirOrcamento={onPedirOrcamento} onEntrar={onEntrar} onSobre={() => onDocLegal('sobre')} />
+      <MenuAtlas onPedirOrcamento={onPedirOrcamento} onEntrar={onEntrar} onSobre={() => onDocLegal('sobre')} />
       <main className="relative z-10">
         <div onClick={cliqueNoHero}>
           <HeroCarrosselDeImagens
