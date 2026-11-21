@@ -54,7 +54,6 @@ import {
 import { PROBLEMS, SOLUTIONS, STEPS, DIFFERENTIALS, TESTIMONIALS, TARGET_SEGMENTS } from './data';
 import MockupShowcase from './components/MockupShowcase';
 import PortfolioShowcase from './components/PortfolioShowcase';
-import BudgetSimulator from './components/BudgetSimulator';
 import InteractiveContactModal from './components/InteractiveContactModal';
 import SegmentDemoShowcase from './components/SegmentDemoShowcase';
 import AtlasLogo from './components/AtlasLogo';
@@ -694,24 +693,6 @@ export default function App() {
       {/* SEÇÃO PREMIUM: VISUALIZAR MODELO INTERATIVO (DEMONSTRAÇÃO AO VIVO) */}
       <SegmentDemoShowcase openContactWithPrefill={openContactWithPrefill} />
 
-      {/* INTERACTIVE SCOPE BUILDER / CALCULATOR HIGHLIGHT */}
-      <section id="simulador" className="py-32 relative">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
-            <span className="text-[10px] text-zinc-400 uppercase tracking-[0.2em] font-mono font-bold">Personalização</span>
-            <h2 className="text-3xl sm:text-4xl font-display font-black text-white tracking-tight leading-tight">
-              Personalize seu projeto
-            </h2>
-            <p className="text-sm text-zinc-300 leading-relaxed">
-              Defina os recursos de que sua marca necessita e envie a configuração para receber uma proposta sob medida sem qualquer compromisso.
-            </p>
-          </div>
-
-          <BudgetSimulator />
-
-        </div>
-      </section>
 
       <section id="diagnostico" className="scroll-mt-24 border-y border-zinc-900/60 px-4 py-20 text-center">
         <h2 className="font-display text-3xl font-black text-white">Atlas Score</h2>
