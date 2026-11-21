@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import logoAtlas from '../home/assets/logo-atlas-site.webp';
 
 interface AtlasLogoProps {
   className?: string;
@@ -88,52 +88,16 @@ export function AtlasLogoIcon({ className = 'w-10 h-10', variant = 'gold' }: { c
   );
 }
 
-export default function AtlasLogo({ 
-  className = '', 
-  iconOnly = false, 
-  variant = 'gold', 
-  showSubtitle = true 
-}: AtlasLogoProps) {
-
-  if (iconOnly) {
-    return <AtlasLogoIcon className={className} variant={variant} />;
-  }
-
+// Logo oficial da Atlas (a mesma imagem do menu da página inicial), usada em todas as páginas.
+export default function AtlasLogo({ className = '' }: AtlasLogoProps) {
   return (
-    <div className={`flex items-center gap-3 select-none ${className}`}>
-      {/* Animated logo mark */}
-      <motion.div 
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 15 }}
-        className="shrink-0"
-      >
-        <AtlasLogoIcon className="w-10 h-10 md:w-11 md:h-11 drop-shadow-xl" variant={variant} />
-      </motion.div>
-
-      {/* Typography brand details mimicking the uploaded file */}
-      <div className="flex flex-col justify-center text-left">
-        {/* ATLAS lettering with custom golden inner triangles for the A's */}
-        <div className="flex items-center font-display font-black text-base md:text-lg tracking-[0.25em] text-white leading-none">
-          <span>ATLAS</span>
-        </div>
-        
-        {/* DIGITAL with golden accent lines */}
-        <div className="flex items-center gap-1.5 mt-1">
-          <div className="h-[1px] w-3 bg-[#E2B755] opacity-70"></div>
-          <span className="text-[9px] md:text-[10px] font-mono font-bold tracking-[0.35em] text-[#E2B755] uppercase leading-none">
-            DIGITAL
-          </span>
-          <div className="h-[1px] w-3 bg-[#E2B755] opacity-70"></div>
-        </div>
-
-        {/* Subtitle SITES QUE GERAM RESULTADOS */}
-        {showSubtitle && (
-          <span className="hidden sm:inline-block text-[7px] md:text-[8px] text-gray-400 tracking-[0.18em] font-medium uppercase mt-1 leading-none">
-            SITES QUE GERAM RESULTADOS
-          </span>
-        )}
-      </div>
-    </div>
+    <img
+      src={logoAtlas}
+      alt="Atlas Digital"
+      width={176}
+      height={150}
+      className={`block h-12 w-auto select-none md:h-14 ${className}`}
+      draggable={false}
+    />
   );
 }

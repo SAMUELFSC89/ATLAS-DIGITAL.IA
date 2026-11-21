@@ -40,6 +40,7 @@ import {
   X,
   Phone,
   Mail,
+  Instagram,
   ExternalLink,
   Play,
   Check,
@@ -53,7 +54,6 @@ import {
 import { PROBLEMS, SOLUTIONS, STEPS, DIFFERENTIALS, TESTIMONIALS, TARGET_SEGMENTS } from './data';
 import MockupShowcase from './components/MockupShowcase';
 import PortfolioShowcase from './components/PortfolioShowcase';
-import BudgetSimulator from './components/BudgetSimulator';
 import InteractiveContactModal from './components/InteractiveContactModal';
 import SegmentDemoShowcase from './components/SegmentDemoShowcase';
 import AtlasLogo from './components/AtlasLogo';
@@ -81,6 +81,8 @@ const CreatorShowcasePage = lazy(() => import('./components/CreatorShowcasePage'
 const SiteExpressPage = lazy(() => import('./components/SiteExpressPage'));
 // Página inicial nova (rota "/"). A página anterior continua em /solucoes.
 const NovaHome = lazy(() => import('./home/NovaHome'));
+import MenuAtlas from './home/MenuAtlas';
+import BotaoDiagnostico from './home/BotaoDiagnostico';
 const ExpressOrdersPanel = lazy(() => import('./components/ExpressOrdersPanel'));
 const expressLoading = <p role="status" className="p-5 text-sm text-zinc-300">Carregando Site Express…</p>;
 
@@ -93,7 +95,7 @@ export default function App() {
   const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocType>(null);
 
   // Portal / SaaS States
-  const [isPortalActive, setIsPortalActive] = useState(false);
+  const [isPortalActive, setIsPortalActive] = useState(() => new URLSearchParams(window.location.search).has('entrar'));
   const [currentUser, setCurrentUser] = useState<string | null | undefined>(undefined);
   const [activePortalTab, setActivePortalTab] = useState<string>('dashboard');
   const [auditLead, setAuditLead] = useState<Lead>();
@@ -524,114 +526,16 @@ export default function App() {
     <div className="atlas-public-site min-h-screen text-[#F3F4F6] font-sans antialiased overflow-x-hidden selection:bg-[#E2B755]/20 selection:text-white">
       <AtlasSiteBackdrop />
       
-      {/* HEADER / NAVIGATION */}
-      <header 
-        className={`fixed top-0 inset-x-0 z-40 transition-all duration-300 ${
-          scrolled 
-            ? 'bg-[#0B0B0E]/95 backdrop-blur-md border-b border-zinc-900/60 py-3.5 shadow-xl' 
-            : 'bg-transparent py-6'
-        }`}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-          
-          {/* Logo */}
-          <a href="/" aria-label="Atlas Digital, página inicial" className="cursor-pointer">
-            <AtlasLogo />
-          </a>
+      {/* MENU (o mesmo da página inicial nova) */}
+      <MenuAtlas
+        base="/"
+        onPedirOrcamento={openContactWithPrefill}
+        onEntrar={() => { setIsPortalActive(true); setActivePortalTab('dashboard'); }}
+        onSobre={() => setActiveLegalDoc('sobre')}
+      />
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-8 text-[11px] font-medium tracking-widest uppercase text-zinc-300">
-            <button onClick={() => scrollToSection('home')} className="hover:text-white transition-colors">Início</button>
-            <button onClick={() => scrollToSection('solucoes')} className="hover:text-white transition-colors">Soluções</button>
-            <button onClick={() => scrollToSection('portfolio')} className="hover:text-white transition-colors">Portfólio</button>
-            <a href="/criadores" className="hover:text-white transition-colors">Criadores</a>
-            <button onClick={() => scrollToSection('diagnostico')} className="text-zinc-200 hover:text-white transition-all font-semibold flex items-center gap-1.5 border border-zinc-800 rounded-full px-3 py-1 bg-zinc-900/30 hover:bg-zinc-900/80">
-              <Award className="w-3.5 h-3.5" />
-              Atlas Score
-            </button>
-            <button onClick={() => scrollToSection('processo')} className="hover:text-white transition-colors">Como Funciona</button>
-            <button onClick={() => scrollToSection('diferenciais')} className="hover:text-white transition-colors">Sobre</button>
-            <button onClick={() => scrollToSection('simulador')} className="hover:text-white transition-colors">Simulador</button>
-          </nav>
-
-          {/* Desktop Call to Action */}
-          <div className="hidden lg:flex items-center gap-4">
-            <button
-              onClick={() => {
-                setIsPortalActive(true);
-                setActivePortalTab('dashboard');
-              }}
-              className="text-[#E2B755] hover:text-white font-bold text-xs uppercase tracking-wider py-2.5 px-5 rounded-full border border-[#E2B755]/20 hover:border-[#E2B755] bg-yellow-500/[0.02] hover:bg-yellow-500/10 transition-all duration-300"
-            >
-              Acessar Portal SaaS
-            </button>
-            <button
-              onClick={() => openContactWithPrefill('Diagnóstico Gratuito de Presença Digital')}
-              className="bg-white hover:bg-zinc-200 text-black font-semibold text-xs py-2.5 px-6 rounded-full transition-all duration-300 hover:scale-[1.02]"
-              id="header-cta-btn"
-            >
-              Iniciar Diagnóstico
-            </button>
-          </div>
-
-          {/* Mobile Menu Toggle */}
-          <div className="lg:hidden">
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 text-gray-300 hover:text-white transition-colors"
-              aria-label="Toggle menu"
-            >
-              {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
-
-        </div>
-      </header>
-
-      {/* MOBILE MENU DROPDOWN */}
-      <AnimatePresence>
-        {isMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="fixed inset-x-0 top-[60px] z-30 bg-[#0B0B0E] border-b border-zinc-900 p-6 flex flex-col gap-4 text-xs font-semibold tracking-widest uppercase text-gray-300 lg:hidden shadow-2xl"
-          >
-            <button onClick={() => scrollToSection('home')} className="text-left py-2 hover:text-[#E2B755]">Início</button>
-            <button onClick={() => scrollToSection('solucoes')} className="text-left py-2 hover:text-[#E2B755]">Soluções</button>
-            <button onClick={() => scrollToSection('portfolio')} className="text-left py-2 hover:text-[#E2B755]">Portfólio</button>
-            <a href="/criadores" className="text-left py-2 hover:text-[#E2B755]">Comunidade de criadores</a>
-            <a href="/meu-portfolio" className="text-left py-2 hover:text-[#E2B755]">Meu portfólio</a>
-            <button onClick={() => { setIsMenuOpen(false); scrollToSection('diagnostico'); }} className="text-left py-2 text-[#E2B755] font-bold flex items-center gap-1.5">
-              <Award className="w-4 h-4" />
-              Diagnóstico Atlas Score
-            </button>
-            <button 
-              onClick={() => { 
-                setIsMenuOpen(false); 
-                setIsPortalActive(true); 
-                setActivePortalTab('dashboard');
-              }} 
-              className="text-left py-2 text-[#E2B755] font-bold flex items-center gap-1.5"
-            >
-              <Compass className="w-4 h-4 text-[#E2B755]" />
-              Acessar Portal SaaS
-            </button>
-            <button onClick={() => scrollToSection('processo')} className="text-left py-2 hover:text-[#E2B755]">Como Funciona</button>
-            <button onClick={() => scrollToSection('diferenciais')} className="text-left py-2 hover:text-[#E2B755]">Diferenciais</button>
-            <button onClick={() => scrollToSection('simulador')} className="text-left py-2 hover:text-[#E2B755]">Simulador</button>
-            <button
-              onClick={() => {
-                setIsMenuOpen(false);
-                setIsContactModalOpen(true);
-              }}
-              className="w-full bg-[#E2B755] text-[#0B0B0E] font-bold py-3.5 px-5 rounded-lg text-center mt-2 hover:bg-yellow-500"
-            >
-              Analisar minha presença digital
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Botão de diagnóstico que acompanha a rolagem */}
+      <BotaoDiagnostico onClick={() => openContactWithPrefill('Diagnóstico Gratuito de Presença Digital')} />
 
       {/* HERO SECTION */}
       <section id="home" className="relative min-h-screen pt-36 pb-24 flex items-center justify-center overflow-hidden">
@@ -789,24 +693,6 @@ export default function App() {
       {/* SEÇÃO PREMIUM: VISUALIZAR MODELO INTERATIVO (DEMONSTRAÇÃO AO VIVO) */}
       <SegmentDemoShowcase openContactWithPrefill={openContactWithPrefill} />
 
-      {/* INTERACTIVE SCOPE BUILDER / CALCULATOR HIGHLIGHT */}
-      <section id="simulador" className="py-32 relative">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
-            <span className="text-[10px] text-zinc-400 uppercase tracking-[0.2em] font-mono font-bold">Personalização</span>
-            <h2 className="text-3xl sm:text-4xl font-display font-black text-white tracking-tight leading-tight">
-              Personalize seu projeto
-            </h2>
-            <p className="text-sm text-zinc-300 leading-relaxed">
-              Defina os recursos de que sua marca necessita e envie a configuração para receber uma proposta sob medida sem qualquer compromisso.
-            </p>
-          </div>
-
-          <BudgetSimulator />
-
-        </div>
-      </section>
 
       <section id="diagnostico" className="scroll-mt-24 border-y border-zinc-900/60 px-4 py-20 text-center">
         <h2 className="font-display text-3xl font-black text-white">Atlas Score</h2>
@@ -1114,6 +1000,12 @@ export default function App() {
                 <Phone className="w-4 h-4 text-zinc-400 shrink-0" />
                 <a href="https://wa.me/5551994578544" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
                   +55 (51) 99457-8544
+                </a>
+              </li>
+              <li className="flex items-center gap-2">
+                <Instagram className="w-4 h-4 text-zinc-400 shrink-0" />
+                <a href="https://www.instagram.com/atlasdigital_ia" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+                  @atlasdigital_ia
                 </a>
               </li>
               <li className="flex items-center gap-2">

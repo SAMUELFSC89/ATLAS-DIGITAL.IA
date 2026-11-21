@@ -116,8 +116,9 @@ async function startServer() {
     console.log(`Running in PRODUCTION mode. Serving static assets from: ${distPath}`);
     app.use(express.static(distPath));
     app.get('/contato', (req, res) => res.sendFile(path.join(distPath, 'contato.html')));
+    // "/" é servida pelo express.static (index.html = página inicial); as demais rotas usam o app completo.
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      res.sendFile(path.join(distPath, 'app.html'));
     });
   } else {
     console.log("Running in DEVELOPMENT mode with Vite middleware.");
@@ -127,6 +128,15 @@ async function startServer() {
     });
     app.get('/contato', (req, res, next) => {
       req.url = req.url.replace(/^\/contato\/?/, '/contato.html');
+      next();
+    });
+    // Navegação para qualquer rota que não seja "/" (nem arquivo, nem API) usa o app completo (app.html).
+    app.use((req, res, next) => {
+      const caminho = req.path;
+      const ehNavegacao = req.method === 'GET' && (req.headers.accept || '').includes('text/html');
+      if (ehNavegacao && caminho !== '/' && !caminho.startsWith('/api/') && !path.extname(caminho)) {
+        req.url = '/app.html' + req.url.slice(caminho.length);
+      }
       next();
     });
     app.use(vite.middlewares);
