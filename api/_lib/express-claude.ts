@@ -89,7 +89,7 @@ const RULES = `Regras obrigatórias:
 export function previewPrompt(business: ExpressBusiness, input: { creativePrompt: string; brandColor: string; origin: string }) {
   const system = `Você é diretor de arte e desenvolvedor front-end de uma agência premium brasileira. Cria sites de uma página originais, sofisticados e que convertem visitantes em contatos comerciais pelos canais reais fornecidos.\n\n${RULES}\n\nDiretrizes criativas da Atlas (subordinadas às regras acima):\n${input.creativePrompt}`;
   const user = `Crie o site desta empresa.\n<empresa>${JSON.stringify({
-    nome: business.name, ramo: business.segment, cidade: business.city, servicos: business.services, whatsapp: business.whatsapp, telefone: business.phone || '', site_oficial: business.website || '', fonte_publica: business.sourceUrl || '',
+    nome: business.name, ramo: business.segment, cidade: business.city, servicos: business.services, whatsapp: business.whatsapp, telefone: business.phone || '', email_comercial: business.contactEmail || '', endereco_comercial: business.address || '', horarios: business.hours || '', site_oficial: business.website || '', fonte_publica: business.sourceUrl || '',
     cor_da_marca: input.brandColor || 'escolha uma paleta adequada ao ramo',
     arquivos: assetList(business.assets, input.origin),
   })}</empresa>`;
@@ -99,7 +99,7 @@ export function previewPrompt(business: ExpressBusiness, input: { creativePrompt
 export function finalPrompt(business: ExpressBusiness, input: { previewHtml: string; notes: string; creativePrompt: string; origin: string }) {
   const system = `Você é diretor de arte e desenvolvedor front-end de uma agência premium brasileira. Recebe o site aprovado como prévia e entrega a versão final, pronta para publicação.\n\n${RULES}\n- Preserve a identidade visual da prévia (cores, tipografia, estrutura), salvo quando os ajustes pedirem mudança.\n- Inclua <title>, meta description, meta viewport, Open Graph básico e HTML semântico acessível (alt nas imagens, contraste adequado).\n\nDiretrizes criativas da Atlas (subordinadas às regras acima):\n${input.creativePrompt}`;
   const user = `Finalize o site.\n<empresa>${JSON.stringify({
-    nome: business.name, ramo: business.segment, cidade: business.city, servicos: business.services, whatsapp: business.whatsapp, telefone: business.phone || '', site_oficial: business.website || '', fonte_publica: business.sourceUrl || '',
+    nome: business.name, ramo: business.segment, cidade: business.city, servicos: business.services, whatsapp: business.whatsapp, telefone: business.phone || '', email_comercial: business.contactEmail || '', endereco_comercial: business.address || '', horarios: business.hours || '', site_oficial: business.website || '', fonte_publica: business.sourceUrl || '',
     arquivos: assetList(business.assets, input.origin),
   })}</empresa>\n<ajustes_do_cliente>${input.notes || 'Nenhum ajuste além da revisão final.'}</ajustes_do_cliente>\n<previa_aprovada>\n${input.previewHtml}\n</previa_aprovada>`;
   return { system, user };

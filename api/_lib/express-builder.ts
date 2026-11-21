@@ -15,7 +15,7 @@ import { normalizeSiteWhatsApp } from '../../src/lib/siteLanguages.js';
 import { DEFAULT_VISUAL_PROMPT } from '../../src/lib/expressVisualPrompt.js';
 import { BUILDER_DIRECTIONS, type BuilderProject, type BuilderReference, type BuilderDesignOption, type BuilderDirection } from '../../src/lib/siteBuilder.js';
 import { parseSiteLanguage, DEFAULT_SITE_LANGUAGE } from '../../src/lib/siteLanguages.js';
-import { importBusinessFromUrl, BusinessImportError, parseBusinessLink } from './builder-business-import.js';
+import { importBusinessFromUrl, BusinessImportError, parseBusinessLink, businessEmail } from './builder-business-import.js';
 import type { ExpressBusiness, ExpressAsset } from '../../src/lib/expressOrder.js';
 
 const projects=()=>db().collection('expressBuilderProjects');
@@ -40,9 +40,19 @@ const editable=(p:any)=>{if(p.job)fail(409,'Aguarde a operação em andamento an
 function businessInput(input:any):ExpressBusiness{
   const safeWebsite=(value:unknown)=>{try{const parsed=parseBusinessLink(value);return parsed.kind==='website'?parsed.url.href:'';}catch{return '';}};
   const safeSource=(value:unknown)=>{try{return parseBusinessLink(value).url.href;}catch{return '';}};
-  return {name:clean(input?.name,100),segment:clean(input?.segment,80),city:clean(input?.city,100),services:clean(input?.services,1000),whatsapp:normalizeSiteWhatsApp(clean(input?.whatsapp,30)),phone:clean(input?.phone,30).replace(/[^\d+().\s-]/g,''),website:safeWebsite(input?.website),sourceUrl:safeSource(input?.sourceUrl),photo:'',assets:[]};
+  const research = input?.businessResearch;
+  const sources = Array.isArray(research?.sources) ? research.sources.slice(0, 8).flatMap((source: { title?: unknown; url?: unknown }) => {
+    const url = safeSource(source?.url);
+    return url ? [{ url, title: clean(source?.title, 100) || new URL(url).hostname }] : [];
+  }) : [];
+  return {name:clean(input?.name,100),segment:clean(input?.segment,80),city:clean(input?.city,100),services:clean(input?.services,1000),whatsapp:normalizeSiteWhatsApp(clean(input?.whatsapp,30)),phone:clean(input?.phone,30).replace(/[^\d+().\s-]/g,''),website:safeWebsite(input?.website),sourceUrl:safeSource(input?.sourceUrl),
+    address:clean(input?.address,220),contactEmail:businessEmail(input?.contactEmail),hours:clean(input?.hours,260),
+    ...(sources.length ? { businessResearch: {
+      visualDirection: clean(research.visualDirection,640), reviewThemes: clean(research.reviewThemes,440), sources,
+    } } : {}),
+    photo:'',assets:[]};
 }
-function complete(b:ExpressBusiness){if(!b.name||!b.segment||!b.city||!b.services)fail(400,'Não foi possível identificar todos os dados básicos. Confira nome, ramo, localidade e descrição dos serviços.');if(!b.whatsapp&&(!b.phone||b.phone.replace(/\D/g,'').length<8))fail(400,'Informe um WhatsApp ou telefone comercial válido para o site ter um contato funcional.');}
+function complete(b:ExpressBusiness){if(!b.name||!b.segment||!b.city||!b.services)fail(400,'Não foi possível identificar todos os dados básicos. Confira nome, ramo, localidade e descrição dos serviços.');if(!b.whatsapp&&!b.contactEmail&&(!b.phone||b.phone.replace(/\D/g,'').length<8))fail(400,'Informe um WhatsApp, telefone ou e-mail comercial válido.');}
 async function owned(id:any,email:string){if(!orderId(id))fail(400,'Projeto inválido.');const p=(await projects().doc(id).get()).data();if(!p||p.ownerEmail!==email)fail(404,'Projeto não encontrado nesta conta.');return p;}
 const publicMediaUrl=(id:string,file:string)=>`${publicOrigin()}/api/site-express?view=builder&action=media&id=${id}&file=${file}`;
 const sequenceUrl=(id:string,file:string)=>`${publicOrigin()}/api/site-express?view=builder&action=sequence&id=${id}&file=${file}`;

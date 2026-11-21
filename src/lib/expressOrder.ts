@@ -26,6 +26,14 @@ export interface ExpressBusiness {
   website?: string;
   /** URL from which the user imported the company data. */
   sourceUrl?: string;
+  address?: string;
+  contactEmail?: string;
+  hours?: string;
+  businessResearch?: {
+    visualDirection: string;
+    reviewThemes: string;
+    sources: { title: string; url: string }[];
+  };
   photo: string;
   assets?: ExpressAsset[];
 }

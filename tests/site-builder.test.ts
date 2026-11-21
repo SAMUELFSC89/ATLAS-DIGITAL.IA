@@ -138,26 +138,50 @@ test('bloqueia URLs internas, credenciais e protocolos inseguros na importação
    assert.throws(()=>parseBusinessLink(url),BusinessImportError,url);
  }
  assert.equal(parseBusinessLink('https://maps.app.goo.gl/abc').kind,'google');
+ assert.equal(parseBusinessLink('https://share.google/abc').kind,'google');
  assert.equal(parseBusinessLink('https://www.google.com/maps/place/Studio+Polar/').kind,'google');
  assert.equal(parseBusinessLink('https://www.suaempresa.com').kind,'website');
 });
-test('perfil Google Maps fornece dados Google Places e NÃO assume que telefone é WhatsApp',async()=>{
+test('a OpenAI pesquisa o perfil, ancora dados em fontes e descarta temas sem fonte',async t=>{
  const previousFetch=globalThis.fetch;
- const previousKey=process.env.GOOGLE_PLACES_API_KEY;
- process.env.GOOGLE_PLACES_API_KEY='fake-secret';
- globalThis.fetch=async(_input:any,init:any)=>{
+ const previousKey=process.env.OPENAI_API_KEY;
+ process.env.OPENAI_API_KEY='fake-secret';
+ t.after(()=>{
+   globalThis.fetch=previousFetch;
+   if(previousKey===undefined) delete process.env.OPENAI_API_KEY;
+   else process.env.OPENAI_API_KEY=previousKey;
+ });
+ const website='https://studiopolar.com.br/';
+ const photoSource=website+'projetos';
+ const reviews='https://reviews.example.org/studio-polar';
+ let verified=true;
+ globalThis.fetch=async(input:any,init:any)=>{
+   assert.equal(String(input),'https://api.openai.com/v1/responses');
    const body=JSON.parse(init.body);
-   assert.match(body.textQuery,/Studio Polar/);
-   return new Response(JSON.stringify({places:[{displayName:{text:'Studio Polar'},formattedAddress:'New York, NY',primaryTypeDisplayName:{text:'Photography studio'},internationalPhoneNumber:'+1 212 555 0101',addressComponents:[{types:['locality'],longText:'New York'},{types:['administrative_area_level_1'],longText:'New York'},{types:['country'],longText:'United States'}],editorialSummary:{text:'Studio de fotografia comercial e retratos profissionais.'},websiteUri:'https://studiopolar.example'}]}),{status:200,headers:{'Content-Type':'application/json'}});
+   assert.match(body.input[0].content[0].text,/Studio\+Polar/);
+   assert.deepEqual(body.tools[0].search_content_types,['text','image']);
+   assert.equal(body.store,false);
+   const facts={verified,name:'Studio Polar',city:'São Paulo, SP',segment:'Estúdio de fotografia',
+     address:'Rua das Fotos, 123',contactEmail:'contato@studiopolar.com.br',hours:'Segunda a sexta, 9h às 18h',
+     phone:'+55 11 2222-3333',services:'Retratos profissionais e fotografia comercial',
+     website,visualDirection:'Luz lateral suave e fundos neutros',reviewThemes:'Elogios ao atendimento',
+     factSources:[website],imageSources:[photoSource],reviewSources:[reviews]};
+   const annotations=[website,photoSource].map(url=>({type:'url_citation',url,title:'Studio Polar'}));
+   return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(facts),annotations}]}]}));
  };
- try{
-   const result=await importBusinessFromUrl('https://www.google.com/maps/place/Studio+Polar/');
-   assert.equal(result.business.name,'Studio Polar');
-   assert.match(result.business.city,/New York/);
-   assert.equal(result.business.whatsapp,'');
-   assert.equal(result.business.phone,'+1 212 555 0101');
-   assert.ok(!result.missing.includes('whatsapp'));
- }finally{globalThis.fetch=previousFetch;if(previousKey===undefined)delete process.env.GOOGLE_PLACES_API_KEY;else process.env.GOOGLE_PLACES_API_KEY=previousKey;}
+ const profile='https://www.google.com/maps/place/Studio+Polar/';
+ const result=await importBusinessFromUrl(profile);
+ assert.equal(result.business.name,'Studio Polar');
+ assert.equal(result.business.address,'Rua das Fotos, 123');
+ assert.equal(result.business.contactEmail,'contato@studiopolar.com.br');
+ assert.equal(result.business.phone,'+55 11 2222-3333');
+ assert.equal(result.business.whatsapp,'');
+ assert.equal(result.business.businessResearch?.visualDirection,'Luz lateral suave e fundos neutros');
+ assert.equal(result.business.businessResearch?.reviewThemes,'');
+ assert.deepEqual(result.business.businessResearch?.sources.map(source=>source.url),[website,photoSource]);
+ assert.deepEqual(result.missing,[]);
+ verified=false;
+ await assert.rejects(importBusinessFromUrl(profile),(error:BusinessImportError)=>error.status===422);
 });
 test('o editor mantém links tel: válidos e bloqueia javascript ou host externo',()=>{
  const document=prepareBuilderHtml(raw.replace('https://wa.me/5551999999999?text=Ol%C3%A1','tel:+351912345678'),origin);
@@ -165,6 +189,8 @@ test('o editor mantém links tel: válidos e bloqueia javascript ou host externo
  assert.equal($('a[href="tel:+351912345678"]').length,1);
  const unsafe=prepareBuilderHtml(raw.replace('https://wa.me/5551999999999?text=Ol%C3%A1','tel:123;evil'),origin);
  assert.equal(load(unsafe.html)('a[href^="tel:"]').length,0);
+ const email=prepareBuilderHtml(raw.replace('https://wa.me/5551999999999?text=Ol%C3%A1','mailto:contato@empresa.com.br'),origin);
+ assert.equal(load(email.html)('a[href="mailto:contato@empresa.com.br"]').length,1);
 });
 
 // Endpoint integration with in-memory transaction serialization and fake external services.
@@ -184,12 +210,12 @@ async function loadEndpoint(){
  const temp=await mkdtemp(path.join(process.cwd(),'.builder-test-'));const out=path.join(temp,'endpoint.cjs');
  await build({entryPoints:['api/_lib/express-builder.ts'],outfile:out,bundle:true,platform:'node',format:'cjs',packages:'external',logLevel:'silent',plugins:[{name:'fixtures',setup(b){
  b.onResolve({filter:/express-store\.js$|\/radar\.js$|express-assets\.js$|express-claude\.js$|express-openai\.js$|express-builder-ai\.js$/},args=>({path:args.path,namespace:'fixture'}));
- b.onLoad({filter:/.*/,namespace:'fixture'},args=>{let names=args.path.includes('express-store')?['db','previews','settings','orders','orderId','publicOrigin','saoPauloDay','rateLimit']:args.path.includes('radar')?['getAuthenticatedEmail']:args.path.includes('express-assets')?['readExpressAsset','resolveExpressAssets','rasterInfo','ASSET_MAX_BYTES','ExpressAssetError']:args.path.includes('express-claude')?['extractSiteHtml']:args.path.includes('express-openai')?['openaiAccessMessage','openaiConfigured','openaiText']:['researchBuilder','planBuilder','builderPrompt','generateBuilderPhoto','generateDesignMockup'];return {contents:names.map(n=>`export const ${n}=globalThis.__atlasBuilderTest.${n};`).join('\n'),loader:'js'};});
+ b.onLoad({filter:/.*/,namespace:'fixture'},args=>{let names=args.path.includes('express-store')?['db','previews','settings','orders','orderId','publicOrigin','saoPauloDay','rateLimit']:args.path.includes('radar')?['getAuthenticatedEmail']:args.path.includes('express-assets')?['readExpressAsset','resolveExpressAssets','rasterInfo','ASSET_MAX_BYTES','ExpressAssetError']:args.path.includes('express-claude')?['extractSiteHtml']:args.path.includes('express-openai')?['openaiAccessMessage','openaiConfigured','openaiText','openaiResponse','openaiOutputText']:['researchBuilder','planBuilder','builderPrompt','generateBuilderPhoto','generateDesignMockup'];return {contents:names.map(n=>`export const ${n}=globalThis.__atlasBuilderTest.${n};`).join('\n'),loader:'js'};});
  }}]});
  const require=createRequire(import.meta.url);return {handler:require(out).default,close:()=>rm(temp,{recursive:true,force:true})};
 }
 test('authenticated endpoint: ownership, reference cap, model input, job retries, versions and payment gate',async t=>{
- const db=new MemoryDb();let generationCalls=0;let modelReferences:any[]=[];let requestedLocale='';let planningCalls=0;let plannedRefs=0;let usedConcept='';let imagePrompt='';let chosenDesign='';let selectedPlanInput='';let imageDesign='';const fixture:any={db:()=>db,previews:()=>db.collection('expressPreviews'),settings:()=>db.collection('expressInternal').doc('settings'),orders:()=>db.collection('expressOrders'),orderId:(v:any)=>typeof v==='string'&&/^[a-f0-9-]{36}$/i.test(v),publicOrigin:()=>origin,saoPauloDay:()=> '2026-11-18',rateLimit:async()=>true,getAuthenticatedEmail:async(req:any,verified=false)=>verified&&req.headers.verified!=='yes'?null:req.headers.authorization||null,readExpressAsset:async()=>({buffer:await sharp({create:{width:640,height:360,channels:3,background:'#b27641'}}).png().toBuffer()}),resolveExpressAssets:async()=>[],rasterInfo:(data:Buffer)=>{assert.equal(data.subarray(1,4).toString(),'PNG');return{mimeType:'image/png',width:1,height:1};},ASSET_MAX_BYTES:750*1024,ExpressAssetError:class extends Error{},openaiAccessMessage:()=>'',openaiConfigured:()=>true,openaiText:async()=>{generationCalls++;return raw;},extractSiteHtml:(s:string)=>s,researchBuilder:async(_business:any,options:any)=>{planningCalls++;plannedRefs=options.references.length;return {sources:[{url:'https://pinterest.com/pin/123/',title:'Editorial',insight:'Abertura focada no material'}],creativePlan:{concept:'Do detalhe ao ambiente',scenes:[],heroImagePrompt:'Foto macro de pedra'},directions:BUILDER_DIRECTIONS,researchNotice:'Uma referência.'};},planBuilder:async(_b:any,_opts:any,_sources:any,visual:any)=>{selectedPlanInput=visual?.data||'';return {concept:'Do detalhe ao ambiente',scenes:[],heroImagePrompt:'Foto macro de pedra'};},builderPrompt:async(_b:any,_d:any,_c:any,_o:any,refs:any[],_inst:any,_html:any,_history:any,_learn:any,locale:string,synopsis:any)=>{modelReferences=refs;requestedLocale=locale;usedConcept=synopsis?.plan?.concept||'';chosenDesign=synopsis?.chosenDesign?.data||'';return{system:'',content:[]};},generateDesignMockup:async()=>({buffer:Buffer.from('mock design'),mimeType:'image/webp'}),generateBuilderPhoto:async(_business:any,prompt:string,_aspect:string,reference:any)=>{imagePrompt=prompt;imageDesign=reference?.isMockup?reference.buffer.toString():'';throw new Error('Fake generator unavailable');}};
+ const db=new MemoryDb();let generationCalls=0;let modelReferences:any[]=[];let requestedLocale='';let planningCalls=0;let plannedRefs=0;let usedConcept='';let imagePrompt='';let chosenDesign='';let selectedPlanInput='';let imageDesign='';const fixture:any={db:()=>db,previews:()=>db.collection('expressPreviews'),settings:()=>db.collection('expressInternal').doc('settings'),orders:()=>db.collection('expressOrders'),orderId:(v:any)=>typeof v==='string'&&/^[a-f0-9-]{36}$/i.test(v),publicOrigin:()=>origin,saoPauloDay:()=> '2026-11-18',rateLimit:async()=>true,getAuthenticatedEmail:async(req:any,verified=false)=>verified&&req.headers.verified!=='yes'?null:req.headers.authorization||null,readExpressAsset:async()=>({buffer:await sharp({create:{width:640,height:360,channels:3,background:'#b27641'}}).png().toBuffer()}),resolveExpressAssets:async()=>[],rasterInfo:(data:Buffer)=>{assert.equal(data.subarray(1,4).toString(),'PNG');return{mimeType:'image/png',width:1,height:1};},ASSET_MAX_BYTES:750*1024,ExpressAssetError:class extends Error{},openaiAccessMessage:()=>'',openaiConfigured:()=>true,openaiResponse:async()=>({}),openaiOutputText:()=>'',openaiText:async()=>{generationCalls++;return raw;},extractSiteHtml:(s:string)=>s,researchBuilder:async(_business:any,options:any)=>{planningCalls++;plannedRefs=options.references.length;return {sources:[{url:'https://pinterest.com/pin/123/',title:'Editorial',insight:'Abertura focada no material'}],creativePlan:{concept:'Do detalhe ao ambiente',scenes:[],heroImagePrompt:'Foto macro de pedra'},directions:BUILDER_DIRECTIONS,researchNotice:'Uma referência.'};},planBuilder:async(_b:any,_opts:any,_sources:any,visual:any)=>{selectedPlanInput=visual?.data||'';return {concept:'Do detalhe ao ambiente',scenes:[],heroImagePrompt:'Foto macro de pedra'};},builderPrompt:async(_b:any,_d:any,_c:any,_o:any,refs:any[],_inst:any,_html:any,_history:any,_learn:any,locale:string,synopsis:any)=>{modelReferences=refs;requestedLocale=locale;usedConcept=synopsis?.plan?.concept||'';chosenDesign=synopsis?.chosenDesign?.data||'';return{system:'',content:[]};},generateDesignMockup:async()=>({buffer:Buffer.from('mock design'),mimeType:'image/webp'}),generateBuilderPhoto:async(_business:any,prompt:string,_aspect:string,reference:any)=>{imagePrompt=prompt;imageDesign=reference?.isMockup?reference.buffer.toString():'';throw new Error('Fake generator unavailable');}};
  (globalThis as any).__atlasBuilderTest=fixture;const endpoint=await loadEndpoint();
  const call=async(action:string,body:any={},user:string|null='cliente@example.com',method='POST')=>{const r:any={statusCode:200,headers:{},setHeader(k:string,v:any){this.headers[k]=v;},status(n:number){this.statusCode=n;return this;},json(d:any){this.body=d;return this;},send(d:any){this.body=d;return this;},end(){return this;}};await endpoint.handler({method,query:{action,...(method==='GET'?body:{})},body,headers:{...(user?{authorization:user}:{})}},r);return r;};
  try{
