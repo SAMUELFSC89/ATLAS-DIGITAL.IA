@@ -40,6 +40,7 @@ import {
   X,
   Phone,
   Mail,
+  Instagram,
   ExternalLink,
   Play,
   Check,
@@ -95,7 +96,7 @@ export default function App() {
   const [activeLegalDoc, setActiveLegalDoc] = useState<LegalDocType>(null);
 
   // Portal / SaaS States
-  const [isPortalActive, setIsPortalActive] = useState(false);
+  const [isPortalActive, setIsPortalActive] = useState(() => new URLSearchParams(window.location.search).has('entrar'));
   const [currentUser, setCurrentUser] = useState<string | null | undefined>(undefined);
   const [activePortalTab, setActivePortalTab] = useState<string>('dashboard');
   const [auditLead, setAuditLead] = useState<Lead>();
@@ -1018,6 +1019,12 @@ export default function App() {
                 <Phone className="w-4 h-4 text-zinc-400 shrink-0" />
                 <a href="https://wa.me/5551994578544" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
                   +55 (51) 99457-8544
+                </a>
+              </li>
+              <li className="flex items-center gap-2">
+                <Instagram className="w-4 h-4 text-zinc-400 shrink-0" />
+                <a href="https://www.instagram.com/atlasdigital_ia" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+                  @atlasdigital_ia
                 </a>
               </li>
               <li className="flex items-center gap-2">

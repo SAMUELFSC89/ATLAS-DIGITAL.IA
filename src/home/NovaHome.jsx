@@ -10,6 +10,7 @@ import MenuAtlas from './MenuAtlas'
 */
 const WHATSAPP = '5551994578544'
 const EMAIL = 'contato@atlasdigital.ia.br'
+const INSTAGRAM = 'https://www.instagram.com/atlasdigital_ia'
 
 const imagensCarrossel = Object.entries(
   import.meta.glob('./assets/projetos/[0-9]*.{webp,jpg,jpeg,png}', { eager: true, import: 'default' }),
@@ -307,6 +308,7 @@ function Contato() {
           <div className="mt-8 space-y-2 text-sm text-paper/60">
             <p>WhatsApp: <a href={`https://wa.me/${WHATSAPP}`} target="_blank" rel="noopener noreferrer" className="text-paper hover:text-accent">(51) 99457-8544</a></p>
             <p>E-mail: <a href={`mailto:${EMAIL}`} className="text-paper hover:text-accent">{EMAIL}</a></p>
+            <p>Instagram: <a href={INSTAGRAM} target="_blank" rel="noopener noreferrer" className="text-paper hover:text-accent">@atlasdigital_ia</a></p>
           </div>
         </div>
         {enviado ? (
@@ -345,6 +347,7 @@ function Rodape({ onDocLegal }) {
           <a href="#processo" className={link}>Como funciona</a>
           <a href="/contato" className={link}>Contato</a>
           <a href={`https://wa.me/${WHATSAPP}`} target="_blank" rel="noopener noreferrer" className={link}>WhatsApp</a>
+          <a href={INSTAGRAM} target="_blank" rel="noopener noreferrer" className={link}>Instagram</a>
           <a href={`mailto:${EMAIL}`} className={link}>E-mail</a>
           <button type="button" onClick={() => onDocLegal('privacidade')} className={link}>Privacidade</button>
           <button type="button" onClick={() => onDocLegal('termos')} className={link}>Termos de uso</button>
@@ -355,7 +358,7 @@ function Rodape({ onDocLegal }) {
   )
 }
 
-export default function NovaHome({ onPedirOrcamento = () => {}, onEntrar = () => {}, onDocLegal = () => {} }) {
+export default function NovaHome({ onPedirOrcamento = (_assunto) => {}, onEntrar = () => {}, onDocLegal = (_doc) => {} }) {
   useReveal()
   useEffect(() => {
     const id = decodeURIComponent(window.location.hash.slice(1))

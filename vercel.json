@@ -18,8 +18,12 @@
       "destination": "/contato.html"
     },
     {
-      "source": "/(.*)",
+      "source": "/",
       "destination": "/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/app.html"
     }
   ],
   "installCommand": "npm ci",

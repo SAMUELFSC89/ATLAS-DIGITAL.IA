@@ -13,7 +13,7 @@ export default defineConfig(() => {
     },
     build: {
       rollupOptions: {
-        input: { home: path.resolve(__dirname, 'index.html'), contact: path.resolve(__dirname, 'contato.html') },
+        input: { home: path.resolve(__dirname, 'index.html'), app: path.resolve(__dirname, 'app.html'), contact: path.resolve(__dirname, 'contato.html') },
       },
     },
     server: {
