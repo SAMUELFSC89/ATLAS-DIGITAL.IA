@@ -1,11 +1,11 @@
-import builder from './express-builder.js';
+import builder, { getApprovedBuilderSite, getBuilderProjectRef } from './express-builder.js';
 import { claudeConfigured } from './express-claude.js';
 import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { getAuthenticatedEmail } from '../radar.js';
 import { reconcileExpressPayment } from './express-payment.js';
 import { normalizeBrazilianWhatsApp } from '../../src/lib/contact.js';
-import { EXPRESS_PRICE, PREVIEW_PAGES, type ExpressBusiness, type ExpressOrder } from '../../src/lib/expressOrder.js';
+import { EXPRESS_HOURS, EXPRESS_PRICE, PREVIEW_PAGES, normalizeExpressDomain, type ExpressBusiness, type ExpressOrder } from '../../src/lib/expressOrder.js';
 import { advanceVisualPreview, createVisualPreview, initialVisual, readVisualImage, reserveVisualBudget, resumeVisualPreview } from './express-visual-store.js';
 import { DEFAULT_VISUAL_PROMPT } from '../../src/lib/expressVisualPrompt.js';
 import { generateExpressContent, publicUrl, mercadoPagoRequest } from './express-providers.js';
@@ -14,7 +14,6 @@ import { checkoutEnabled, db, defaultCapacity, orderId, orders, previews, public
 
 const clean = (value: unknown, length: number) =>
   typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, length) : '';
-const canBuy = (mode: string) => mode === 'live' || mode === 'test';
 const visualOwner = async (req: Request) => {
   if (!req.headers.authorization) return false;
   const email = await getAuthenticatedEmail(req, true);
@@ -22,25 +21,41 @@ const visualOwner = async (req: Request) => {
 };
 
 async function startCheckout(req: Request, res: Response) {
-  const { previewId, id, email, acceptsScope, projectType } = req.body || {};
+  const { previewId, id, email, acceptsScope, projectType, approvedVersion } = req.body || {};
   const mode = process.env.ATLAS_EXPRESS_CHECKOUT_MODE?.trim() || '';
-  if (!checkoutEnabled() || !canBuy(mode)) return res.status(503).json({ error: 'A compra online ainda não está disponível. Fale com a Atlas.' });
+  if (!checkoutEnabled()) return res.status(503).json({ error: 'A compra online ainda não está disponível. Fale com a Atlas.' });
   if (projectType !== 'express') return res.status(400).json({ error: 'Solicite um orçamento para projetos fora do pacote Express.' });
   if (!orderId(previewId) || !orderId(id) || typeof email !== 'string' || email.length > 254 ||
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || acceptsScope !== true) {
     return res.status(400).json({ error: 'Confira o e-mail de entrega e confirme as condições do pacote.' });
   }
 
+  const requestedDomain = normalizeExpressDomain(req.body.requestedDomain);
+  if (req.body.requestedDomain !== undefined && !requestedDomain) {
+    return res.status(400).json({ error: 'Informe um domínio válido, como suaempresa.com.br.' });
+  }
+  const authenticatedEmail = req.headers.authorization ? (await getAuthenticatedEmail(req))?.toLowerCase() : undefined;
+  const projectRef = getBuilderProjectRef(previewId);
   const ref = orders().doc(id);
   const now = Date.now();
   const day = saoPauloDay(now);
   const selected = await db().runTransaction(async tx => {
-    const existing = (await tx.get(ref)).data();
+    const [existingSnapshot, projectSnapshot] = await tx.getAll(ref, projectRef);
+    const existing = existingSnapshot.data();
+    const project = projectSnapshot.data();
+    if (project && (!authenticatedEmail || authenticatedEmail !== project.ownerEmail || authenticatedEmail !== email.toLowerCase())) {
+      return { reason: 'unauthorized' } as const;
+    }
+    if (project && (!requestedDomain || !project.html || project.job || project.pendingDesign ||
+        !Number.isInteger(approvedVersion) || project.version !== approvedVersion)) {
+      return { reason: 'unapproved' } as const;
+    }
     if (existing) {
       if (existing.previewId === previewId && existing.status === 'expired') return { reason: 'expired' } as const;
       if (existing.previewId !== previewId || existing.email !== email || existing.status !== 'pending' || existing.mode !== mode || existing.provider !== 'mercadopago' || existing.amount !== EXPRESS_PRICE) {
         return { reason: 'conflict' } as const;
       }
+      if (existing.approvedVersion !== approvedVersion || (existing.requestedDomain || '') !== requestedDomain) return { reason: 'conflict' } as const;
       if (!existing.checkoutUrl && existing.preferenceLeaseUntil > now) return { reason: 'processing' } as const;
       if (!existing.checkoutUrl && existing.expiresAt > now / 1000) tx.update(ref, { preferenceLeaseUntil: now + 30000 });
       return { expiresAt: existing.expiresAt as number, existingUrl: existing.checkoutUrl as string | undefined };
@@ -61,11 +76,15 @@ async function startCheckout(req: Request, res: Response) {
     tx.set(settings(), { lastReservationAt: now }, { merge: true });
     tx.create(ref, {
       previewId, email, business: preview.business, status: 'pending', mode, provider: 'mercadopago', preferenceLeaseUntil: now + 30000,
-      amount: EXPRESS_PRICE, createdAt: now, reservedDay: day, expiresAt,
+      amount: EXPRESS_PRICE, deliveryHours: EXPRESS_HOURS, createdAt: now, reservedDay: day, expiresAt,
+      ...(requestedDomain && { requestedDomain }),
+      ...(project && { approvedVersion }),
     });
     return { expiresAt, existingUrl: undefined };
   });
   if ('reason' in selected) {
+    if (selected.reason === 'unauthorized') return res.status(403).json({ error: 'Entre com a conta que criou esta prévia.' });
+    if (selected.reason === 'unapproved') return res.status(409).json({ error: 'Revise a versão atual do site e preencha o domínio antes de aprovar a prévia.' });
     if (selected.reason === 'expired') return res.status(409).json({ error: 'Este checkout expirou. Tente novamente.' });
     if (selected.reason === 'processing') return res.status(409).json({ error: 'O Mercado Pago está preparando a tentativa anterior. Aguarde alguns segundos e tente novamente.' });
     if (selected.reason === 'invalid') return res.status(404).json({ error: 'Esta prévia não foi encontrada.' });
@@ -87,7 +106,7 @@ async function startCheckout(req: Request, res: Response) {
     back_urls: {
       success: `${base}?pedido=${id}`,
       pending: `${base}?pedido=${id}`,
-      failure: `${base}?previa=${previewId}`,
+      failure: approvedVersion ? `${publicOrigin()}/criar-site?projeto=${previewId}` : `${base}?previa=${previewId}`,
     },
     auto_return: 'approved',
     expires: true,
@@ -108,12 +127,21 @@ async function admin(req: Request, res: Response) {
   const owner = (process.env.ATLAS_CONTACT_OWNER_EMAIL || 'samuelfsc89@gmail.com').trim().toLowerCase();
   if (!email || email.toLowerCase() !== owner) return res.status(403).json({ error: 'Área restrita à conta verificada da Atlas.' });
   if (req.method === 'GET') {
+    if (req.query.action === 'approved-site') {
+      if (!orderId(req.query.id)) return res.status(400).json({ error: 'Pedido inválido.' });
+      const order = (await orders().doc(req.query.id).get()).data();
+      if (!order || !order.approvedVersion || !['paid', 'production', 'delivered'].includes(order.status)) {
+        return res.status(404).json({ error: 'Prévia aprovada não encontrada.' });
+      }
+      const html = await getApprovedBuilderSite(order.previewId, order.approvedVersion);
+      return html ? res.json({ html }) : res.status(404).json({ error: 'Versão aprovada não encontrada.' });
+    }
     const [snapshots, config] = await Promise.all([
       orders().orderBy('createdAt', 'desc').limit(100).get(), settings().get(),
     ]);
     return res.json({ orders: snapshots.docs.map(doc => {
-      const { previewId, business, email, status, amount, createdAt, dueAt, receiptSentAt, deliveredAt, finalUrl, mode, deliveryAttempt } = doc.data();
-      return { id: doc.id, previewId, business, email, status, amount, createdAt, dueAt, receiptSentAt, deliveredAt, finalUrl, mode, deliveryUrl: deliveryAttempt?.url };
+      const { previewId, business, email, status, amount, createdAt, dueAt, receiptSentAt, deliveredAt, finalUrl, mode, deliveryAttempt, requestedDomain, approvedVersion } = doc.data();
+      return { id: doc.id, previewId, business, email, status, amount, createdAt, dueAt, receiptSentAt, deliveredAt, finalUrl, mode, requestedDomain, approvedVersion, deliveryUrl: deliveryAttempt?.url };
     }), capacity: config.data()?.capacity ?? defaultCapacity,
       visualPrompt: config.data()?.visualPrompt ?? DEFAULT_VISUAL_PROMPT,
       visualEnabled: config.data()?.visualEnabled === true, visualLastIssue: config.data()?.visualLastIssue || null });
@@ -159,8 +187,16 @@ async function admin(req: Request, res: Response) {
     return res.json({ ok: true });
   }
   if (action === 'deliver' || action === 'resend') {
-    const finalUrl = publicUrl(action === 'resend' ? (await ref.get()).data()?.finalUrl : req.body.finalUrl);
+    const order = (await ref.get()).data();
+    const finalUrl = publicUrl(action === 'resend' ? order?.finalUrl : req.body.finalUrl);
     if (!finalUrl) return res.status(400).json({ error: 'Informe o link HTTPS do site final.' });
+    if (action === 'deliver' && order?.requestedDomain) {
+      const host = normalizeExpressDomain(new URL(finalUrl).hostname);
+      const atlasHost = normalizeExpressDomain(new URL(publicOrigin()).hostname);
+      if (!host || host === atlasHost || host.endsWith('.' + atlasHost) || req.body.domainVerified !== true) {
+        return res.status(400).json({ error: 'Abra o site no domínio final e confirme que ele está funcionando antes de enviar.' });
+      }
+    }
     const sent = await sendDelivery(id, finalUrl, action === 'resend');
     return sent ? res.json({ ok: true }) : res.status(409).json({ error: 'Confira o estado do pedido e o link da entrega anterior.' });
   }
@@ -181,8 +217,8 @@ export default async function siteExpress(req: Request, res: Response) {
     if (req.method === 'GET') {
       if (view === 'config') {
         const config = (await settings().get()).data();
-        return res.json({ checkout: checkoutEnabled() && canBuy(process.env.ATLAS_EXPRESS_CHECKOUT_MODE || ''),
-          sandbox: process.env.ATLAS_EXPRESS_CHECKOUT_MODE === 'test',
+        return res.json({ checkout: checkoutEnabled(),
+          sandbox: process.env.ATLAS_EXPRESS_CHECKOUT_MODE?.trim() === 'test',
           visualAvailable: claudeConfigured() && (config?.visualEnabled === true || await visualOwner(req)) });
       }
       if (!orderId(req.query.id)) return res.status(400).json({ error: 'Link inválido.' });

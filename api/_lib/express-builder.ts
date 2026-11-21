@@ -19,6 +19,14 @@ import { importBusinessFromUrl, BusinessImportError, parseBusinessLink } from '.
 import type { ExpressBusiness, ExpressAsset } from '../../src/lib/expressOrder.js';
 
 const projects=()=>db().collection('expressBuilderProjects');
+export const getBuilderProjectRef = (id: string) => projects().doc(id);
+
+export async function getApprovedBuilderSite(id: string, version: number) {
+  const approved = (await getBuilderProjectRef(id).collection('versions').doc(String(version)).get()).data();
+  if (!approved?.html) return null;
+  return prepareBuilderHtml(approved.html, publicOrigin(), parseSiteLanguage(approved.locale) || DEFAULT_SITE_LANGUAGE).html;
+}
+
 const published=()=>db().collection('expressBuilderPublished');
 const proposals=()=>db().collection('expressBuilderProposals');
 const PROPOSAL_DURATION=7*24*60*60*1000;
@@ -356,6 +364,15 @@ export default async function builder(req:Request,res:Response){
       }
       if(action==='reference'){
         if(!orderId(req.query.file)||!p.references?.some((r:any)=>r.id===req.query.file))fail(404,'Referência não encontrada.');const file=(await ref.collection('references').doc(String(req.query.file)).get()).data();if(!file?.data)fail(404,'Referência não encontrada.');res.setHeader('Content-Type',file.mimeType);return res.send(Buffer.from(file.data));
+      }
+      if (action === 'purchase-status') {
+        const adminEmail = (process.env.ATLAS_CONTACT_OWNER_EMAIL || 'samuelfsc89@gmail.com').trim().toLowerCase();
+        const isAdmin = email === adminEmail && (await getAuthenticatedEmail(req, true))?.toLowerCase() === email;
+        const purchases = await orders().where('previewId', '==', id).get();
+        const paid = purchases.docs.find(doc => doc.data().mode === 'live' &&
+          ['paid', 'production', 'delivered'].includes(doc.data().status));
+        const pending = purchases.docs.find(doc => doc.data().mode === 'live' && doc.data().status === 'pending');
+        return res.json({ canPublish: isAdmin || Boolean(paid), orderId: paid?.id, pendingOrderId: pending?.id });
       }
       if(action==='versions'){const rows=await ref.collection('versions').orderBy('createdAt','desc').limit(10).get();return res.json({versions:rows.docs.map(d=>({version:d.data().version,createdAt:d.data().createdAt}))});}
       return res.json({project:await state(String(id),p)});

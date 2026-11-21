@@ -25,7 +25,7 @@ export async function recordExpressPayment(payment: any, expectedId?: string): P
     if (order.status !== 'pending') return { ...order, id } as ExpressOrder;
     const approvedAt = Date.parse(payment.date_approved);
     if (!Number.isFinite(approvedAt)) throw new Error('Missing payment approval timestamp');
-    const patch = { status: 'paid' as const, paidAt: approvedAt, dueAt: dueDate(approvedAt), mercadoPagoPaymentId: paymentId };
+    const patch = { status: 'paid' as const, paidAt: approvedAt, dueAt: dueDate(approvedAt, order.deliveryHours ?? 48), mercadoPagoPaymentId: paymentId };
     tx.update(ref, patch);
     return { ...(order as ExpressOrder), id, ...patch };
   });

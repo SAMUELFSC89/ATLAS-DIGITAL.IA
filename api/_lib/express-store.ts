@@ -14,7 +14,10 @@ export const saoPauloDay = (ms: number) => new Intl.DateTimeFormat('sv-SE', { ti
 export const defaultCapacity = 3;
 
 export function checkoutEnabled() {
-  return Boolean(process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim() && process.env.MERCADO_PAGO_WEBHOOK_SECRET?.trim() &&
+  const mode = process.env.ATLAS_EXPRESS_CHECKOUT_MODE?.trim();
+  const token = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
+  return Boolean((mode === 'test' || (mode === 'live' && !token?.startsWith('TEST-'))) &&
+    token && process.env.MERCADO_PAGO_WEBHOOK_SECRET?.trim() &&
     process.env.RESEND_API_KEY?.trim() && process.env.ATLAS_EXPRESS_FROM_EMAIL?.trim());
 }
 
@@ -43,7 +46,7 @@ export async function rateLimit(ip: string, action: string, perIp: number, total
 export async function sendReceipt(id: string, order: ExpressOrder) {
   if (!order.dueAt || order.receiptSentAt) return;
   await sendExpressEmail(order.email, receiptEmail({
-    id, name: order.business.name, amount: order.amount, dueAt: order.dueAt, origin: publicOrigin(),
+    id, name: order.business.name, amount: order.amount, dueAt: order.dueAt, deliveryHours: order.deliveryHours ?? 48, origin: publicOrigin(),
   }), `express-receipt/${id}`);
   await orders().doc(id).update({ receiptSentAt: Date.now() });
 }
@@ -80,6 +83,6 @@ export async function sendDelivery(id: string, finalUrl: string, resend: boolean
   return true;
 }
 
-export function dueDate(approvedAt: number) {
-  return approvedAt + EXPRESS_HOURS * 3600000;
+export function dueDate(approvedAt: number, hours = EXPRESS_HOURS) {
+  return approvedAt + hours * 3600000;
 }

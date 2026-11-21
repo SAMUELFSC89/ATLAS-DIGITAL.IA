@@ -1,5 +1,5 @@
-export const EXPRESS_PRICE = 29700;
-export const EXPRESS_HOURS = 48;
+export const EXPRESS_PRICE = 49700;
+export const EXPRESS_HOURS = 24;
 export const EXPRESS_WHATSAPP = 'https://wa.me/5551994578544';
 
 export interface ExpressAsset {
@@ -66,6 +66,9 @@ export interface ExpressOrder {
   amount: number;
   createdAt: number;
   dueAt?: number;
+  deliveryHours?: number;
+  requestedDomain?: string;
+  approvedVersion?: number;
   receiptSentAt?: number;
   deliveredAt?: number;
   finalUrl?: string;
@@ -77,4 +80,11 @@ export function expressMoney(amount: number) {
 
 export function expressDate(ms: number) {
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(ms);
+}
+
+export function normalizeExpressDomain(value: unknown) {
+  if (typeof value !== 'string') return '';
+  const host = value.trim().toLowerCase().replace(/^www\./, '');
+  if (host.length > 253 || !/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(host)) return '';
+  return host;
 }

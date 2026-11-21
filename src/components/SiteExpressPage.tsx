@@ -4,7 +4,7 @@ import AtlasLogo from './AtlasLogo';
 import ExpressVisualGallery from './ExpressVisualGallery';
 import ExpressAssetUpload from './ExpressAssetUpload';
 import { auth } from '../lib/firebase';
-import { EXPRESS_HOURS, EXPRESS_PRICE, EXPRESS_WHATSAPP, expressDate, expressMoney, type ExpressAsset, type ExpressBusiness, type ExpressPreview, type ExpressStatus } from '../lib/expressOrder';
+import { EXPRESS_HOURS, EXPRESS_PRICE, EXPRESS_WHATSAPP, expressDate, expressMoney, normalizeExpressDomain, type ExpressAsset, type ExpressBusiness, type ExpressPreview, type ExpressStatus } from '../lib/expressOrder';
 
 const blank: ExpressBusiness = { name: '', segment: '', city: '', services: '', whatsapp: '', photo: '' };
 const inputStyle = 'w-full rounded-xl border border-white/15 bg-black/25 px-3.5 py-3 text-sm text-white outline-none focus:border-[#E2B755]';
@@ -36,6 +36,7 @@ export default function SiteExpressPage() {
   const [checkout, setCheckout] = useState(false);
   const [sandbox, setSandbox] = useState(false);
   const [email, setEmail] = useState('');
+  const [requestedDomain, setRequestedDomain] = useState('');
   const [acceptsScope, setAcceptsScope] = useState(false);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
@@ -107,13 +108,15 @@ export default function SiteExpressPage() {
   async function buy(event: FormEvent) {
     event.preventDefault();
     if (!preview) return;
+    const domain = normalizeExpressDomain(requestedDomain);
+    if (!domain) { setError('Informe um domínio válido, como suaempresa.com.br.'); return; }
     setBusy('checkout'); setError('');
     try {
       const storageKey = 'atlas-express-checkout/' + preview.id;
       const existing = sessionStorage.getItem(storageKey);
       const id = existing || crypto.randomUUID();
       sessionStorage.setItem(storageKey, id);
-      const { url } = await api<{ url: string }>('view=checkout', { previewId: preview.id, id, email: email.trim(), acceptsScope, projectType });
+      const { url } = await api<{ url: string }>('view=checkout', { previewId: preview.id, id, email: email.trim(), acceptsScope, projectType, requestedDomain: domain });
       location.assign(url);
     } catch (e) {
       const message = (e as Error).message;
@@ -214,14 +217,17 @@ export default function SiteExpressPage() {
                     <p className="mt-2 text-3xl font-bold text-[#E2B755]">{expressMoney(EXPRESS_PRICE)}</p>
                     <p className="mt-1 text-sm text-zinc-300">Criação de uma página. Pagamento único.</p>
                     <p className="mt-4 flex gap-2 text-sm text-zinc-100"><Clock size={16} className="mt-0.5 shrink-0 text-[#E2B755]" /> Receba por e-mail em até {EXPRESS_HOURS} horas após a confirmação do pagamento.</p>
-                    <p className="mt-3 text-sm leading-relaxed text-zinc-300">Inclui a entrega do link final com serviços e botão de WhatsApp. Domínio próprio e plano Wix, se desejados, são contratados à parte.</p>
+                    <p className="mt-3 text-sm leading-relaxed text-zinc-300">Inclui o site de apresentação com contato comercial e domínio próprio configurado. Se o endereço desejado estiver indisponível, a Atlas combina uma alternativa.</p>
                     {checkout && (
                       <form onSubmit={buy} className="mt-5 space-y-3">
                         {sandbox && <p className="text-sm font-semibold text-[#E2B755]">Mercado Pago em ambiente de teste.</p>}
                         <label className="block text-sm font-medium">E-mail para entrega
                           <input className={inputStyle + ' mt-1'} value={email} onChange={e => setEmail(e.target.value)} required type="email" autoComplete="email" maxLength={254} />
                         </label>
-                        <label className="flex items-start gap-2 text-sm text-zinc-300"><input type="checkbox" required checked={acceptsScope} onChange={e => setAcceptsScope(e.target.checked)} className="mt-1" /> Confirmo os dados e quero o pacote de uma página com serviços e WhatsApp.</label>
+                        <label className="block text-sm font-medium">Domínio desejado
+                          <input className={inputStyle + ' mt-1'} value={requestedDomain} onChange={e => setRequestedDomain(e.target.value)} required maxLength={253} placeholder="suaempresa.com.br" autoCapitalize="none" spellCheck={false} />
+                        </label>
+                        <label className="flex items-start gap-2 text-sm text-zinc-300"><input type="checkbox" required checked={acceptsScope} onChange={e => setAcceptsScope(e.target.checked)} className="mt-1" /> Aprovo a prévia e concordo com o escopo e o prazo do Site Express.</label>
                         <button className={primary + ' w-full'} disabled={Boolean(busy)}>{busy === 'checkout' ? 'Abrindo checkout…' : `Comprar por ${expressMoney(EXPRESS_PRICE)}`}</button>
                       </form>
                     )}
