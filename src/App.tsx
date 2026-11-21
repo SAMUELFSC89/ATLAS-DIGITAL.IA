@@ -79,6 +79,8 @@ const SiteBuilderPage = lazy(() => import('./components/SiteBuilderPage'));
 const CreatorPortfolioPage = lazy(() => import('./components/CreatorPortfolioPage'));
 const CreatorShowcasePage = lazy(() => import('./components/CreatorShowcasePage'));
 const SiteExpressPage = lazy(() => import('./components/SiteExpressPage'));
+// Página inicial nova (rota "/"). A página anterior continua em /solucoes.
+const NovaHome = lazy(() => import('./home/NovaHome'));
 const ExpressOrdersPanel = lazy(() => import('./components/ExpressOrdersPanel'));
 const expressLoading = <p role="status" className="p-5 text-sm text-zinc-300">Carregando Site Express…</p>;
 
@@ -283,6 +285,30 @@ export default function App() {
   if (window.location.pathname.replace(/\/$/, '') === '/criadores' || window.location.pathname.startsWith('/criadores/')) return <Suspense fallback={expressLoading}><CreatorShowcasePage /></Suspense>;
   if (window.location.pathname.replace(/\/$/, '') === '/criar-site' || (window.location.pathname.replace(/\/$/, '') === '/site-express' && !new URLSearchParams(location.search).has('previa') && !new URLSearchParams(location.search).has('pedido'))) return <Suspense fallback={expressLoading}><SiteBuilderPage /></Suspense>;
   if (window.location.pathname.replace(/\/$/, '') === '/site-express') return <Suspense fallback={expressLoading}><SiteExpressPage /></Suspense>;
+
+  // "/" mostra a página inicial nova; qualquer outra rota pública (ex.: /solucoes) mostra a página anterior completa.
+  if (window.location.pathname.replace(/\/$/, '') === '' && !isPortalActive) {
+    return (
+      <>
+        <Suspense fallback={<div className="min-h-screen bg-[#0e0e0c]" />}>
+          <NovaHome
+            onPedirOrcamento={openContactWithPrefill}
+            onEntrar={() => { setIsPortalActive(true); setActivePortalTab('dashboard'); }}
+            onDocLegal={setActiveLegalDoc}
+          />
+        </Suspense>
+        <InteractiveContactModal
+          isOpen={isContactModalOpen}
+          onClose={() => setIsContactModalOpen(false)}
+          prefilledSubject={selectedPrefillSubject}
+        />
+        <LegalModals
+          activeDoc={activeLegalDoc}
+          onClose={() => setActiveLegalDoc(null)}
+        />
+      </>
+    );
+  }
 
   if (isPortalActive) {
     return (
@@ -509,9 +535,9 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
           
           {/* Logo */}
-          <div onClick={() => scrollToSection('home')} className="cursor-pointer">
+          <a href="/" aria-label="Atlas Digital, página inicial" className="cursor-pointer">
             <AtlasLogo />
-          </div>
+          </a>
 
           {/* Desktop Navigation Links */}
           <nav className="hidden lg:flex items-center gap-8 text-[11px] font-medium tracking-widest uppercase text-zinc-300">
