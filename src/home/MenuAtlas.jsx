@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import logoAtlas from './assets/logo-atlas-site.png'
+import logoAtlas from './assets/logo-atlas-site.webp'
 
 /*
   Menu da Atlas: usado na página inicial (/) e na página /solucoes.

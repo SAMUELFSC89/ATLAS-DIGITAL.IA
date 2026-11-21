@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react'
-import * as THREE from 'three'
 
 /*
   Notas de dinheiro caindo ao fundo da página (atrás de todo o conteúdo).
@@ -142,12 +141,45 @@ export default function NotasCaindo({ fundo = '#0e0e0c' }) {
     const el = host.current
     if (!el) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (navigator.connection?.saveData) return // quem ativou economia de dados não baixa as notas
 
+    // Só começa no primeiro movimento da pessoa (rolar, mexer o mouse, tocar ou teclar),
+    // depois que a página terminou de carregar. Assim a abertura do site fica leve.
+    let limpar = () => {}
+    let cancelado = false
+    let iniciado = false
+    const eventos = ['scroll', 'wheel', 'pointermove', 'touchstart', 'keydown']
+    const tirarOuvintes = () => eventos.forEach((ev) => window.removeEventListener(ev, aoInteragir))
+    const comecar = () => {
+      if (cancelado || iniciado) return
+      iniciado = true
+      // o motor 3D (three.js) também só é baixado nessa hora
+      import('three').then((THREE) => { if (!cancelado) limpar = iniciar(el, fundo, THREE) })
+    }
+    function aoInteragir() {
+      tirarOuvintes()
+      if (document.readyState === 'complete') comecar()
+      else window.addEventListener('load', comecar, { once: true })
+    }
+    eventos.forEach((ev) => window.addEventListener(ev, aoInteragir, { passive: true }))
+    return () => {
+      cancelado = true
+      tirarOuvintes()
+      window.removeEventListener('load', comecar)
+      limpar()
+    }
+  }, [fundo])
+
+  return <div ref={host} aria-hidden="true" className="pointer-events-none fixed inset-0 z-0" />
+}
+
+function iniciar(el, fundo, THREE) {
+  {
     const celular = window.innerWidth < 768
     const QTD = celular ? 12 : 24
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+    const renderer = new THREE.WebGLRenderer({ antialias: !celular, alpha: true, powerPreference: 'low-power' })
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, celular ? 1.25 : 1.5))
     renderer.domElement.style.cssText = 'display:block;width:100%;height:100%'
     el.appendChild(renderer.domElement)
     const scene = new THREE.Scene()
@@ -174,7 +206,7 @@ export default function NotasCaindo({ fundo = '#0e0e0c' }) {
           proporcao: 1024 / 450,
         }))
 
-    const geo = new THREE.PlaneGeometry(1, 1, 24, 6)
+    const geo = new THREE.PlaneGeometry(1, 1, 16, 4)
     const corFundo = new THREE.Color(fundo)
     let vw = 1
     let vh = 1
@@ -222,7 +254,8 @@ export default function NotasCaindo({ fundo = '#0e0e0c' }) {
       n.mat.uniforms.uBrilho.value = 0.75 + 0.3 * perto
       n.mat.uniforms.uNevoa.value = 0.45 * (1 - perto)
     }
-    notas.forEach((n) => sortear(n, false))
+    // entram por cima da tela, em ondas, em vez de surgirem no meio dela
+    notas.forEach((n) => { sortear(n, true); n.y += Math.random() * 0.8 })
     notas.sort((a, b) => a.z - b.z).forEach((n, i) => (n.mesh.renderOrder = i))
 
     const redimensionar = () => {
@@ -296,7 +329,5 @@ export default function NotasCaindo({ fundo = '#0e0e0c' }) {
       renderer.dispose()
       renderer.domElement.remove()
     }
-  }, [fundo])
-
-  return <div ref={host} aria-hidden="true" className="pointer-events-none fixed inset-0 z-0" />
+  }
 }
