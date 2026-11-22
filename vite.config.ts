@@ -55,6 +55,7 @@ export default defineConfig(() => {
           contact: path.resolve(__dirname, 'contato.html'),
           privacy: path.resolve(__dirname, 'privacidade.html'),
           terms: path.resolve(__dirname, 'termos-de-servico.html'),
+          dataDeletion: path.resolve(__dirname, 'exclusao-de-dados.html'),
         },
       },
     },

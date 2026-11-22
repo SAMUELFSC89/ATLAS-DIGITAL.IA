@@ -118,6 +118,7 @@ async function startServer() {
     app.get('/contato', (req, res) => res.sendFile(path.join(distPath, 'contato.html')));
     app.get('/privacidade', (req, res) => res.sendFile(path.join(distPath, 'privacidade.html')));
     app.get('/termos-de-servico', (req, res) => res.sendFile(path.join(distPath, 'termos-de-servico.html')));
+    app.get('/exclusao-de-dados', (req, res) => res.sendFile(path.join(distPath, 'exclusao-de-dados.html')));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
@@ -137,6 +138,10 @@ async function startServer() {
     });
     app.get('/termos-de-servico', (req, res, next) => {
       req.url = req.url.replace(/^\/termos-de-servico\/?/, '/termos-de-servico.html');
+      next();
+    });
+    app.get('/exclusao-de-dados', (req, res, next) => {
+      req.url = req.url.replace(/^\/exclusao-de-dados\/?/, '/exclusao-de-dados.html');
       next();
     });
     app.use(vite.middlewares);
