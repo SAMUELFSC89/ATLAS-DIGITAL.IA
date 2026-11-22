@@ -1087,7 +1087,7 @@ export default function App() {
             <h4 className="text-white font-semibold uppercase tracking-widest text-[10px]">Legal</h4>
             <ul className="space-y-2 text-[11px] font-light">
               <li><a href="/privacidade" className="hover:text-white transition-colors text-left">Política de Privacidade</a></li>
-              <li><button onClick={() => setActiveLegalDoc('termos')} className="hover:text-white transition-colors text-left">Termos de Uso</button></li>
+              <li><a href="/termos-de-servico" className="hover:text-white transition-colors text-left">Termos de Uso</a></li>
               <li><button onClick={() => setActiveLegalDoc('cookies')} className="hover:text-white transition-colors text-left">Política de Cookies</button></li>
               <li><button onClick={() => setActiveLegalDoc('reembolso')} className="hover:text-white transition-colors text-left">Política de Reembolso</button></li>
             </ul>
@@ -1139,7 +1139,7 @@ export default function App() {
           <div className="flex gap-4">
             <a href="/privacidade" className="hover:text-white">Política de Privacidade</a>
             <span>&bull;</span>
-            <button onClick={() => setActiveLegalDoc('termos')} className="hover:text-white cursor-pointer">Termos de Uso</button>
+            <a href="/termos-de-servico" className="hover:text-white">Termos de Uso</a>
             <span>&bull;</span>
             <button onClick={() => setActiveLegalDoc('reembolso')} className="hover:text-white cursor-pointer">Política de Reembolso</button>
           </div>

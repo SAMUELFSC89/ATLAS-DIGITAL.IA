@@ -3,21 +3,27 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
 import {privacyPolicy} from './src/privacyPolicy';
+import {termsOfService} from './src/termsOfService';
+
+const legalDocuments = new Map([
+  ['privacidade.html', privacyPolicy],
+  ['termos-de-servico.html', termsOfService],
+]);
 
 function escapeHtml(text: string) {
   const entities: Record<string, string> = {'&': '&amp;', '<': '&lt;', '>': '&gt;'};
   return text.replace(/[&<>]/g, (character) => entities[character]);
 }
 
-function renderPrivacyPolicy() {
-  const sections = privacyPolicy.sections.map(({title, content}) =>
+function renderLegalDocument(document: typeof privacyPolicy) {
+  const sections = document.sections.map(({title, content}) =>
     `<section><h2>${escapeHtml(title)}</h2><p>${escapeHtml(content)}</p></section>`,
   );
 
   return [
-    `<h1>${escapeHtml(privacyPolicy.title)}</h1>`,
-    `<p class="subtitle">${escapeHtml(privacyPolicy.subtitle)}</p>`,
-    `<p>${escapeHtml(privacyPolicy.text)}</p>`,
+    `<h1>${escapeHtml(document.title)}</h1>`,
+    `<p class="subtitle">${escapeHtml(document.subtitle)}</p>`,
+    `<p>${escapeHtml(document.text)}</p>`,
     ...sections,
   ].join('\n');
 }
@@ -28,10 +34,11 @@ export default defineConfig(() => {
       react(),
       tailwindcss(),
       {
-        name: 'atlas-privacy-page',
+        name: 'atlas-legal-pages',
         transformIndexHtml(html, context) {
-          if (path.basename(context.filename) === 'privacidade.html') {
-            return html.replace('<!-- ATLAS_PRIVACY_POLICY -->', renderPrivacyPolicy());
+          const document = legalDocuments.get(path.basename(context.filename));
+          if (document) {
+            return html.replace('<!-- ATLAS_LEGAL_DOCUMENT -->', renderLegalDocument(document));
           }
         },
       },
@@ -47,6 +54,7 @@ export default defineConfig(() => {
           home: path.resolve(__dirname, 'index.html'),
           contact: path.resolve(__dirname, 'contato.html'),
           privacy: path.resolve(__dirname, 'privacidade.html'),
+          terms: path.resolve(__dirname, 'termos-de-servico.html'),
         },
       },
     },

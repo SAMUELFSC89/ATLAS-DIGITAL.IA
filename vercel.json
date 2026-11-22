@@ -22,6 +22,10 @@
       "destination": "/privacidade.html"
     },
     {
+      "source": "/termos-de-servico",
+      "destination": "/termos-de-servico.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

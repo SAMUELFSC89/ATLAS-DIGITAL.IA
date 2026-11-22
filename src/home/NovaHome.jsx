@@ -416,7 +416,7 @@ function Rodape({ onDocLegal }) {
           <a href={`https://wa.me/${WHATSAPP}`} target="_blank" rel="noopener noreferrer" className={link}>WhatsApp</a>
           <a href={`mailto:${EMAIL}`} className={link}>E-mail</a>
           <a href="/privacidade" className={link}>Privacidade</a>
-          <button type="button" onClick={() => onDocLegal('termos')} className={link}>Termos de uso</button>
+          <a href="/termos-de-servico" className={link}>Termos de uso</a>
         </div>
       </div>
       <p className="mx-auto mt-6 max-w-7xl text-xs text-paper/30">Fotos das cédulas de R$ 50 e R$ 100: Cerdded41, Wikimedia Commons, CC BY-SA 4.0.</p>
