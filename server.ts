@@ -116,6 +116,7 @@ async function startServer() {
     console.log(`Running in PRODUCTION mode. Serving static assets from: ${distPath}`);
     app.use(express.static(distPath));
     app.get('/contato', (req, res) => res.sendFile(path.join(distPath, 'contato.html')));
+    app.get('/privacidade', (req, res) => res.sendFile(path.join(distPath, 'privacidade.html')));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
@@ -127,6 +128,10 @@ async function startServer() {
     });
     app.get('/contato', (req, res, next) => {
       req.url = req.url.replace(/^\/contato\/?/, '/contato.html');
+      next();
+    });
+    app.get('/privacidade', (req, res, next) => {
+      req.url = req.url.replace(/^\/privacidade\/?/, '/privacidade.html');
       next();
     });
     app.use(vite.middlewares);
