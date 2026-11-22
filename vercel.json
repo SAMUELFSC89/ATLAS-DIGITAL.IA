@@ -1,0 +1,10 @@
+{
+  "framework": null,
+  "installCommand": "echo sem-instalacao",
+  "buildCommand": "echo sem-build",
+  "outputDirectory": ".",
+  "rewrites": [
+    { "source": "/", "has": [{ "type": "host", "value": "fierro7.atlasdigital.ia.br" }], "destination": "/fierro7/index.html" },
+    { "source": "/:path((?!fierro7/).*)", "has": [{ "type": "host", "value": "fierro7.atlasdigital.ia.br" }], "destination": "/fierro7/:path" }
+  ]
+}
