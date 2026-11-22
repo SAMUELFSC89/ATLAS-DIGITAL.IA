@@ -18,6 +18,10 @@
       "destination": "/contato.html"
     },
     {
+      "source": "/privacidade",
+      "destination": "/privacidade.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -415,7 +415,7 @@ function Rodape({ onDocLegal }) {
           <a href="/contato" className={link}>Contato</a>
           <a href={`https://wa.me/${WHATSAPP}`} target="_blank" rel="noopener noreferrer" className={link}>WhatsApp</a>
           <a href={`mailto:${EMAIL}`} className={link}>E-mail</a>
-          <button type="button" onClick={() => onDocLegal('privacidade')} className={link}>Privacidade</button>
+          <a href="/privacidade" className={link}>Privacidade</a>
           <button type="button" onClick={() => onDocLegal('termos')} className={link}>Termos de uso</button>
         </div>
       </div>

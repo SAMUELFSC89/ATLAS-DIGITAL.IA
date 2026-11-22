@@ -1086,7 +1086,7 @@ export default function App() {
           <div className="space-y-3">
             <h4 className="text-white font-semibold uppercase tracking-widest text-[10px]">Legal</h4>
             <ul className="space-y-2 text-[11px] font-light">
-              <li><button onClick={() => setActiveLegalDoc('privacidade')} className="hover:text-white transition-colors text-left">Política de Privacidade</button></li>
+              <li><a href="/privacidade" className="hover:text-white transition-colors text-left">Política de Privacidade</a></li>
               <li><button onClick={() => setActiveLegalDoc('termos')} className="hover:text-white transition-colors text-left">Termos de Uso</button></li>
               <li><button onClick={() => setActiveLegalDoc('cookies')} className="hover:text-white transition-colors text-left">Política de Cookies</button></li>
               <li><button onClick={() => setActiveLegalDoc('reembolso')} className="hover:text-white transition-colors text-left">Política de Reembolso</button></li>
@@ -1137,7 +1137,7 @@ export default function App() {
             &copy; {new Date().getFullYear()} Atlas Digital. Todos os direitos reservados. CNPJ: 66.204.635/0001-19.
           </div>
           <div className="flex gap-4">
-            <button onClick={() => setActiveLegalDoc('privacidade')} className="hover:text-white cursor-pointer">Política de Privacidade</button>
+            <a href="/privacidade" className="hover:text-white">Política de Privacidade</a>
             <span>&bull;</span>
             <button onClick={() => setActiveLegalDoc('termos')} className="hover:text-white cursor-pointer">Termos de Uso</button>
             <span>&bull;</span>
