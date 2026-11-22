@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fierro 7 Parrilla — Fogo uruguaio no Parcão | Porto Alegre</title>
+<meta name="description" content="Parrilla uruguaia no Moinhos de Vento, em frente ao Parcão. Cortes na brasa, drinks e encontros. Reserve sua mesa pelo WhatsApp.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c0a09;--bg2:#15110e;--line:#2a221c;--txt:#efe6da;--mut:#a89a8a;--brasa:#ff6a1f;--ouro:#c9a36a}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--txt);font-family:Manrope,system-ui,sans-serif;font-weight:300;line-height:1.6;overflow-x:hidden}
+img{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+.serif{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;letter-spacing:-.01em}
+.wrap{width:min(1180px,92vw);margin:auto}
+.kicker{font-size:.72rem;letter-spacing:.32em;text-transform:uppercase;color:var(--ouro);font-weight:500}
+.btn{display:inline-flex;align-items:center;gap:.6rem;padding:1rem 1.6rem;border-radius:999px;font-weight:500;font-size:.92rem;transition:.35s}
+.btn-brasa{background:var(--brasa);color:#160b04;box-shadow:0 10px 40px -10px #ff6a1f88}
+.btn-brasa:hover{transform:translateY(-2px);box-shadow:0 18px 50px -12px #ff6a1faa}
+.btn-ghost{border:1px solid #ffffff33}
+.btn-ghost:hover{border-color:var(--ouro);color:var(--ouro)}
+/* nav */
+nav{position:fixed;inset:0 0 auto;z-index:50;transition:.4s}
+nav.solid{background:#0c0a09e6;backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:76px}
+.logo{display:flex;align-items:baseline;gap:.5rem}
+.logo b{font-family:"Cormorant Garamond",serif;font-size:1.9rem;font-weight:600;letter-spacing:.02em}
+.logo span{font-size:.65rem;letter-spacing:.35em;color:var(--ouro);text-transform:uppercase}
+nav ul{display:flex;gap:2rem;list-style:none;font-size:.85rem;color:var(--mut)}
+nav ul a:hover{color:var(--txt)}
+@media(max-width:860px){nav ul{display:none}}
+/* hero */
+.hero{position:relative;min-height:100svh;display:flex;align-items:center;overflow:hidden}
+.hero .bg{position:absolute;inset:0;background:url(img/hero-video.webp) 65% center/cover;animation:fadeIn 1.6s ease-out both}
+@keyframes fadeIn{from{opacity:0;filter:brightness(.4)}}
+.hero .vid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:65% center;z-index:0;opacity:0;transition:opacity 1.2s}
+.hero .vid.ok{opacity:1}
+.hero.com-video .chama-off{display:none}
+@keyframes zoom{to{transform:scale(1)}}
+.hero:after{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,#0c0a09 8%,#0c0a09cc 40%,#0c0a0922 75%),linear-gradient(0deg,#0c0a09 0%,transparent 12%)}
+#faiscas{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+#fumaca{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;pointer-events:none;opacity:1}
+section,.faixa,footer{position:relative;z-index:1}
+.hero{z-index:2}
+.hero .wrap{position:relative;z-index:3;padding:110px 0 60px}
+.hero h1{font-size:clamp(3rem,8vw,6.6rem);line-height:.95;margin:1.2rem 0 1.4rem}
+.hero h1 em{color:var(--brasa);font-style:italic}
+.hero p{max-width:470px;color:#d8ccbd;font-size:1.08rem;margin-bottom:2.2rem}
+.hero .cta{display:flex;gap:1rem;flex-wrap:wrap}
+.selos{display:flex;gap:2.4rem;margin-top:3.2rem;flex-wrap:wrap}
+.selo b{display:block;font-variant-numeric:tabular-nums;font-family:"Cormorant Garamond",serif;font-size:2.4rem;font-weight:600;color:var(--txt);line-height:1}
+.selo small{font-size:.75rem;color:var(--mut);letter-spacing:.08em}
+.scroll{position:absolute;bottom:28px;left:50%;z-index:3;width:1px;height:56px;background:linear-gradient(var(--ouro),transparent);animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.25}}
+/* reveal */
+.rv{opacity:0;transform:translateY(40px);transition:1s cubic-bezier(.2,.7,.2,1)}
+.rv.on{opacity:1;transform:none}
+.d1{transition-delay:.12s}.d2{transition-delay:.24s}.d3{transition-delay:.36s}.d4{transition-delay:.48s}
+section{padding:120px 0}
+h2{font-size:clamp(2.3rem,5vw,4rem);line-height:1.02;margin:.8rem 0 1.4rem}
+h2 em{font-style:italic;color:var(--ouro)}
+/* casa */
+.casa{display:grid;grid-template-columns:1.1fr .9fr;gap:5rem;align-items:center}
+.casa .foto{position:relative;border-radius:6px;overflow:hidden;aspect-ratio:4/3}
+.casa .foto img{width:100%;height:100%;object-fit:cover;transition:1.2s}
+.casa .foto:hover img{transform:scale(1.05)}
+.casa .tag{position:absolute;left:20px;bottom:20px;background:#0c0a09d9;padding:.6rem 1rem;border-radius:4px;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ouro)}
+.casa p{color:var(--mut);margin-bottom:1.1rem}
+.pilares{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:2rem}
+.pilares div{border-top:1px solid var(--line);padding-top:1rem}
+.pilares b{display:block;font-weight:500;color:var(--txt);font-size:.95rem}
+.pilares small{color:var(--mut);font-size:.8rem}
+@media(max-width:900px){.casa{grid-template-columns:1fr;gap:3rem}}
+/* cardapio */
+.cardapio{background:rgba(21,17,14,.55);border-block:1px solid var(--line)}
+.tabs{display:flex;gap:.5rem;margin:2.5rem 0 3rem;flex-wrap:wrap}
+.tab{padding:.7rem 1.3rem;border:1px solid var(--line);border-radius:999px;font-size:.85rem;color:var(--mut);cursor:pointer;background:none;font-family:inherit;transition:.3s}
+.tab.on,.tab:hover{border-color:var(--brasa);color:var(--txt)}
+.pratos{display:none;grid-template-columns:repeat(2,1fr);gap:0 4rem}
+.pratos.on{display:grid;animation:fade .6s}
+@keyframes fade{from{opacity:0;transform:translateY(12px)}}
+.prato{display:flex;justify-content:space-between;gap:1.5rem;padding:1.5rem 0;border-bottom:1px dashed var(--line)}
+.prato h3{font-family:"Cormorant Garamond",serif;font-size:1.6rem;font-weight:500}
+.prato p{color:var(--mut);font-size:.88rem}
+.prato .sel{flex:none;align-self:center;font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--brasa);border:1px solid #ff6a1f55;padding:.35rem .7rem;border-radius:999px}
+.nota{margin-top:2.5rem;color:var(--mut);font-size:.85rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}
+@media(max-width:800px){.pratos.on{grid-template-columns:1fr}}
+/* faixa foto */
+.faixa{position:relative;height:78vh;min-height:480px;overflow:hidden;display:flex;align-items:center}
+.faixa img{position:absolute;left:0;top:-10%;width:100%;height:120%;object-fit:cover;will-change:transform}
+.faixa:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#0c0a09f2 0%,#0c0a09b0 38%,transparent 70%),linear-gradient(0deg,#0c0a09 0%,transparent 18%),linear-gradient(180deg,#0c0a09 0%,transparent 15%)}
+.faixa .wrap{position:relative;z-index:2}
+.faixa h2{max-width:560px;text-shadow:0 2px 30px #000}
+/* eventos */
+.eventos{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;margin-top:3rem}
+.ev{border:1px solid var(--line);border-radius:8px;padding:2rem;background:linear-gradient(160deg,rgba(26,20,16,.75),rgba(14,11,9,.6));backdrop-filter:blur(2px);transition:.4s;position:relative;overflow:hidden}
+.ev:hover{border-color:#ff6a1f66;transform:translateY(-6px)}
+.ev .n{font-family:"Cormorant Garamond",serif;font-size:3rem;color:#ff6a1f33;line-height:1}
+.ev h3{font-weight:500;font-size:1.15rem;margin:.8rem 0 .5rem}
+.ev p{color:var(--mut);font-size:.9rem}
+@media(max-width:900px){.eventos{grid-template-columns:1fr}}
+/* depoimentos */
+.deps{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;margin-top:3rem}
+.dep{padding:2rem;border-left:2px solid var(--brasa);background:rgba(18,14,11,.6);backdrop-filter:blur(2px)}
+.dep .est{color:var(--ouro);letter-spacing:.2em;font-size:.8rem}
+.dep p{font-family:"Cormorant Garamond",serif;font-size:1.45rem;line-height:1.3;margin:.9rem 0}
+.dep small{color:var(--mut)}
+.nota-g{display:flex;align-items:center;gap:1.5rem;margin-top:1rem}
+.nota-g b{font-family:"Cormorant Garamond",serif;font-size:4.5rem;line-height:1;color:var(--ouro)}
+@media(max-width:900px){.deps{grid-template-columns:1fr}}
+/* visita */
+.visita{display:grid;grid-template-columns:.9fr 1.1fr;gap:4rem}
+.horarios{margin:2rem 0;border-top:1px solid var(--line)}
+.horarios div{display:flex;justify-content:space-between;padding:.85rem 0;border-bottom:1px solid var(--line);font-size:.95rem}
+.horarios div.hoje{color:var(--brasa)}
+.horarios span:last-child{color:var(--mut)}
+.horarios .hoje span:last-child{color:var(--brasa)}
+.mapa{border-radius:8px;overflow:hidden;min-height:420px;border:1px solid var(--line)}
+.mapa{position:relative;display:block}.mapa img{width:100%;height:100%;min-height:420px;object-fit:cover;filter:brightness(.55);transition:.8s}.mapa:hover img{transform:scale(1.04);filter:brightness(.7)}.mapa .pin{position:absolute;left:24px;right:24px;bottom:24px;background:#0c0a09e6;border:1px solid var(--line);border-radius:8px;padding:1.2rem 1.4rem;display:grid;gap:.2rem}.mapa .pin span{color:var(--mut);font-size:.88rem}.mapa .pin em{font-style:normal;color:var(--brasa);font-size:.88rem;margin-top:.4rem}
+@media(max-width:900px){.visita{grid-template-columns:1fr}}
+/* final */
+.final{text-align:center;padding:140px 0;position:relative;overflow:hidden}
+.final:before{content:"";position:absolute;left:50%;bottom:-300px;width:700px;height:500px;transform:translateX(-50%);background:radial-gradient(#ff6a1f40,transparent 70%)}
+.final h2{font-size:clamp(2.6rem,6vw,5rem)}
+footer{border-top:1px solid var(--line);padding:2.5rem 0;color:var(--mut);font-size:.8rem}
+footer .wrap{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.preview{opacity:.6}
+/* whats */
+.wa{position:fixed;right:22px;bottom:22px;z-index:60;width:60px;height:60px;border-radius:50%;background:#25d366;display:grid;place-items:center;box-shadow:0 10px 30px #0008;transition:.3s}
+.wa:hover{transform:scale(1.08)}
+.wa svg{width:30px;fill:#fff}
+</style>
+</head>
+<body>
+
+<canvas id="fumaca"></canvas>
+<nav id="nav"><div class="wrap">
+  <a href="#" class="logo"><b>Fierro 7</b><span>Parrilla</span></a>
+  <ul><li><a href="#casa">A casa</a></li><li><a href="#cardapio">Cardápio</a></li><li><a href="#eventos">Eventos</a></li><li><a href="#visita">Horários</a></li></ul>
+  <a class="btn btn-brasa" href="https://wa.me/5551999390077?text=Ol%C3%A1!%20Gostaria%20de%20reservar%20uma%20mesa%20no%20Fierro%207." target="_blank">Reservar</a>
+</div></nav>
+
+<header class="hero">
+  <div class="bg"></div>
+  <video class="vid" src="img/hero.mp4" poster="img/hero-video.webp" autoplay muted loop playsinline preload="auto"></video>
+  <canvas id="faiscas"></canvas>
+  <div class="wrap">
+    <div class="kicker rv">Parrilla uruguaia · Moinhos de Vento</div>
+    <h1 class="serif rv d1">Fogo uruguaio<br>no <em>Parcão</em>.</h1>
+    <p class="rv d2">Cortes na brasa, drinks e encontros na esquina mais charmosa de Porto Alegre. A parrilla acesa desde o almoço até a última taça.</p>
+    <div class="cta rv d3">
+      <a class="btn btn-brasa" href="https://wa.me/5551999390077?text=Ol%C3%A1!%20Gostaria%20de%20reservar%20uma%20mesa%20no%20Fierro%207." target="_blank">Reservar mesa pelo WhatsApp</a>
+      <a class="btn btn-ghost" href="#cardapio">Ver cardápio</a>
+    </div>
+    <div class="selos rv d4">
+      <div class="selo"><b data-n="4.7" data-d="1">0</b><small>NOTA NO GOOGLE</small></div>
+      <div class="selo"><b data-n="507">0</b><small>AVALIAÇÕES</small></div>
+      <div class="selo"><b data-n="23700">0</b><small>SEGUIDORES NO INSTAGRAM</small></div>
+    </div>
+  </div>
+  <div class="scroll"></div>
+</header>
+
+<section id="casa"><div class="wrap casa">
+  <div class="foto rv"><img src="img/salao.webp" alt="Salão do Fierro 7 Parrilla com tijolos aparentes e sofás vermelhos"><div class="tag">Nosso salão</div></div>
+  <div>
+    <div class="kicker rv">A casa</div>
+    <h2 class="serif rv d1">Ferro, brasa<br>e <em>boa conversa</em>.</h2>
+    <p class="rv d2">O Fierro 7 traz a cara do Uruguai para a Rua Comendador Caminha, de frente para o Parcão. Tijolo aparente, ferro e almofadas vermelhas: um salão pensado para a mesa longa e sem pressa.</p>
+    <p class="rv d2">Na parrilla, os cortes vão para a grelha no ponto que você pedir. No copo, drinks autorais e vinhos platinos para acompanhar.</p>
+    <div class="pilares rv d3">
+      <div><b>Parrilla</b><small>cortes na brasa</small></div>
+      <div><b>Drinks</b><small>e vinhos platinos</small></div>
+      <div><b>Encontros</b><small>almoço ao jantar</small></div>
+    </div>
+  </div>
+</div></section>
+
+<section id="cardapio" class="cardapio"><div class="wrap">
+  <div class="kicker rv">Na mesa</div>
+  <h2 class="serif rv d1">Da parrilla <em>à mesa</em>.</h2>
+  <div class="tabs rv d2">
+    <button class="tab on" data-t="p1">Parrilla</button>
+    <button class="tab" data-t="p2">Para começar</button>
+    <button class="tab" data-t="p3">Doces & drinks</button>
+  </div>
+  <div class="pratos on" id="p1">
+    <div class="prato"><div><h3>Prime Rib</h3><p>O corte nobre que vai inteiro à grelha de ferro e chega à mesa no ponto.</p></div><span class="sel">Destaque</span></div>
+    <div class="prato"><div><h3>Matambre recheado</h3><p>O queridinho das avaliações: macio, recheado e assado lentamente na brasa.</p></div><span class="sel">Favorito</span></div>
+    <div class="prato"><div><h3>Ossobuco</h3><p>Cozimento longo, sabor profundo, para quem gosta de tempo na panela.</p></div></div>
+    <div class="prato"><div><h3>Cortes da casa</h3><p>Seleção de cortes do dia na parrilla, com acompanhamentos clássicos.</p></div></div>
+  </div>
+  <div class="pratos" id="p2">
+    <div class="prato"><div><h3>Fondue da casa</h3><p>Para dividir na mesa enquanto a parrilla trabalha.</p></div></div>
+    <div class="prato"><div><h3>Entradas do dia</h3><p>Pergunte ao garçom pelas sugestões da casa para abrir a noite.</p></div></div>
+  </div>
+  <div class="pratos" id="p3">
+    <div class="prato"><div><h3>Panqueca de doce de leite</h3><p>A sobremesa uruguaia por excelência.</p></div><span class="sel">Clássico</span></div>
+    <div class="prato"><div><h3>Drinks autorais</h3><p>Carta de drinks e vinhos selecionados de Mendoza e do Uruguai.</p></div></div>
+  </div>
+  <div class="nota rv"><span>Cardápio ilustrativo. Os itens e valores atualizados ficam no cardápio oficial da casa.</span><a class="btn btn-ghost" href="https://linktr.ee/fierroo7" target="_blank">Cardápio completo →</a></div>
+</div></section>
+
+<div class="faixa"><img src="img/fachada.webp" alt="Fachada do Fierro 7 com toldo vermelho e mesa na calçada" id="px">
+  <div class="wrap"><div class="kicker">Em frente ao Parcão</div><h2 class="serif">Uma mesa na calçada, um corte na brasa e o <em>pôr do sol</em> do Moinhos.</h2></div>
+</div>
+
+<section id="eventos"><div class="wrap">
+  <div class="kicker rv">Eventos</div>
+  <h2 class="serif rv d1">Seu próximo evento<br>pode ser no <em>Fierro 7</em>.</h2>
+  <div class="eventos">
+    <div class="ev rv"><div class="n">01</div><h3>Jantares harmonizados</h3><p>Noites com vinícolas convidadas, menu especial e o fogo aceso. Fique sabendo da próxima data.</p></div>
+    <div class="ev rv d1"><div class="n">02</div><h3>Aniversários e confraternizações</h3><p>Diferentes ambientes para diferentes ocasiões, da mesa longa ao salão reservado.</p></div>
+    <div class="ev rv d2"><div class="n">03</div><h3>Empresas</h3><p>Almoços de negócios e encontros de equipe com cardápio sob medida.</p></div>
+  </div>
+  <div style="margin-top:2.5rem" class="rv"><a class="btn btn-brasa" target="_blank" href="https://wa.me/5551999390077?text=Ol%C3%A1!%20Quero%20saber%20sobre%20eventos%20no%20Fierro%207.">Quero orçar um evento</a></div>
+</div></section>
+
+<section style="padding-top:0"><div class="wrap">
+  <div class="nota-g rv"><b data-n="4.7" data-d="1">0</b><div><div class="kicker">★★★★★ no Google</div><span style="color:var(--mut)"><span data-n="507" data-t="2200">0</span> avaliações de clientes daqui e de fora</span></div></div>
+  <div class="deps">
+    <div class="dep rv"><div class="est">★★★★★</div><p>“Carne excelente, no ponto exato. Adoramos!”</p><small>Avaliação no Google</small></div>
+    <div class="dep rv d1"><div class="est">★★★★★</div><p>“O matambre recheado é nota 10, no mínimo. Atendimento excepcional.”</p><small>Avaliação no Google</small></div>
+    <div class="dep rv d2"><div class="est">★★★★★</div><p>“Nosso restaurante número 1 em Porto Alegre.”</p><small>Avaliação no Google</small></div>
+  </div>
+</div></section>
+
+<section id="visita" style="background:rgba(21,17,14,.55);border-top:1px solid var(--line)"><div class="wrap visita">
+  <div>
+    <div class="kicker rv">Visite</div>
+    <h2 class="serif rv d1">Rua Comendador<br>Caminha, <em>324</em>.</h2>
+    <p class="rv d2" style="color:var(--mut)">Moinhos de Vento, Porto Alegre — em frente ao Parcão.</p>
+    <div class="horarios rv d3" id="hor">
+      <div data-d="1,2"><span>Segunda e terça</span><span>17h – 23h</span></div>
+      <div data-d="3,4"><span>Quarta e quinta</span><span>11h – 15h · 17h – 23h</span></div>
+      <div data-d="5,6"><span>Sexta e sábado</span><span>11h – 23h</span></div>
+      <div data-d="0"><span>Domingo</span><span>11h – 18h</span></div>
+    </div>
+    <a class="btn btn-brasa rv d4" target="_blank" href="https://wa.me/5551999390077?text=Ol%C3%A1!%20Gostaria%20de%20reservar%20uma%20mesa%20no%20Fierro%207.">Reservar pelo WhatsApp</a>
+  </div>
+  <a class="mapa rv d2" href="https://www.google.com/maps/search/?api=1&query=Fierro+7+Parrilla+Rua+Comendador+Caminha+324+Porto+Alegre" target="_blank"><img src="img/fachada.webp" alt="Fachada do Fierro 7"><div class="pin"><b>Fierro 7 Parrilla</b><span>R. Comendador Caminha, 324 · Moinhos de Vento</span><em>Abrir no Google Maps →</em></div></a>
+</div></section>
+
+<section class="final"><div class="wrap" style="position:relative">
+  <div class="kicker rv">Fierro 7 Parrilla</div>
+  <h2 class="serif rv d1">A brasa já está <em>acesa</em>.</h2>
+  <p class="rv d2" style="color:var(--mut);margin-bottom:2rem">Garanta sua mesa para hoje.</p>
+  <a class="btn btn-brasa rv d3" target="_blank" href="https://wa.me/5551999390077?text=Ol%C3%A1!%20Gostaria%20de%20reservar%20uma%20mesa%20no%20Fierro%207.">Reservar agora</a>
+</div></section>
+
+<footer><div class="wrap">
+  <span>© Fierro 7 Parrilla · R. Comendador Caminha, 324 · Porto Alegre/RS · <a href="https://www.instagram.com/fierroo7/" target="_blank">@fierroo7</a></span>
+  <span class="preview">Prévia de proposta — Atlas Digital</span>
+</div></footer>
+
+<a class="wa" href="https://wa.me/5551999390077?text=Ol%C3%A1!%20Gostaria%20de%20reservar%20uma%20mesa%20no%20Fierro%207." target="_blank" aria-label="WhatsApp"><svg viewBox="0 0 32 32"><path d="M16 3a13 13 0 0 0-11.2 19.6L3 29l6.6-1.7A13 13 0 1 0 16 3zm0 23.7c-2 0-4-.6-5.7-1.6l-.4-.2-3.9 1 1-3.8-.3-.4A10.7 10.7 0 1 1 16 26.7zm5.9-8c-.3-.2-1.9-1-2.2-1-.3-.1-.5-.2-.7.1l-1 1.3c-.2.2-.4.2-.7.1a8.8 8.8 0 0 1-4.4-3.8c-.3-.6.3-.5 1-1.7.1-.2 0-.4 0-.6l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.8 5 2.1.9 3 1 4 .8.7-.1 1.9-.8 2.2-1.5.3-.8.3-1.4.2-1.5-.1-.2-.3-.2-.6-.4z"/></svg></a>
+
+<script>
+// nav
+const nav=document.getElementById('nav');addEventListener('scroll',()=>nav.classList.toggle('solid',scrollY>60));
+// reveal
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('on');io.unobserve(e.target)}}),{threshold:.15});
+document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+// tabs
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab,.pratos').forEach(x=>x.classList.remove('on'));b.classList.add('on');document.getElementById(b.dataset.t).classList.add('on')});
+// horario de hoje
+const hoje=new Date().getDay();document.querySelectorAll('#hor [data-d]').forEach(r=>{if(r.dataset.d.split(',').includes(String(hoje)))r.classList.add('hoje')});
+// parallax faixa
+const px=document.getElementById('px');addEventListener('scroll',()=>{const r=px.parentElement.getBoundingClientRect();if(r.bottom>0&&r.top<innerHeight)px.style.transform=`translateY(${(r.top/innerHeight)*40}px)`},{passive:true});
+// ===== FOGO VIVO =====
+(()=>{
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const DPR=Math.min(devicePixelRatio||1,1.5);
+const hero=document.querySelector('.hero');
+const cF=document.getElementById('faiscas'),f=cF.getContext('2d');      // chamas + fumaça (atrás do texto)
+const IW=1420,IH=799; // tamanho da foto do hero
+let W,H,BW,BH,sc,ox,oy;
+function rs(){W=cF.width=hero.offsetWidth*DPR;H=cF.height=hero.offsetHeight*DPR;
+  sc=Math.max(W/IW,H/IH);ox=(W-IW*sc)/2;oy=(H-IH*sc)/2;}
+const P=(x,y)=>[ox+x*sc,oy+y*sc];               // coordenada da foto -> tela
+rs();addEventListener('resize',rs);
+// sprites
+function sprite(r,stops){const c=document.createElement('canvas');c.width=c.height=r*2;const g=c.getContext('2d');const gr=g.createRadialGradient(r,r,0,r,r,r);stops.forEach(s=>gr.addColorStop(s[0],s[1]));g.fillStyle=gr;g.fillRect(0,0,r*2,r*2);return c}
+const sFogo=sprite(64,[[0,'rgba(255,240,200,1)'],[.25,'rgba(255,170,60,.85)'],[.55,'rgba(255,80,10,.35)'],[1,'rgba(255,40,0,0)']]);
+const sFumo=sprite(64,[[0,'rgba(200,190,180,.55)'],[.5,'rgba(150,140,130,.22)'],[1,'rgba(120,110,100,0)']]);
+const sBrasa=sprite(16,[[0,'rgba(255,245,210,1)'],[.3,'rgba(255,150,40,.9)'],[1,'rgba(255,60,0,0)']]);
+const R=(a,b)=>a+Math.random()*(b-a);
+// --- chamas (sobre a área do fogo da foto)
+const chamas=[];
+function novaChama(){const [x,y]=P(R(850,1280),R(330,470));return{x,y,vx:R(-.3,.3),vy:-R(1.6,3.2)*sc,life:0,max:R(28,55),r:R(16,36)*sc,seed:Math.random()*99}}
+// --- fumaça (saindo da carne)
+const fumos=[];
+function novoFumo(){const [x,y]=P(R(700,1150),R(490,540));return{x,y,vx:R(-.15,.25)*sc,vy:-R(.35,.9)*sc,life:0,max:R(220,380),r:R(18,34)*sc,g:R(.5,1.1),seed:Math.random()*99}}
+// --- faíscas subindo do fogo
+const sob=[];
+function novaSob(){const [x,y]=P(R(850,1300),R(380,470));return{x,y,vx:R(-.6,.6)*DPR,vy:-R(1.5,4)*DPR,life:0,max:R(60,140),r:R(1,2.4)*DPR}}
+// --- brasas caindo (página toda)
+const cai=[];
+function novaCai(top){return{x:R(0,BW),y:top?R(-BH*.2,0):R(0,BH),vy:R(.35,1.3)*DPR,vx:R(-.2,.2)*DPR,r:R(1.2,3.4)*DPR,sw:R(.4,1.6),ph:Math.random()*7,fl:Math.random()*7,heat:R(.6,1)}}
+
+let t=0;
+function frame(){
+  t++;
+  const heroVis=hero.getBoundingClientRect().bottom>0;
+  if(heroVis&&!comVideo){
+    f.clearRect(0,0,W,H);
+    // brilho do fogo pulsando
+    const [gx,gy]=P(1070,330);const pul=.55+.25*Math.sin(t*.07)+.12*Math.sin(t*.23)+Math.random()*.08;
+    f.globalCompositeOperation='lighter';
+    const [gx2,gy2]=P(1070,280);const gl=f.createRadialGradient(gx2,gy2,0,gx2,gy2,420*sc);gl.addColorStop(0,`rgba(255,120,30,${.32*pul})`);gl.addColorStop(1,'rgba(255,60,0,0)');
+    f.fillStyle=gl;f.fillRect(0,0,W,H);
+    // chamas
+    for(let i=0;i<7;i++)chamas.push(novaChama());
+    for(let i=chamas.length-1;i>=0;i--){const p=chamas[i];p.life++;const k=p.life/p.max;
+      p.x+=p.vx+Math.sin(t*.12+p.seed)*.9*sc;p.y+=p.vy;p.vy*=.99;
+      const r=p.r*(1-k*.7);f.globalAlpha=Math.max(0,Math.sin(Math.PI*k)*.55*(.7+.3*Math.sin(t*.3+p.seed)));
+      f.drawImage(sFogo,p.x-r*.7,p.y-r*1.8,r*1.4,r*3.6);
+      if(p.life>=p.max)chamas.splice(i,1)}
+    // faíscas subindo
+    if(Math.random()<.5)sob.push(novaSob());
+    for(let i=sob.length-1;i>=0;i--){const p=sob[i];p.life++;p.x+=p.vx+Math.sin(t*.05+i)*.4;p.y+=p.vy;p.vy*=.995;
+      f.globalAlpha=Math.max(0,1-p.life/p.max);const r=p.r*3;f.drawImage(sBrasa,p.x-r,p.y-r,r*2,r*2);
+      if(p.life>=p.max)sob.splice(i,1)}
+    // fumaça (normal, sobe da carne)
+    f.globalCompositeOperation='screen';
+    if(t%2===0)fumos.push(novoFumo());
+    for(let i=fumos.length-1;i>=0;i--){const p=fumos[i];p.life++;const k=p.life/p.max;
+      p.x+=p.vx+Math.sin(t*.015+p.seed)*.35*sc;p.y+=p.vy;
+      const r=p.r*(1+k*4.5);f.globalAlpha=Math.sin(Math.PI*k)*.34*p.g;
+      f.drawImage(sFumo,p.x-r,p.y-r,r*2,r*2);
+      if(p.life>=p.max)fumos.splice(i,1)}
+    f.globalAlpha=1;f.globalCompositeOperation='source-over';
+  }
+  requestAnimationFrame(frame);
+}
+const vid=document.querySelector('.hero .vid');let comVideo=false;
+if(vid){vid.addEventListener('playing',()=>{vid.classList.add('ok');comVideo=true;cF.style.display='none'});vid.play?.().catch(()=>{});}
+requestAnimationFrame(frame);
+})();
+// ===== FUMAÇA DE FUNDO (do fim ao topo, atrás do conteúdo) =====
+(()=>{
+const c=document.getElementById('fumaca'),x=c.getContext('2d');
+const DPR=Math.min(devicePixelRatio||1,1.5);let W,H;
+const rs=()=>{W=c.width=innerWidth*DPR;H=c.height=innerHeight*DPR};rs();addEventListener('resize',rs);
+// textura de fumaça procedural (nuvem com ruído)
+function nuvem(seed){const s=256,cv=document.createElement('canvas');cv.width=cv.height=s;const g=cv.getContext('2d');
+  let r=seed*9973;const rnd=()=>(r=(r*16807)%2147483647)/2147483647;
+  // ruído fractal (fbm) com distorção = fiapos de fumaça
+  const N=64,grid=new Float32Array(N*N);for(let i=0;i<N*N;i++)grid[i]=rnd();
+  const sm=t=>t*t*(3-2*t);
+  const vn=(x,y)=>{const xi=Math.floor(x),yi=Math.floor(y),xf=sm(x-xi),yf=sm(y-yi),i=(a,b)=>grid[((b&(N-1))*N)+(a&(N-1))];
+    const a1=i(xi,yi)+(i(xi+1,yi)-i(xi,yi))*xf,a2=i(xi,yi+1)+(i(xi+1,yi+1)-i(xi,yi+1))*xf;return a1+(a2-a1)*yf};
+  const fbm=(x,y)=>{let v=0,a=.5,f=1;for(let o=0;o<5;o++){v+=a*vn(x*f,y*f);f*=2;a*=.5}return v};
+  const img=g.createImageData(s,s),d=img.data;
+  for(let y=0;y<s;y++)for(let x=0;x<s;x++){
+    const u=x/s*4,v=y/s*4;const w=fbm(u+fbm(u+1.7,v+9.2)*2.2,v+fbm(u+8.3,v+2.8)*2.2);
+    const dx=(x-s/2)/(s/2),dy=(y-s/2)/(s/2),rad=Math.max(0,1-Math.sqrt(dx*dx+dy*dy));
+    const val=Math.max(0,(w-.42)*2.4)*Math.pow(rad,1.4);
+    const k=(y*s+x)*4;d[k]=200;d[k+1]=190;d[k+2]=182;d[k+3]=Math.min(255,val*220)}
+  g.putImageData(img,0,0);return cv}
+const tex=[3,11,23,37,53].map(nuvem);
+const R=(a,b)=>a+Math.random()*(b-a);
+// névoa leve: nuvens grandes espalhadas pela tela, subindo e derivando devagar
+const nova=(ini)=>({x:R(-.15,1.15)*W,y:ini?R(-.1,1.15)*H:H+R(100,400)*DPR,s:R(380,780)*DPR,vy:-R(.12,.32)*DPR,vx:R(-.1,.1)*DPR,rot:R(0,6.3),vr:R(-.0008,.0008),t:tex[Math.random()*tex.length|0],a:R(.26,.44),ph:R(0,6.3)});
+const P=[];for(let i=0;i<22;i++)P.push(nova(true));
+let last=0;
+(function loop(ts){
+  const dt=Math.min((ts-last)/16.7||1,3);last=ts;
+  x.clearRect(0,0,W,H);
+  for(const p of P){
+    p.y+=p.vy*dt;p.x+=(p.vx+Math.sin(ts*.00015+p.ph)*.15*DPR)*dt;p.rot+=p.vr*dt;
+    if(p.y<-p.s*.6)Object.assign(p,nova(false));
+    const ent=Math.min(1,(H+p.s*.3-p.y)/(p.s*.6)),sai=Math.min(1,(p.y+p.s*.6)/(p.s*.8));
+    x.save();x.globalAlpha=p.a*Math.max(0,Math.min(ent,sai))*(.85+.15*Math.sin(ts*.0004+p.ph));x.translate(p.x,p.y);x.rotate(p.rot);x.drawImage(p.t,-p.s/2,-p.s/2,p.s,p.s);x.restore();
+  }
+  requestAnimationFrame(loop);
+})(0);
+})();
+// ===== CASCATA: todo bloco entra conforme rola =====
+(()=>{
+const alvos=document.querySelectorAll('section h2,section p,.pilares>div,.prato,.ev,.dep,.horarios>div,.tabs,.nota,.casa .foto,.mapa,.faixa h2,.faixa .kicker,.kicker,.btn,.nota-g,footer .wrap>*');
+alvos.forEach(el=>{if(el.closest('.hero'))return;if(!el.classList.contains('rv'))el.classList.add('rv')});
+// atraso em sequência para irmãos
+document.querySelectorAll('.pratos,.eventos,.deps,.horarios,.pilares').forEach(g=>[...g.children].forEach((ch,i)=>ch.style.transitionDelay=(i*.12)+'s'));
+const io2=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('on');io2.unobserve(e.target)}}),{threshold:.12,rootMargin:'0px 0px -6% 0px'});
+document.querySelectorAll('.rv:not(.on)').forEach(el=>io2.observe(el));
+// contadores: só começam quando aparecem
+const fmt=(v,d,s)=>(d?v.toFixed(d).replace('.',','):Math.round(v).toLocaleString('pt-BR'))+s;
+const ioN=new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)return;ioN.unobserve(e.target);const el=e.target,n=+el.dataset.n,d=+(el.dataset.d||0),s=el.dataset.s||'',dur=+(el.dataset.t||2600);let t0;
+  const run=t=>{t0??=t;const p=Math.min((t-t0)/dur,1),v=n*(1-Math.pow(1-p,4));el.textContent=fmt(v,d,s);if(p<1)requestAnimationFrame(run);else el.textContent=fmt(n,d,s)};
+  setTimeout(()=>requestAnimationFrame(run),el.closest('.hero')?1000:200)}),{threshold:.6});
+document.querySelectorAll('[data-n]').forEach(el=>{el.textContent=fmt(0,+(el.dataset.d||0),el.dataset.s||'');ioN.observe(el)});
+})();
+</script>
+</body>
+</html>
