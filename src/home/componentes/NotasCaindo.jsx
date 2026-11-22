@@ -275,10 +275,14 @@ function iniciar(el, fundo, THREE) {
     // rolagem: dá "vento" às notas (caem mais rápido e balançam mais)
     let ultimoScroll = window.scrollY
     let vento = 0
+    // Enquanto a pessoa rola, as notas ficam paradas (o 3D não disputa o processador com a rolagem).
+    // Quando ela para, elas voltam com uma rajada de vento proporcional ao quanto rolou.
+    let rolandoAte = 0
     const onScroll = () => {
       const dy = window.scrollY - ultimoScroll
       ultimoScroll = window.scrollY
       vento = lim(vento + dy * 0.9, -900, 1600)
+      rolandoAte = performance.now() + 160
     }
     window.addEventListener('scroll', onScroll, { passive: true })
 
@@ -311,6 +315,7 @@ function iniciar(el, fundo, THREE) {
       const dt = Math.min(0.05, bruto / 1000)
       anterior = agora
       if (document.hidden) return
+      if (agora < rolandoAte) { carencia = 10; return } // pausa durante a rolagem
       if (carencia > 0) carencia--
       else if (nivel < NIVEIS.length - 1) {
         somaQuadros += bruto
@@ -322,7 +327,7 @@ function iniciar(el, fundo, THREE) {
       }
       quadro++
       const t = (agora - inicio) / 1000
-      vento *= Math.pow(0.04, dt) // o vento passa em ~1 s
+      vento *= Math.pow(0.12, dt) // a rajada passa em ~1,5 s
 
       const escalaZ = (z) => camera.position.z / (camera.position.z - z) // quanto a profundidade encolhe
       for (const n of notas) {
