@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react'
-import * as THREE from 'three'
 
 /*
   Notas de dinheiro caindo ao fundo da página (atrás de todo o conteúdo).
@@ -142,12 +141,48 @@ export default function NotasCaindo({ fundo = '#0e0e0c' }) {
     const el = host.current
     if (!el) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (navigator.connection?.saveData) return // quem ativou economia de dados não baixa as notas
 
+    // Só começa no primeiro movimento da pessoa (rolar, mexer o mouse, tocar ou teclar),
+    // depois que a página terminou de carregar. Assim a abertura do site fica leve.
+    let limpar = () => {}
+    let cancelado = false
+    let iniciado = false
+    const eventos = ['scroll', 'wheel', 'pointermove', 'touchstart', 'keydown']
+    const tirarOuvintes = () => eventos.forEach((ev) => window.removeEventListener(ev, aoInteragir))
+    const comecar = () => {
+      if (cancelado || iniciado) return
+      iniciado = true
+      // o motor 3D (three.js) também só é baixado nessa hora
+      import('three').then((THREE) => { if (!cancelado) limpar = iniciar(el, fundo, THREE) })
+    }
+    function aoInteragir() {
+      tirarOuvintes()
+      if (document.readyState === 'complete') comecar()
+      else window.addEventListener('load', comecar, { once: true })
+    }
+    eventos.forEach((ev) => window.addEventListener(ev, aoInteragir, { passive: true }))
+    return () => {
+      cancelado = true
+      tirarOuvintes()
+      window.removeEventListener('load', comecar)
+      limpar()
+    }
+  }, [fundo])
+
+  return <div ref={host} aria-hidden="true" className="pointer-events-none fixed inset-0 z-0" />
+}
+
+function iniciar(el, fundo, THREE) {
+  {
     const celular = window.innerWidth < 768
-    const QTD = celular ? 12 : 24
+    const QTD = celular ? 10 : 18
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+    // Leve por padrão: sem suavização de bordas (pesa muito em placa de vídeo integrada)
+    // e resolução de no máximo 1x — as notas ficam ao fundo e em movimento, a diferença não aparece.
+    const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'low-power' })
+    const resBase = Math.min(window.devicePixelRatio || 1, 1)
+    renderer.setPixelRatio(resBase)
     renderer.domElement.style.cssText = 'display:block;width:100%;height:100%'
     el.appendChild(renderer.domElement)
     const scene = new THREE.Scene()
@@ -174,7 +209,7 @@ export default function NotasCaindo({ fundo = '#0e0e0c' }) {
           proporcao: 1024 / 450,
         }))
 
-    const geo = new THREE.PlaneGeometry(1, 1, 24, 6)
+    const geo = new THREE.PlaneGeometry(1, 1, 16, 4)
     const corFundo = new THREE.Color(fundo)
     let vw = 1
     let vh = 1
@@ -222,7 +257,8 @@ export default function NotasCaindo({ fundo = '#0e0e0c' }) {
       n.mat.uniforms.uBrilho.value = 0.75 + 0.3 * perto
       n.mat.uniforms.uNevoa.value = 0.45 * (1 - perto)
     }
-    notas.forEach((n) => sortear(n, false))
+    // entram por cima da tela, em ondas, em vez de surgirem no meio dela
+    notas.forEach((n) => { sortear(n, true); n.y += Math.random() * 0.8 })
     notas.sort((a, b) => a.z - b.z).forEach((n, i) => (n.mesh.renderOrder = i))
 
     const redimensionar = () => {
@@ -246,13 +282,45 @@ export default function NotasCaindo({ fundo = '#0e0e0c' }) {
     }
     window.addEventListener('scroll', onScroll, { passive: true })
 
+    // Qualidade automática: mede o tempo dos quadros e, se o computador não acompanhar,
+    // reduz resolução, quantidade de notas e, por último, a taxa de quadros. A rolagem tem prioridade.
+    const NIVEIS = [
+      { res: 1, qtd: QTD, pular: 1 },
+      { res: 0.75, qtd: QTD, pular: 1 },
+      { res: 0.75, qtd: Math.round(QTD * 0.6), pular: 1 },
+      { res: 0.6, qtd: Math.round(QTD * 0.45), pular: 2 },
+      { res: 0.5, qtd: Math.round(QTD * 0.35), pular: 2 },
+    ]
+    let nivel = 0
+    const aplicarNivel = () => {
+      const nv = NIVEIS[nivel]
+      renderer.setPixelRatio(resBase * nv.res)
+      renderer.setSize(vw, vh, false)
+      notas.forEach((n, i) => (n.mesh.visible = i < nv.qtd))
+    }
+    let somaQuadros = 0
+    let contaQuadros = 0
+    let quadro = 0
+    let carencia = 30 // ignora os primeiros quadros (carregamento das texturas)
+
     let anterior = performance.now()
     const inicio = anterior
     renderer.setAnimationLoop(() => {
       const agora = performance.now()
-      const dt = Math.min(0.05, (agora - anterior) / 1000)
+      const bruto = agora - anterior
+      const dt = Math.min(0.05, bruto / 1000)
       anterior = agora
       if (document.hidden) return
+      if (carencia > 0) carencia--
+      else if (nivel < NIVEIS.length - 1) {
+        somaQuadros += bruto
+        if (++contaQuadros >= 45) {
+          if (somaQuadros / contaQuadros > 20) { nivel++; aplicarNivel(); carencia = 20 }
+          somaQuadros = 0
+          contaQuadros = 0
+        }
+      }
+      quadro++
       const t = (agora - inicio) / 1000
       vento *= Math.pow(0.04, dt) // o vento passa em ~1 s
 
@@ -280,7 +348,7 @@ export default function NotasCaindo({ fundo = '#0e0e0c' }) {
         // saiu por baixo: volta por cima da tela com um novo jeito de cair
         if (n.y < -0.25) sortear(n, true)
       }
-      renderer.render(scene, camera)
+      if (quadro % NIVEIS[nivel].pular === 0) renderer.render(scene, camera)
     })
 
     return () => {
@@ -296,7 +364,5 @@ export default function NotasCaindo({ fundo = '#0e0e0c' }) {
       renderer.dispose()
       renderer.domElement.remove()
     }
-  }, [fundo])
-
-  return <div ref={host} aria-hidden="true" className="pointer-events-none fixed inset-0 z-0" />
+  }
 }
