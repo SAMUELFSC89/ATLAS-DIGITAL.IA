@@ -4,7 +4,205 @@
   "buildCommand": "echo sem-build",
   "outputDirectory": ".",
   "rewrites": [
-    { "source": "/", "has": [{ "type": "host", "value": "fierro7.atlasdigital.ia.br" }], "destination": "/fierro7/index.html" },
-    { "source": "/:path((?!fierro7/).*)", "has": [{ "type": "host", "value": "fierro7.atlasdigital.ia.br" }], "destination": "/fierro7/:path" }
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "fierro7.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/fierro7/index.html"
+    },
+    {
+      "source": "/:path((?!fierro7/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "fierro7.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/fierro7/:path"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "cintia.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/cintia/index.html"
+    },
+    {
+      "source": "/:path((?!cintia/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "cintia.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/cintia/:path"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "fabiana.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/fabiana/index.html"
+    },
+    {
+      "source": "/:path((?!fabiana/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "fabiana.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/fabiana/:path"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "bertolini.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/bertolini/index.html"
+    },
+    {
+      "source": "/:path((?!bertolini/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "bertolini.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/bertolini/:path"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "dandysden.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/dandysden/index.html"
+    },
+    {
+      "source": "/:path((?!dandysden/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "dandysden.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/dandysden/:path"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "ramos.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/ramos/index.html"
+    },
+    {
+      "source": "/:path((?!ramos/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "ramos.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/ramos/:path"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "jessicasoares.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/jessicasoares/index.html"
+    },
+    {
+      "source": "/:path((?!jessicasoares/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "jessicasoares.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/jessicasoares/:path"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "odontoclinica.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/odontoclinica/index.html"
+    },
+    {
+      "source": "/:path((?!odontoclinica/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "odontoclinica.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/odontoclinica/:path"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "fitnessclub.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/fitnessclub/index.html"
+    },
+    {
+      "source": "/:path((?!fitnessclub/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "fitnessclub.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/fitnessclub/:path"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "canoasfitness.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/canoasfitness/index.html"
+    },
+    {
+      "source": "/:path((?!canoasfitness/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "canoasfitness.atlasdigital.ia.br"
+        }
+      ],
+      "destination": "/canoasfitness/:path"
+    }
   ]
 }
