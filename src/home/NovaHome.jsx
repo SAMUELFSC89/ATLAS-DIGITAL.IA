@@ -439,7 +439,7 @@ export default function NovaHome({ onPedirOrcamento = () => {}, onEntrar = () =>
           <HeroCarrosselDeImagens
             tagline="Agenda aberta para dezembro"
             title="Sites que vendem enquanto você dorme"
-            description="Criamos sites e landing pages sob medida para negócios locais que querem parecer grandes e vender mais."
+            description="Criamos sites e landing pages sob medida para sua empresa ser encontrada e conquistar mais clientes."
             ctaText="Começar projeto"
             className="bg-transparent! pt-20 pb-[33vh] md:pb-[40vh]"
             images={imagensCarrossel}
