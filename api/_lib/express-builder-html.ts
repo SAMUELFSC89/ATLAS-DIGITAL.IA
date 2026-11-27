@@ -134,11 +134,16 @@ function composeCinematicOpening($:ReturnType<typeof load>,origin:string,assets:
 }
 
 function prepareCameraSequence($:ReturnType<typeof load>,origin:string,sequenceUrl?:string){
-  const media=$('section#inicio > [data-atlas-shot] > [data-atlas-shot-media]').first();
+  const shot=$('section#inicio > [data-atlas-shot]').first();
+  const media=shot.children('[data-atlas-shot-media]').first();
   const url=builderSequenceUrl(sequenceUrl||media.attr('data-atlas-sequence')||'',origin);
   $('[data-atlas-sequence]').removeAttr('data-atlas-sequence');
   $('[data-atlas-sequence-active]').removeAttr('data-atlas-sequence-active');
-  if(url&&media.length)media.attr('data-atlas-sequence',url).append('<canvas aria-hidden="true"></canvas>');
+  if(url&&media.length){
+    // The trusted canvas is the sole background of a scroll-controlled opening.
+    shot.children('[data-atlas-shot-copy]').find('[data-atlas-shot-media]').remove();
+    media.attr('data-atlas-sequence',url).append('<canvas aria-hidden="true"></canvas>');
+  }
 }
 const STORY_STYLES = `
 @keyframes atlas-story-wipe{from{clip-path:inset(0 31% 0 0)}to{clip-path:inset(0)}}

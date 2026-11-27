@@ -55,6 +55,18 @@ test('cinematic opening pins two trusted frames and preserves its copy when edit
  assert.equal($('#inicio img').length,2);
 });
 
+test('camera opening removes model-authored duplicate media above the canvas',()=>{
+ const id=randomUUID(),file=randomUUID();
+ const sequence=origin+'/api/site-express?view=builder&action=sequence&id='+id+'&file='+file;
+ const source=raw.replace('<h1>Seu espaço</h1>',`<figure class="duplicate" data-atlas-shot-media><img src="${imageUrl}"></figure><h1>Seu espaço</h1>`);
+ const photo={id:file,projectId:id,kind:'photo' as const,name:'Foto',mimeType:'image/webp' as const,width:1280,height:720,size:100,url:imageUrl};
+ const $=load(prepareBuilderHtml(source,origin,'pt-BR',[photo],null,sequence).html);
+ assert.equal($('#inicio [data-atlas-shot-media]').length,1);
+ assert.equal($('#inicio .duplicate').length,0);
+ assert.equal($('#inicio [data-atlas-shot-media] canvas').length,1);
+ assert.equal($('#inicio h1').text(),'Seu espaço');
+});
+
 test('cinematic camera changes pose and draws lightning only at the catch',async()=>{
  const photo=(background:string)=>sharp({create:{width:640,height:360,channels:3,background}}).png().toBuffer();
  const base=await photo('#232a35'),pose=await photo('#4e2020');
